@@ -15,7 +15,9 @@ use crate::config::AgentConfig;
 use crate::message::{Message, AssistantMessage, SystemMessage, SystemMessageLevel, ToolUseSummaryMessage};
 use crate::state::{State, Terminal, TerminalReason, Continue, ContinueReason};
 use crate::deps::{QueryDeps, ProductionDeps, ModelCallParams};
-use crate::tools::{ToolRegistry, ToolExecutor, ToolContext};
+use crate::tools::{ToolRegistry, ToolContext};
+use crate::tools::partition::{ConcurrentPartitioner, ToolUseCallInfo};
+use crate::tools::executor::{StreamingToolExecutor, BatchToolExecutor, ExecutorConfig, ToolExecutionResult};
 use crate::context::{ContextManager, ContextPipelineResult};
 
 /// Agent 状态枚举
