@@ -1,6 +1,10 @@
 //! Providers crate - 提供外部服务提供者实现
-//! 
+//!
 //! 本 crate 负责实现各种外部服务的提供者（如 LLM、数据库、存储等）
+
+pub mod anthropic;
+
+pub use anthropic::{AnthropicClient, ChatMessage, ContentBlock, ToolDef, StreamEvent, Usage, convert_usage, convert_content_block};
 
 use anyhow::Result;
 use async_trait::async_trait;

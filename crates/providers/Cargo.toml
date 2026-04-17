@@ -12,3 +12,5 @@ tracing.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 reqwest.workspace = true
+futures-util = { workspace = true }
+devil-streaming = { path = "../streaming" }

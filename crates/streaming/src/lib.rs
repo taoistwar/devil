@@ -15,6 +15,7 @@ pub mod prefetch;
 pub mod cost_tracking;
 pub mod cache_optimizer;
 pub mod mcp_integration;
+pub mod anthropic_deps;
 
 pub use query_engine::{QueryEngine, QueryDeps, StreamEvent};
 pub use streaming_tool_executor::{StreamingToolExecutor, TrackedTool, ToolState};
@@ -28,6 +29,7 @@ pub use mcp_integration::{
     McpStreamingIntegration,
     create_mcp_query_engine,
 };
+pub use anthropic_deps::AnthropicQueryDeps;
 
 /// 流式处理版本
 pub const STREAMING_VERSION: &str = env!("CARGO_PKG_VERSION");

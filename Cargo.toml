@@ -7,11 +7,32 @@ members = [
     "crates/plugins",
     "crates/gateway",
     "crates/providers",
+    "crates/mcp",
+    "crates/streaming",
 ]
 
-[workspace.package]
+# 主程序包
+[package]
+name = "devil-agent"
 version = "0.1.0"
 edition = "2021"
+description = "Devil Agent - 智能开发助手"
+
+[[bin]]
+name = "devil"
+path = "src/main.rs"
+
+[dependencies]
+devil-agent-core = { path = "crates/agent" }
+devil-streaming = { path = "crates/streaming" }
+devil-mcp = { path = "crates/mcp" }
+providers = { path = "crates/providers" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
@@ -25,3 +46,6 @@ thiserror = "1"
 chrono = "0.4"
 reqwest = "0.11.14"
 uuid = { version = "1", features = ["v4"] }
+futures = "0.3"
+futures-util = "0.3"
+dashmap = "5"
