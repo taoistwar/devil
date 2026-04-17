@@ -15,7 +15,9 @@ use serde::{Deserialize, Serialize};
 use crate::tools::tool::{
     Tool, ToolContext, ToolResult, ToolPermissionLevel,
     InputValidationResult, PermissionCheckResult, ContextModifier,
+    InterruptBehavior,
 };
+use crate::permissions::bash_analyzer::BashSemanticAnalyzer;
 
 /// buildTool 工厂函数
 /// 
@@ -267,50 +269,100 @@ impl Tool for BashTool {
         })
     }
 
-    fn validate_input_permissions(&self, input: &Self::Input) -> InputValidationResult {
+    fn validate_input_permissions(
+        &self,
+        input: &Self::Input,
+        _context: &ToolContext,
+    ) -> InputValidationResult {
         // 检查命令是否为空
         if input.command.trim().is_empty() {
             return InputValidationResult {
                 is_valid: false,
                 error_message: Some("Command cannot be empty".to_string()),
+                error_code: None,
             };
         }
 
         InputValidationResult {
             is_valid: true,
             error_message: None,
+            error_code: None,
         }
     }
 
-    fn has_permission(&self, input: &Self::Input, _ctx: &ToolContext) -> bool {
+    async fn check_permissions(
+        &self,
+        input: &Self::Input,
+        _context: &ToolContext,
+    ) -> crate::tools::tool::PermissionResult {
+        // 使用 Bash 语义分析器分析命令
+        let analysis = BashSemanticAnalyzer::analyze_command(&input.command);
+
         // 检查危险命令
-        let dangerous_patterns = ["rm -rf", "dd if=", "mkfs", ":(){:|:&};:"];
-        
-        for pattern in &dangerous_patterns {
-            if input.command.contains(pattern) {
-                return false;
-            }
+        if analysis.is_dangerous {
+            return crate::tools::tool::PermissionResult::deny(
+                analysis.danger_reason.unwrap_or_else(|| "Dangerous command detected".to_string())
+            );
         }
 
-        true
+        // 检查是否访问敏感路径
+        if analysis.accesses_sensitive_path {
+            return crate::tools::tool::PermissionResult::ask(
+                format!("Command accesses sensitive paths: {}", input.command)
+            );
+        }
+
+        // 检查是否为破坏性操作
+        if analysis.is_destructive {
+            return crate::tools::tool::PermissionResult::ask(
+                format!("Destructive operation detected: {}", input.command)
+            );
+        }
+
+        // 默认允许
+        crate::tools::tool::PermissionResult::allow()
+    }
+
+    fn interrupt_behavior(&self) -> InterruptBehavior {
+        // Bash 工具默认 block 用户中断
+        // 用户提交新消息时，Bash 继续执行，新消息等待
+        InterruptBehavior::Block
     }
 
     fn permission_level(&self) -> ToolPermissionLevel {
         ToolPermissionLevel::Destructive
     }
 
-    fn is_concurrency_safe(&self) -> bool {
+    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
         // Bash 工具默认不安全，因为可能有副作用
         false
     }
 
-    fn is_read_only(&self) -> bool {
+    fn is_read_only(&self, _input: &Self::Input) -> bool {
         false
     }
 
+    fn is_destructive(&self, input: &Self::Input) -> bool {
+        let analysis = BashSemanticAnalyzer::analyze_command(&input.command);
+        analysis.is_destructive
+    }
+
+    fn is_search_or_read_command(&self, input: &Self::Input) -> crate::tools::tool::SearchOrReadResult {
+        let analysis = BashSemanticAnalyzer::analyze_command(&input.command);
+        crate::tools::tool::SearchOrReadResult {
+            is_search: analysis.is_search,
+            is_read: analysis.is_read,
+            is_list: analysis.is_list,
+        }
+    }
+
     fn should_always_load(&self) -> bool {
-        // AgentTool 可能被标记为 alwaysLoad
         false
+    }
+
+    fn timeout_ms(&self, _input: &Self::Input) -> Option<u64> {
+        // Bash 工具默认 5 分钟超时
+        Some(5 * 60 * 1000)
     }
 
     async fn execute(

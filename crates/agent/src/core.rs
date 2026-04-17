@@ -19,6 +19,8 @@ use crate::tools::{ToolRegistry, ToolContext};
 use crate::tools::partition::{ConcurrentPartitioner, ToolUseCallInfo};
 use crate::tools::executor::{StreamingToolExecutor, BatchToolExecutor, ExecutorConfig, ToolExecutionResult};
 use crate::context::{ContextManager, ContextPipelineResult};
+use crate::subagent::{SubagentExecutor, SubagentRegistry, SubagentParams, SubagentType, SubagentResult};
+use crate::subagent::types::{ForkSubagentConfig, CacheSafeParams, ToolUseContext, ThinkingConfig};
 
 /// Agent 状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,28 +49,44 @@ pub struct Agent {
     deps: Arc<dyn QueryDeps>,
     /// 上下文管理器
     context_manager: ContextManager,
+    /// 子代理注册表
+    subagent_registry: Arc<RwLock<SubagentRegistry>>,
+    /// 子代理执行器
+    subagent_executor: Arc<RwLock<SubagentExecutor>>,
 }
 
 impl Agent {
     /// 创建新的 Agent 实例
     pub fn new(config: AgentConfig) -> Result<Self> {
+        let registry = SubagentRegistry::new();
+        let executor = SubagentExecutor::new()
+            .with_fork_config(ForkSubagentConfig::default());
+        
         Ok(Self {
             config,
             status: Arc::new(RwLock::new(AgentStatus::Initializing)),
             tool_registry: Arc::new(RwLock::new(ToolRegistry::new())),
             deps: Arc::new(ProductionDeps::new()),
             context_manager: ContextManager::with_defaults(),
+            subagent_registry: Arc::new(RwLock::new(registry)),
+            subagent_executor: Arc::new(RwLock::new(executor)),
         })
     }
 
     /// 使用自定义依赖创建 Agent（用于测试）
     pub fn with_deps(config: AgentConfig, deps: Arc<dyn QueryDeps>) -> Self {
+        let registry = SubagentRegistry::new();
+        let executor = SubagentExecutor::new()
+            .with_fork_config(ForkSubagentConfig::default());
+        
         Self {
             config,
             status: Arc::new(RwLock::new(AgentStatus::Initializing)),
             tool_registry: Arc::new(RwLock::new(ToolRegistry::new())),
             deps,
             context_manager: ContextManager::with_defaults(),
+            subagent_registry: Arc::new(RwLock::new(registry)),
+            subagent_executor: Arc::new(RwLock::new(executor)),
         }
     }
 
@@ -116,6 +134,34 @@ impl Agent {
         Ok(())
     }
 
+    /// 配置 Fork 子代理启用状态
+    pub async fn configure_fork(&self, enabled: bool) {
+        let mut executor = self.subagent_executor.write().await;
+        let current_config = ForkSubagentConfig {
+            enabled,
+            ..ForkSubagentConfig::default()
+        };
+        *executor = executor.clone().with_fork_config(current_config);
+    }
+
+    /// 获取子代理注册表（只读）
+    pub async fn get_subagent_registry(&self) -> Arc<RwLock<SubagentRegistry>> {
+        self.subagent_registry.clone()
+    }
+
+    /// 注册自定义子代理
+    pub async fn register_subagent(&self, agent: SubagentDefinition) -> Result<()> {
+        let mut registry = self.subagent_registry.write().await;
+        registry.register_custom(agent);
+        Ok(())
+    }
+
+    /// 执行子代理
+    pub async fn execute_subagent(&self, params: SubagentParams) -> Result<SubagentResult> {
+        let executor = self.subagent_executor.read().await;
+        executor.execute(params).await.map_err(|e| anyhow::anyhow!("{}", e))
+    }
+
     /// 创建对话循环
     pub fn create_loop(&self, initial_messages: Vec<Message>) -> AgentLoop {
         AgentLoop::new(
@@ -150,6 +196,7 @@ pub struct RunResult {
 /// - 流式输出
 /// - 可取消性
 /// - 背压控制
+/// - 子代理执行
 pub struct AgentLoop {
     /// 配置
     config: AgentConfig,
@@ -161,6 +208,10 @@ pub struct AgentLoop {
     tool_registry: Arc<RwLock<ToolRegistry>>,
     /// 工具执行器
     tool_executor: ToolExecutor,
+    /// 子代理注册表
+    subagent_registry: Arc<RwLock<SubagentRegistry>>,
+    /// 子代理执行器
+    subagent_executor: Arc<RwLock<SubagentExecutor>>,
 }
 
 impl AgentLoop {
@@ -171,12 +222,44 @@ impl AgentLoop {
         deps: Arc<dyn QueryDeps>,
         tool_registry: Arc<RwLock<ToolRegistry>>,
     ) -> Self {
+        let registry = SubagentRegistry::new();
+        let executor = SubagentExecutor::new()
+            .with_fork_config(ForkSubagentConfig::default());
+        
         Self {
             config,
             state: State::initial(initial_messages),
             deps,
             tool_registry,
             tool_executor: ToolExecutor::default(),
+            subagent_registry: Arc::new(RwLock::new(registry)),
+            subagent_executor: Arc::new(RwLock::new(executor)),
+        }
+    }
+
+    /// 使用自定义子代理配置创建对话循环
+    pub fn with_subagent_config(
+        config: AgentConfig,
+        initial_messages: Vec<Message>,
+        deps: Arc<dyn QueryDeps>,
+        tool_registry: Arc<RwLock<ToolRegistry>>,
+        fork_enabled: bool,
+    ) -> Self {
+        let registry = SubagentRegistry::new();
+        let executor = SubagentExecutor::new()
+            .with_fork_config(ForkSubagentConfig {
+                enabled: fork_enabled,
+                ..Default::default()
+            });
+        
+        Self {
+            config,
+            state: State::initial(initial_messages),
+            deps,
+            tool_registry,
+            tool_executor: ToolExecutor::default(),
+            subagent_registry: Arc::new(RwLock::new(registry)),
+            subagent_executor: Arc::new(RwLock::new(executor)),
         }
     }
 
@@ -299,7 +382,36 @@ impl AgentLoop {
 
             debug!("Detected {} tool call(s)", tool_use_blocks.len());
 
-            // TODO: 执行工具调用
+            // 检查是否有 Agent 工具调用（子代理）
+            let mut has_agent_tool = false;
+            for block in &tool_use_blocks {
+                if block.name == "Agent" || block.name == "Subagent" {
+                    has_agent_tool = true;
+                    break;
+                }
+            }
+
+            if has_agent_tool {
+                // 执行子代理逻辑
+                info!("Detected agent tool call, spawning subagent");
+                
+                match self.execute_subagent_tool(&call_result.assistant_message).await {
+                    Ok(subagent_result) => {
+                        info!("Subagent completed with {} messages", subagent_result.messages.len());
+                        
+                        // 将子代理结果添加到消息历史
+                        for msg in subagent_result.messages {
+                            self.state.messages.push(msg);
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Subagent execution failed: {}", e);
+                        // 子代理失败不阻断主流程，记录错误后继续
+                    }
+                }
+            }
+
+            // TODO: 执行其他工具调用
             // 这里简化处理，实际应该：
             // 1. 根据是否启用流式执行选择执行策略
             // 2. 执行权限检查
@@ -327,6 +439,63 @@ impl AgentLoop {
     async fn execute_micro_compact(&self, messages: Vec<Message>) -> Result<Vec<Message>> {
         let result = self.deps.micro_compact(messages).await?;
         Ok(result.messages)
+    }
+
+    /// 执行子代理工具调用
+    async fn execute_subagent_tool(
+        &self,
+        assistant_message: &crate::message::AssistantMessage,
+    ) -> Result<SubagentResult> {
+        use crate::subagent::types::CacheSafeParams;
+        use std::collections::HashMap;
+        
+        // 获取子代理参数（从工具输入解析）
+        // TODO: 实际需要从 tool_use_blocks 中解析 Agent 工具的输入
+        // 这里简化处理
+        
+        let registry = self.subagent_registry.read().await;
+        let fork_enabled = registry.get_fork_config().enabled;
+        drop(registry);
+        
+        let executor = self.subagent_executor.read().await;
+        let is_fork_enabled = executor.is_fork_enabled();
+        drop(executor);
+        
+        // 构建子代理参数
+        let params = SubagentParams {
+            prompt_messages: self.state.messages.clone(),
+            cache_safe_params: CacheSafeParams {
+                system_prompt: self.config.system_prompt.clone(),
+                user_context: HashMap::new(),
+                system_context: HashMap::new(),
+                tool_use_context: ToolUseContext {
+                    available_tools: vec!["*".to_string()],
+                    rendered_system_prompt: self.config.system_prompt.clone(),
+                    thinking_config: None,
+                },
+                fork_context_messages: self.state.messages.clone(),
+            },
+            subagent_type: if fork_enabled {
+                SubagentType::Fork
+            } else {
+                SubagentType::GeneralPurpose
+            },
+            directive: "执行子代理任务".to_string(),
+            max_turns: None,
+            max_output_tokens: None,
+            skip_transcript: false,
+            skip_cache_write: false,
+            run_in_background: true,
+            worktree_path: None,
+            parent_cwd: None,
+        };
+        
+        // 执行子代理
+        let executor = self.subagent_executor.read().await;
+        let result = executor.execute(params).await.map_err(|e| anyhow::anyhow!("{}", e))?;
+        drop(executor);
+        
+        Ok(result)
     }
 }
 

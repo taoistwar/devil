@@ -19,3 +19,6 @@ uuid = { version = "1", features = ["v4"] }
 reqwest.workspace = true
 lazy_static = "1.4"
 regex = "1"
+thiserror = "1"
+serde_yaml = "0.9"
+chrono = { version = "0.4", features = ["serde"] }
