@@ -34,7 +34,7 @@ pub trait Transport: Send + Sync {
     async fn send(&self, message: String) -> Result<()>;
 
     /// 接收 JSON-RPC 响应（返回 None 表示连接关闭）
-    async fn recv(&self) -> Result<Option<String>>;
+    async fn recv(&mut self) -> Result<Option<String>>;
 
     /// 关闭连接
     async fn close(&self) -> Result<()>;
@@ -60,18 +60,15 @@ impl TransportType {
     /// 从服务器配置判断传输类型
     pub fn from_config(config: &crate::McpServerConfig) -> Self {
         // SDK 类型优先判断
-        if config.sdk_language.is_some() {
-            return match config.sdk_language.as_deref().unwrap_or("") {
-                "rust" => Self::SdkRust,
-                "python" => Self::SdkPython,
-                "node" | "typescript" => Self::SdkNode,
-                "bun" => Self::SdkBun,
-                _ => Self::SdkRust, // 默认 Rust SDK
-            };
+        if let Some(sdk_config) = &config.sdk_config {
+            if !sdk_config.register_fn.is_empty() {
+                return Self::SdkRust; // Simplified - would need sdk_language field
+            }
         }
 
         // 根据 URL 或命令判断协议类型
-        if let Some(url) = &config.url {
+        if let Some(remote_config) = &config.remote_config {
+            let url = &remote_config.url;
             if url.starts_with("ws://") || url.starts_with("wss://") {
                 Self::WebSocket
             } else if url.contains("/sse") || url.contains("/mcp") {

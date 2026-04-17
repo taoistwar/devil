@@ -32,7 +32,7 @@ pub struct ToolContext {
 }
 
 /// 文件状态
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileState {
     /// 文件路径
     pub path: String,
@@ -201,8 +201,8 @@ impl<O> ToolResult<O> {
     pub fn error(
         tool_use_id: impl Into<String>,
         error: impl Into<String>,
-    ) -> Self {
-        Self {
+    ) -> ToolResult<serde_json::Value> {
+        ToolResult {
             tool_use_id: tool_use_id.into(),
             is_success: false,
             output: serde_json::Value::Null,
@@ -213,8 +213,8 @@ impl<O> ToolResult<O> {
     }
 
     /// 创建中断的结果
-    pub fn interrupted(tool_use_id: impl Into<String>) -> Self {
-        Self {
+    pub fn interrupted(tool_use_id: impl Into<String>) -> ToolResult<serde_json::Value> {
+        ToolResult {
             tool_use_id: tool_use_id.into(),
             is_success: false,
             output: serde_json::Value::Null,
@@ -260,6 +260,9 @@ impl Default for ContextModifier {
 /// 工具进度数据 Trait
 pub trait ToolProgressData: Clone + Send + Sync {}
 
+impl ToolProgressData for serde_json::Value {}
+impl ToolProgressData for String {}
+
 /// 工具进度事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolProgress<P: ToolProgressData> {
@@ -303,7 +306,9 @@ pub trait Tool: Send + Sync {
     fn name(&self) -> &str;
 
     /// 获取工具描述
-    fn description(&self) -> &str;
+    fn description(&self) -> &str {
+        ""
+    }
 
     /// 获取工具别名（用于向后兼容）
     fn aliases(&self) -> &[&str] {
@@ -364,14 +369,14 @@ pub trait Tool: Send + Sync {
     }
 
     /// 判断工具是否为只读操作
-    fn is_read_only(&self, _input: &Self::Input) -> bool {
+    fn is_read_only(&self) -> bool {
         false
     }
 
     /// 判断工具是否支持并发执行
     /// 
     /// fail-closed 原则：默认为 false，工具必须显式声明自己安全
-    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
+    fn is_concurrency_safe(&self) -> bool {
         false
     }
 
@@ -446,7 +451,6 @@ pub trait Tool: Send + Sync {
         input: Self::Input,
         ctx: &ToolContext,
         progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
-        cancel_signal: Option<tokio::sync::watch::Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>>;
 
     // ===== 要素六：UI 渲染 =====
@@ -519,6 +523,26 @@ pub enum ToolPermissionLevel {
     Destructive,
     /// 全局拒绝（任何情况下都不允许）
     BlanketDenied,
+}
+
+impl Default for ToolPermissionLevel {
+    fn default() -> Self {
+        Self::ReadOnly
+    }
+}
+
+/// 工具元数据
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolMetadata {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+    pub permission_level: ToolPermissionLevel,
+    pub concurrency_safe: bool,
+    pub read_only: bool,
+    pub timeout_secs: Option<u64>,
+    pub always_load: bool,
+    pub aliases: Vec<String>,
 }
 
 /// 工具调用块

@@ -63,7 +63,7 @@ impl HttpPollingTransport {
                 }
 
                 // 轮询新消息
-                let url = base_url.trim_end_matches('/') + "/poll";
+                let url = format!("{}/poll", base_url.trim_end_matches('/'));
                 
                 match client.get(&url).send().await {
                     Ok(resp) => {
@@ -109,7 +109,7 @@ impl Transport for HttpPollingTransport {
             anyhow::bail!("Transport is not alive");
         }
 
-        let url = self.base_url.trim_end_matches('/') + "/send";
+        let url = format!("{}/send", self.base_url.trim_end_matches('/'));
 
         debug!("Sending HTTP POST: {}", url);
 
@@ -131,7 +131,7 @@ impl Transport for HttpPollingTransport {
         Ok(())
     }
 
-    async fn recv(&self) -> Result<Option<String>> {
+    async fn recv(&mut self) -> Result<Option<String>> {
         if !self.alive.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(None);
         }

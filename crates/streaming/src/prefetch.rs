@@ -187,20 +187,19 @@ impl ParallelPrefetcher {
     }
 
     /// 等待 MDM 预取完成
-    pub async fn await_mdm(&self, mut handle: MdmPrefetchHandle) -> Result<MdmConfig> {
+    pub async fn await_mdm(&self, handle: MdmPrefetchHandle) -> Result<MdmConfig> {
         let elapsed = handle.start_time.elapsed();
 
-        if let Some(mut child) = handle.child.take() {
+        if let Some(_child) = handle.child {
             match tokio::time::timeout(
                 std::time::Duration::from_secs(2),
-                child.wait_with_output(),
+                _child.wait_with_output(),
             )
             .await
             {
                 Ok(Ok(output)) if output.status.success() => {
                     let json_str = String::from_utf8_lossy(&output.stdout);
 
-                    // 解析 MDM 配置
                     let config = self.parse_mdm_json(&json_str)?;
 
                     info!(
@@ -220,7 +219,6 @@ impl ParallelPrefetcher {
                 }
                 Err(_) => {
                     warn!("MDM read timeout");
-                    child.kill().await.ok();
                     Ok(MdmConfig::default())
                 }
             }

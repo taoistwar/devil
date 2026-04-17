@@ -219,7 +219,7 @@ pub use types::{
     SkillUsage, ConditionalSkills, SAFE_SKILL_PROPERTIES,
     parse_frontmatter,
 };
-pub use loader::{SkillLoader, ConditionalSkills as LoaderConditionalSkills};
+pub use loader::SkillLoader;
 pub use executor::{SkillExecutor, SkillExecutionResult, SkillExecutionError, ContextModifier};
 pub use permissions::{
     SkillPermissionChecker, PermissionCheckResult, PermissionRule, RuleType, RuleSource,

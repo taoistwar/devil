@@ -2,12 +2,15 @@
 //! 
 //! 定义 6 种钩子类型及其配置 Schema
 
+use crate::hooks::response::HookResponse;
+use crate::hooks::events::HookEvent;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// 钩子类型枚举（6 种）
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum HookType {
     /// Command 钩子 - Shell 命令执行
@@ -26,8 +29,22 @@ pub enum HookType {
     Function(FunctionHook),
 }
 
+impl PartialEq for HookType {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (HookType::Command(a), HookType::Command(b)) => a == b,
+            (HookType::Prompt(a), HookType::Prompt(b)) => a == b,
+            (HookType::Agent(a), HookType::Agent(b)) => a == b,
+            (HookType::Http(a), HookType::Http(b)) => a == b,
+            (HookType::Callback(_), HookType::Callback(_)) => false,
+            (HookType::Function(_), HookType::Function(_)) => false,
+            _ => false,
+        }
+    }
+}
+
 /// Command 钩子配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CommandHook {
     /// Shell 命令
     pub command: String,
@@ -67,7 +84,7 @@ fn default_shell() -> ShellType {
 }
 
 /// Prompt 钩子配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PromptHook {
     /// LLM 提示词
     pub prompt: String,
@@ -89,7 +106,7 @@ pub struct PromptHook {
 }
 
 /// Agent 钩子配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentHook {
     /// 验证提示词
     pub prompt: String,
@@ -111,7 +128,7 @@ pub struct AgentHook {
 }
 
 /// HTTP 钩子配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HttpHook {
     /// 请求 URL
     pub url: String,
@@ -136,10 +153,17 @@ pub struct HttpHook {
 }
 
 /// Callback 钩子（仅运行时存在）
-#[derive(Clone)]
 pub struct CallbackHook {
     /// 回调函数
-    pub callback: Box<dyn Fn(&HookEvent) -> HookResponse + Send + Sync>,
+    pub callback: Arc<dyn Fn(&HookEvent) -> HookResponse + Send + Sync>,
+}
+
+impl Clone for CallbackHook {
+    fn clone(&self) -> Self {
+        Self {
+            callback: self.callback.clone(),
+        }
+    }
 }
 
 impl std::fmt::Debug for CallbackHook {
@@ -149,12 +173,20 @@ impl std::fmt::Debug for CallbackHook {
 }
 
 /// Function 钩子（仅运行时存在）
-#[derive(Clone)]
 pub struct FunctionHook {
     /// 函数名称
     pub name: String,
     /// 回调函数
-    pub callback: Box<dyn Fn(&HookEvent) -> HookResponse + Send + Sync>,
+    pub callback: Arc<dyn Fn(&HookEvent) -> HookResponse + Send + Sync>,
+}
+
+impl Clone for FunctionHook {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            callback: self.callback.clone(),
+        }
+    }
 }
 
 impl std::fmt::Debug for FunctionHook {

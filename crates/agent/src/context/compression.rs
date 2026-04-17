@@ -436,10 +436,12 @@ impl TwoStageOutput {
         let summary = Self::extract_tagged_block(output, "summary")
             .unwrap_or_else(|| output.to_string());
         
+        let extraction_success = !summary.is_empty();
+        
         TwoStageOutput {
             analysis,
             summary,
-            extraction_success: summary.len() > 0,
+            extraction_success,
         }
     }
 

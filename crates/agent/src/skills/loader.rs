@@ -233,7 +233,7 @@ impl Default for SkillLoader {
 /// 内置 Skills（编译时打包）
 pub mod bundled {
     use super::*;
-    use std::io::{self, Read};
+    use std::io::{self, Read, Write};
     use std::fs::{File, create_dir_all};
     use std::time::{SystemTime, UNIX_EPOCH};
     
@@ -456,7 +456,7 @@ pub mod mcp {
         // 实际实现需要查询服务器能力
         // 这里提供框架实现
         let capabilities = get_server_capabilities(server_name);
-        capabilities.contains("resources")
+        capabilities.iter().any(|s| s == "resources")
     }
     
     /// 列出 MCP 资源

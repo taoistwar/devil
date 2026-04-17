@@ -21,10 +21,10 @@ pub mod anthropic_deps;
 
 pub use query_engine::{QueryEngine, QueryDeps, StreamEvent};
 pub use streaming_tool_executor::{StreamingToolExecutor, TrackedTool, ToolState};
-pub use forked_agent::{ForkedAgent, ForkContext, ForkedAgentResult};
+pub use forked_agent::{ForkedAgent, ForkContext, ForkedAgentResult, CacheSafeParams};
 pub use prefetch::ParallelPrefetcher;
 pub use cost_tracking::{TokenUsage, UsageDelta, CostTracker};
-pub use cache_optimizer::{CacheOptimizer, CacheSafeParams, CacheMetrics};
+pub use cache_optimizer::{CacheOptimizer, CacheMetrics};
 pub use mcp_integration::{
     McpQueryDeps,
     McpToolConverter,

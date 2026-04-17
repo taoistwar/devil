@@ -336,11 +336,9 @@ impl AnthropicClient {
                     }
                 }
             })
-            .filter(|result| async {
-                // 过滤掉 None 值
-                matches!(result, Ok(_))
-            })
-            .map(|result| result.unwrap()))
+            .filter_map(|result| async move {
+                result.ok().map(Ok)
+            }))
     }
 
     /// 解析 SSE 行
@@ -369,42 +367,6 @@ impl AnthropicClient {
     /// 设置模型
     pub fn set_model(&mut self, model: String) {
         self.model = model;
-    }
-}
-
-/// 转换 Usage 为 TokenUsage
-pub fn convert_usage(usage: &Usage) -> devil_streaming::cost_tracking::TokenUsage {
-    devil_streaming::cost_tracking::TokenUsage {
-        input_tokens: usage.input_tokens,
-        output_tokens: usage.output_tokens,
-        cache_creation_input_tokens: usage.cache_creation_input_tokens,
-        cache_read_input_tokens: usage.cache_read_input_tokens,
-    }
-}
-
-/// 转换 ContentBlock
-pub fn convert_content_block(
-    block: &ContentBlock,
-) -> devil_streaming::query_engine::ContentBlock {
-    match block {
-        ContentBlock::Text { text } => {
-            devil_streaming::query_engine::ContentBlock::Text {
-                text: text.clone(),
-            }
-        }
-        ContentBlock::ToolUse { id, name, input } => {
-            devil_streaming::query_engine::ContentBlock::ToolUse {
-                id: id.clone(),
-                name: name.clone(),
-                input: input.clone(),
-            }
-        }
-        ContentBlock::ToolResult { .. } => {
-            // ToolResult 不应该出现在请求中
-            devil_streaming::query_engine::ContentBlock::Text {
-                text: String::new(),
-            }
-        }
     }
 }
 

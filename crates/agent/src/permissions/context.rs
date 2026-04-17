@@ -7,6 +7,7 @@
 //! - PermissionDecision: 权限决策
 //! - PermissionUpdate: 权限更新操作
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -284,8 +285,8 @@ impl PermissionRule {
         // 使得尾部空格和参数变为可选
         if pattern.ends_with(" *") && pattern.matches('*').count() == 1 {
             let base_pattern = &pattern[..pattern.len() - 2];
-            let optional_regex = format!("^{}( .*)?$", regex_pattern::escape(base_pattern));
-            if let Ok(re) = regex_pattern::Regex::new(&optional_regex) {
+            let optional_regex = format!("^{}( .*)?$", regex::escape(base_pattern));
+            if let Ok(re) = Regex::new(&optional_regex) {
                 return re.is_match(text);
             }
         }
@@ -312,12 +313,12 @@ impl PermissionRule {
                     return false;
                 }
                 text_pos = part.len();
-            } else if i == pattern_parts.len() - 1 && *part != "" {
+            } else if i == pattern_parts.len() - 1 && !part.is_empty() {
                 // 最后一部分必须匹配结尾
                 if !text[text_pos..].ends_with(part) {
                     return false;
                 }
-            } else if *part != "" {
+            } else if !part.is_empty() {
                 // 中间部分查找匹配
                 if let Some(pos) = text[text_pos..].find(part) {
                     text_pos += pos + part.len();

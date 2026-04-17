@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use futures::stream::StreamExt;
+use futures::future::FutureExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -16,9 +17,31 @@ use devil_mcp::{
 };
 use providers::{
     AnthropicClient, ChatMessage as AnthropicChatMessage,
-    ContentBlock as AnthropicContentBlock, ToolDef,
-    convert_usage, convert_content_block,
+    ContentBlock as AnthropicContentBlock, ContentBlockStart as AnthropicContentBlockStart, ToolDef,
 };
+
+fn convert_usage(usage: &providers::Usage) -> TokenUsage {
+    TokenUsage {
+        input_tokens: usage.input_tokens,
+        output_tokens: usage.output_tokens,
+        cache_creation_input_tokens: usage.cache_creation_input_tokens,
+        cache_read_input_tokens: usage.cache_read_input_tokens,
+    }
+}
+
+fn convert_content_block(block: &AnthropicContentBlock) -> ContentBlock {
+    match block {
+        AnthropicContentBlock::Text { text } => {
+            ContentBlock::Text { text: text.clone() }
+        }
+        AnthropicContentBlock::ToolUse { id, name, input } => {
+            ContentBlock::ToolUse { id: id.clone(), name: name.clone(), input: input.clone() }
+        }
+        AnthropicContentBlock::ToolResult { .. } => {
+            ContentBlock::Text { text: String::new() }
+        }
+    }
+}
 
 /// Anthropic-backed QueryDeps 实现
 pub struct AnthropicQueryDeps {
@@ -289,8 +312,8 @@ impl QueryDeps for AnthropicQueryDeps {
                                         block_type: crate::query_engine::BlockType::Text,
                                         delta: crate::query_engine::ContentDelta::TextDelta {
                                             text: match content_block {
-                                                AnthropicContentBlock::Text { text } => text,
-                                                AnthropicContentBlock::ToolUse { .. } => String::new(),
+                                                AnthropicContentBlockStart::Text { text } => text,
+                                                AnthropicContentBlockStart::ToolUse { .. } => String::new(),
                                             },
                                         },
                                     }

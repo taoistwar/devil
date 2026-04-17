@@ -30,12 +30,74 @@ pub mod context_window;
 pub mod compression;
 pub mod circuit_breaker;
 pub mod token_budget;
-pub mod boundary;
-pub mod compact_service;
+// pub mod boundary;
+// pub mod compact_service;
 
 pub use context_window::*;
 pub use compression::*;
 pub use circuit_breaker::*;
 pub use token_budget::*;
-pub use boundary::*;
-pub use compact_service::*;
+// pub use boundary::*;
+// pub use compact_service::*;
+
+use crate::message::Message;
+
+/// 上下文预处理管线结果
+#[derive(Debug)]
+pub enum ContextPipelineResult {
+    Success {
+        messages: Vec<Message>,
+        system_prompt: String,
+        token_count: usize,
+    },
+    TokenLimitExceeded {
+        current_tokens: usize,
+        max_tokens: usize,
+    },
+}
+
+/// 上下文管理器
+#[derive(Debug, Clone)]
+pub struct ContextManager {
+    max_context_tokens: usize,
+}
+
+impl ContextManager {
+    pub fn new(max_context_tokens: usize) -> Self {
+        Self { max_context_tokens }
+    }
+
+    pub fn with_defaults() -> Self {
+        Self { max_context_tokens: 100_000 }
+    }
+
+    fn get_message_content_len(message: &Message) -> usize {
+        match message {
+            Message::User(msg) => msg.content.iter().map(|c| c.text_len()).sum(),
+            Message::Assistant(msg) => msg.content.iter().map(|c| c.text_len()).sum(),
+            _ => 0,
+        }
+    }
+
+    pub async fn process_full_pipeline(
+        &self,
+        messages: Vec<Message>,
+        system_prompt: &str,
+        _max_context_tokens: usize,
+    ) -> anyhow::Result<ContextPipelineResult> {
+        let token_count = messages.iter().map(Self::get_message_content_len).sum::<usize>();
+        
+        if token_count > self.max_context_tokens {
+            return Ok(ContextPipelineResult::TokenLimitExceeded {
+                current_tokens: token_count,
+                max_tokens: self.max_context_tokens,
+            });
+        }
+        
+        Ok(ContextPipelineResult::Success {
+            messages,
+            system_prompt: system_prompt.to_string(),
+            token_count,
+        })
+    }
+}

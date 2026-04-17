@@ -26,6 +26,7 @@ pub enum ToolState {
 }
 
 /// 追踪的待执行工具
+#[derive(Clone)]
 pub struct TrackedTool {
     /// 工具调用 ID
     pub id: String,
@@ -246,11 +247,10 @@ impl StreamingToolExecutor {
     ) -> impl Stream<Item = ToolResult> + Send {
         use futures::stream;
 
-        let tools = self.tools.read().await.clone();
+        let guard = self.tools.read().await;
         let mut results = Vec::new();
 
-        // 按添加顺序收集已完成但未输出的结果
-        for tool in tools.iter() {
+        for tool in guard.iter() {
             if tool.state == ToolState::Completed {
                 if let Some(ref result) = tool.result {
                     results.push(result.clone());
@@ -287,7 +287,7 @@ impl StreamingToolExecutor {
     }
 
     /// 重置执行器状态
-    pub async fn reset(&self) {
+    pub async fn reset(&mut self) {
         self.tools.write().await.clear();
         self.executing.write().await.clear();
         self.bash_failed.store(false, Ordering::Relaxed);

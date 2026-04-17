@@ -4,6 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use crate::message::Message;
 use crate::tools::Tool;
 
@@ -20,14 +21,13 @@ pub enum SubagentType {
 }
 
 /// 子代理定义
-#[derive(Debug, Clone)]
 pub struct SubagentDefinition {
     /// 子代理类型标识
-    pub agent_type: String,
+    pub agent_type: &'static str,
     /// 使用时机说明
-    pub when_to_use: String,
+    pub when_to_use: &'static str,
     /// 可用工具列表（"*" 表示继承父级完整工具集）
-    pub tools: Vec<String>,
+    pub tools: &'static [&'static str],
     /// 最大回合数
     pub max_turns: u32,
     /// 模型配置（"inherit" 表示继承父级模型）
@@ -86,7 +86,37 @@ pub enum SubagentSource {
 }
 
 /// 系统提示生成器类型
-pub type SystemPromptFn = Box<dyn Fn() -> String + Send + Sync>;
+pub type SystemPromptFn = Arc<dyn Fn() -> String + Send + Sync>;
+
+impl Clone for SubagentDefinition {
+    fn clone(&self) -> Self {
+        Self {
+            agent_type: self.agent_type.clone(),
+            when_to_use: self.when_to_use.clone(),
+            tools: self.tools.clone(),
+            max_turns: self.max_turns,
+            model: self.model.clone(),
+            permission_mode: self.permission_mode.clone(),
+            source: self.source.clone(),
+            system_prompt_fn: self.system_prompt_fn.clone(),
+        }
+    }
+}
+
+impl std::fmt::Debug for SubagentDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SubagentDefinition")
+            .field("agent_type", &self.agent_type)
+            .field("when_to_use", &self.when_to_use)
+            .field("tools", &self.tools)
+            .field("max_turns", &self.max_turns)
+            .field("model", &self.model)
+            .field("permission_mode", &self.permission_mode)
+            .field("source", &self.source)
+            .field("system_prompt_fn", &"<fn>")
+            .finish()
+    }
+}
 
 /// Fork 子代理配置
 #[derive(Debug, Clone)]
@@ -204,10 +234,10 @@ pub struct Usage {
 pub const FORK_AGENT: SubagentDefinition = SubagentDefinition {
     agent_type: "fork",
     when_to_use: "隐式 Fork - 继承完整对话上下文。当省略 subagent_type 且 Fork 功能启用时触发。",
-    tools: vec!["*".to_string()],
+    tools: &["*"],
     max_turns: 200,
     model: ModelConfig::Inherit,
     permission_mode: PermissionMode::Bubble,
     source: SubagentSource::Builtin,
-    system_prompt_fn: None, // 不使用：直接传递父级已渲染的 prompt
+    system_prompt_fn: None,
 };

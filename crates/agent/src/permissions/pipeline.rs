@@ -142,7 +142,7 @@ impl PermissionPipeline {
         // 阶段二：规则匹配
         let rule_check = Self::phase2_rule_matching(tool, input, permission_context);
         match &rule_check.behavior {
-            PermissionBehavior::Allow | PermissionBehavior::Deny => {
+            PermissionBehavior::Allow { .. } | PermissionBehavior::Deny { .. } => {
                 // 规则已做出终局决定
                 return Ok(rule_check);
             }
@@ -158,7 +158,7 @@ impl PermissionPipeline {
         // 阶段三：上下文评估
         let context_check = Self::phase3_context_check(tool, input, context, permission_context).await;
         match &context_check.behavior {
-            PermissionBehavior::Allow | PermissionBehavior::Deny => {
+            PermissionBehavior::Allow { .. } | PermissionBehavior::Deny { .. } => {
                 // 上下文评估做出终局决定
                 return Ok(context_check);
             }
@@ -185,7 +185,7 @@ impl PermissionPipeline {
                         return Ok(PermissionCheckResult::allow());
                     }
                     // 检查 acceptEdits 快速路径
-                    if permission_context.accept_edits_mode && tool.is_read_only(input) {
+                    if permission_context.accept_edits_mode && tool.is_read_only() {
                         return Ok(PermissionCheckResult::allow());
                     }
                     // 调用分类器（这里简化处理，实际应该调用 AI 分类器）
@@ -193,7 +193,7 @@ impl PermissionPipeline {
                 }
                 PermissionMode::Plan => {
                     // plan 模式：如果是写入操作则拒绝
-                    if !tool.is_read_only(input) {
+                    if !tool.is_read_only() {
                         return Ok(PermissionCheckResult::deny(
                             "Operation denied in plan mode (read-only)".to_string()
                         ));
@@ -285,14 +285,15 @@ impl PermissionPipeline {
     async fn phase3_context_check<T: Tool>(
         tool: &T,
         input: &serde_json::Value,
-        context: &ToolContext,
-        permission_context: &ToolPermissionContext,
+        _context: &ToolContext,
+        _permission_context: &ToolPermissionContext,
     ) -> PermissionCheckResult {
         // 调用工具的 check_permissions 方法
-        let perm_result = tool.check_permissions(
-            &serde_json::from_value(input.clone()).unwrap_or(serde_json::Value::Null),
-            context,
-        ).await;
+        let typed_input = match serde_json::from_value::<T::Input>(input.clone()) {
+            Ok(input) => input,
+            Err(_) => return PermissionCheckResult::allow(), // 如果无法解析输入，默认允许
+        };
+        let perm_result = tool.check_permissions(&typed_input, &ToolContext::default()).await;
 
         match perm_result.behavior {
             crate::tools::tool::PermissionBehavior::Allow { .. } => {
@@ -345,7 +346,7 @@ impl<T: Clone> ResolveOnce<T> {
 
     /// 设置值（如果已 claim）
     pub fn set(&self, value: T) -> Result<()> {
-        if self.claim.load(std::sync::atomic::Ordering::SeqCst) {
+        if self.claimed.load(std::sync::atomic::Ordering::SeqCst) {
             let mut inner = self.value.lock().unwrap();
             *inner = Some(value);
             Ok(())

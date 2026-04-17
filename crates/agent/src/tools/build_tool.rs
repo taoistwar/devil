@@ -8,6 +8,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::pin::Pin;
 
 use crate::tools::tool::{
     Tool, ToolContext, ToolResult, ToolPermissionLevel,
@@ -52,7 +53,7 @@ pub struct ToolBuilder<I, O, P = String> {
     
     // 执行函数
     execute_fn: Option<Box<dyn Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) 
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>>,
+        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>>>,
     
     // 虚拟类型参数
     _phantom: PhantomData<(I, O, P)>,
@@ -195,6 +196,15 @@ where
 
     /// 构建工具
     pub fn build(self) -> BuiltTool<I, O, P> {
+        type NoExecuteFn<I, O> = dyn Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) -> Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>;
+        let execute_fn = self.execute_fn.unwrap_or_else(|| {
+            let f: fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) -> Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>> = |_, _, _| {
+                Box::pin(async {
+                    anyhow::bail!("No execute function provided")
+                })
+            };
+            Box::new(f) as Box<NoExecuteFn<I, O>>
+        });
         BuiltTool {
             name: self.name,
             description: self.description,
@@ -210,13 +220,7 @@ where
             should_defer: self.should_defer,
             interrupt_behavior: self.interrupt_behavior,
             transparent_wrapper: self.transparent_wrapper,
-            execute_fn: self.execute_fn.unwrap_or_else(|| {
-                Box::new(|_, _, _| {
-                    Box::pin(async {
-                        anyhow::bail!("No execute function provided")
-                    })
-                })
-            }),
+            execute_fn,
             _phantom: PhantomData,
         }
     }
@@ -242,6 +246,18 @@ pub struct BuiltTool<I, O, P = String> {
         -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>>,
     _phantom: PhantomData<(I, O, P)>,
 }
+
+unsafe impl<I, O, P> Send for BuiltTool<I, O, P> 
+where
+    I: Send + Sync,
+    O: Send + Sync,
+{}
+
+unsafe impl<I, O, P> Sync for BuiltTool<I, O, P> 
+where
+    I: Send + Sync,
+    O: Send + Sync,
+{}
 
 #[async_trait::async_trait]
 impl<I, O, P> Tool for BuiltTool<I, O, P>
@@ -282,11 +298,11 @@ where
         true // 默认启用，可通过外部包装控制
     }
 
-    fn is_read_only(&self, _input: &Self::Input) -> bool {
+    fn is_read_only(&self) -> bool {
         self.read_only
     }
 
-    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
+    fn is_concurrency_safe(&self) -> bool {
         self.concurrency_safe
     }
 
@@ -323,11 +339,10 @@ where
         input: Self::Input,
         ctx: &ToolContext,
         progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
-        cancel_signal: Option<tokio::sync::watch::Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>, anyhow::Error> {
-        // 简化处理，忽略 progress_callback
         let _ = progress_callback;
-        (self.execute_fn)(input, ctx, cancel_signal).await
+        let output = (self.execute_fn)(input, ctx, None).await?;
+        Ok(ToolResult::success("builtin-tool".to_string(), output))
     }
 }
 

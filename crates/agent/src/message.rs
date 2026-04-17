@@ -37,6 +37,17 @@ pub enum ContentBlock {
     Thinking { text: String },
 }
 
+impl ContentBlock {
+    pub fn text_len(&self) -> usize {
+        match self {
+            ContentBlock::Text { text } => text.len(),
+            ContentBlock::ToolUse { input, .. } => input.to_string().len(),
+            ContentBlock::ToolResult { content, .. } => content.len(),
+            ContentBlock::Thinking { text } => text.len(),
+        }
+    }
+}
+
 /// 基础消息 Trait
 pub trait BaseMessage {
     /// 获取消息角色

@@ -138,8 +138,8 @@ impl Orchestrator {
             if finding.status == TaskStatus::Completed {
                 if let Some(result) = finding.result {
                     summary.push_str(&format!(
-                        "任务 {} 发现：{}\n\n",
-                        finding.description, result
+                        "任务发现：{}\n\n",
+                        result
                     ));
                 }
             }
@@ -163,7 +163,7 @@ impl Orchestrator {
             
             Some(task) => {
                 // 根据任务阶段和目的决定
-                match (task.phase, new_purpose) {
+                match (task.phase.clone(), new_purpose) {
                     // 研究完成后，如果是实现相同内容，继续
                     (TaskPhase::Research, p) if p.contains("implement") => {
                         ContinueOrSpawn::Continue

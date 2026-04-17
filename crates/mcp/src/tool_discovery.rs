@@ -141,14 +141,12 @@ impl ToolDiscoverer {
     pub async fn find_tool(&self, global_name: &str) -> Option<MappedTool> {
         let index = self.tool_index.read().await;
         
-        index.get(global_name).and_then(|(server_id, original_name)| {
-            let tools_map = self.tools.read().await;
-            tools_map.get(server_id).and_then(|tools| {
-                tools.iter()
-                    .find(|t| t.original_name == *original_name)
-                    .cloned()
-            })
-        })
+        let (server_id, original_name) = index.get(global_name)?;
+        let tools_map = self.tools.read().await;
+        let tools = tools_map.get(server_id)?;
+        tools.iter()
+            .find(|t| t.original_name == *original_name)
+            .cloned()
     }
 
     /// 更新工具授权状态
@@ -445,12 +443,4 @@ mod tests {
         let tool = discoverer.find_tool("mcp__server1__tool1").await;
         assert!(tool.is_none());
     }
-}
-
-    let parts: Vec<&str> = global_name[5..].split("__").collect();
-    if parts.len() != 2 {
-        return None;
-    }
-
-    Some((parts[0], parts[1]))
 }

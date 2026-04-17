@@ -115,13 +115,9 @@ impl SubagentExecutor {
         final_messages.push(user_message);
         
         // 添加工作树隔离通知（如果有 worktree）
-        if let (Some(parent_cwd), Some(worktree_cwd)) = (params.parent_cwd, params.worktree_path) {
+        if let (Some(parent_cwd), Some(worktree_cwd)) = (params.parent_cwd.clone(), params.worktree_path.clone()) {
             let notice = recursion_guard::build_worktree_notice(&parent_cwd, &worktree_cwd);
-            final_messages.push(Message {
-                role: "user".to_string(),
-                content: crate::message::MessageContent::Text(notice),
-                uuid: None,
-            });
+            final_messages.push(Message::user_text(notice));
         }
         
         // 执行子代理查询循环
@@ -132,13 +128,15 @@ impl SubagentExecutor {
     /// 执行通用子代理
     async fn execute_general(&self, params: SubagentParams) -> Result<SubagentResult, SubagentError> {
         // 通用子代理从零开始，不继承上下文
-        self.run_subagent_loop(params.prompt_messages, params).await
+        let messages = params.prompt_messages.clone();
+        self.run_subagent_loop(messages, params).await
     }
     
     /// 执行自定义子代理
     async fn execute_custom(&self, params: SubagentParams) -> Result<SubagentResult, SubagentError> {
         // 自定义子代理执行逻辑
-        self.run_subagent_loop(params.prompt_messages, params).await
+        let messages = params.prompt_messages.clone();
+        self.run_subagent_loop(messages, params).await
     }
     
     /// 运行子代理查询循环

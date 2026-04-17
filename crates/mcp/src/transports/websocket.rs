@@ -110,7 +110,7 @@ impl Transport for WebSocketTransport {
         Ok(())
     }
 
-    async fn recv(&self) -> Result<Option<String>> {
+    async fn recv(&mut self) -> Result<Option<String>> {
         if !self.alive.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(None);
         }

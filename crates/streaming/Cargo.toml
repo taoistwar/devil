@@ -6,6 +6,7 @@ description = "流式处理架构与性能优化模块 (第 13 章)"
 
 [dependencies]
 devil-mcp = { path = "../mcp" }
+providers = { path = "../providers" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

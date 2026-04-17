@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::tools::tool::{
     Tool, ToolContext, ToolResult, ToolPermissionLevel,
-    InputValidationResult, PermissionCheckResult, ContextModifier,
+    InputValidationResult, ContextModifier,
     InterruptBehavior,
 };
 use crate::permissions::bash_analyzer::BashSemanticAnalyzer;
@@ -177,7 +177,7 @@ where
         self.read_only
     }
 
-    fn timeout_secs(&self) -> Option<u64> {
+    fn timeout_ms(&self, _input: &Self::Input) -> Option<u64> {
         self.timeout_secs
     }
 
@@ -333,12 +333,12 @@ impl Tool for BashTool {
         ToolPermissionLevel::Destructive
     }
 
-    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
+    fn is_concurrency_safe(&self) -> bool {
         // Bash 工具默认不安全，因为可能有副作用
         false
     }
 
-    fn is_read_only(&self, _input: &Self::Input) -> bool {
+    fn is_read_only(&self) -> bool {
         false
     }
 
@@ -468,9 +468,11 @@ impl Tool for FileReadTool {
     ) -> Result<ToolResult<Self::Output>> {
         // TODO: 实际读取文件
         // 检查文件缓存
-        if let Some(_state) = ctx.file_cache.get(&input.path) {
+        let cache = ctx.file_cache.read().await;
+        if let Some(_state) = cache.get(&input.path) {
             // 缓存命中
         }
+        drop(cache);
 
         let output = FileReadOutput {
             content: "File content placeholder".to_string(),

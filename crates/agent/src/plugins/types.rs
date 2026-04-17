@@ -175,7 +175,7 @@ impl PluginBlocklist {
 }
 
 /// 插件安全策略
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PluginSecurityPolicy {
     /// 仅允许托管插件
     pub allow_managed_only: bool,
@@ -187,6 +187,18 @@ pub struct PluginSecurityPolicy {
     pub blocked_publishers: Vec<String>,
     /// 最大权限级别
     pub max_permission_level: PermissionLevel,
+}
+
+impl Default for PluginSecurityPolicy {
+    fn default() -> Self {
+        Self {
+            allow_managed_only: false,
+            require_signature: true,
+            allowed_publishers: Vec::new(),
+            blocked_publishers: Vec::new(),
+            max_permission_level: PermissionLevel::High,
+        }
+    }
 }
 
 /// 权限级别

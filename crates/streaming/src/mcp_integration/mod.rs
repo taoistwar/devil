@@ -7,19 +7,11 @@
 
 use anyhow::{Context, Result};
 use futures::stream::StreamExt;
+use futures::future::FutureExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
-
-use crate::query_engine::{
-    ContentBlock, Message, QueryDeps, QueryEngine, StreamEvent,
-};
-use crate::streaming_tool_executor::{TrackedTool, ToolResult, StreamingToolExecutor};
-use devil_mcp::{
-    McpConnectionManager, PermissionChecker, ToolDiscoverer, 
-    MappedTool, McpServerConfig,
-};
 
 use crate::query_engine::{
     ContentBlock, Message, QueryDeps, QueryEngine, StreamEvent,

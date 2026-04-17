@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
@@ -34,7 +35,7 @@ pub struct PluginMetadata {
 }
 
 /// 插件权限级别
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd)]
 #[serde(rename_all = "lowercase")]
 pub enum PermissionLevel {
     /// 仅读操作
@@ -141,7 +142,7 @@ pub trait Plugin: Send + Sync {
     fn metadata(&self) -> PluginMetadata;
 
     /// 初始化插件
-    async fn initialize(&mut self) -> Result<()> {
+    async fn initialize(&self) -> Result<()> {
         Ok(())
     }
 
@@ -157,7 +158,8 @@ pub trait Plugin: Send + Sync {
 /// 插件注册信息
 struct PluginRegistration {
     metadata: PluginMetadata,
-    plugin: Box<dyn Plugin>,
+    #[allow(dead_code)]
+    plugin: Arc<dyn Plugin>,
 }
 
 /// 插件管理器
@@ -189,18 +191,12 @@ impl PluginManager {
             name.clone(),
             PluginRegistration {
                 metadata,
-                plugin: Box::new(plugin),
+                plugin: Arc::new(plugin),
             },
         );
 
         info!("Registered plugin: {}", name);
         Ok(())
-    }
-
-    /// 获取插件
-    pub async fn get_plugin(&self, name: &str) -> Option<&Box<dyn Plugin>> {
-        let plugins = self.plugins.read().await;
-        plugins.get(name).map(|reg| &reg.plugin)
     }
 
     /// 执行插件
@@ -471,6 +467,7 @@ impl Plugin for EchoPlugin {
             version: "0.1.0".to_string(),
             description: "Echo plugin that returns input as output".to_string(),
             author: Some("Devil Team".to_string()),
+            permission_level: PermissionLevel::None,
         }
     }
 

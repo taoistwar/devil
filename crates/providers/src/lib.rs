@@ -4,7 +4,7 @@
 
 pub mod anthropic;
 
-pub use anthropic::{AnthropicClient, ChatMessage, ContentBlock, ToolDef, StreamEvent, Usage, convert_usage, convert_content_block};
+pub use anthropic::{AnthropicClient, ChatMessage, ContentBlock, ContentBlockStart, ToolDef, StreamEvent, Usage, ContentDelta};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -236,10 +236,11 @@ impl Plugin for Box<dyn Provider> {
             version: "0.1.0".to_string(),
             description: format!("Provider plugin for {:?}", provider_type),
             author: Some("Devil Team".to_string()),
+            permission_level: Default::default(),
         }
     }
 
-    async fn initialize(&mut self) -> Result<()> {
+    async fn initialize(&self) -> Result<()> {
         self.as_ref().initialize().await
     }
 

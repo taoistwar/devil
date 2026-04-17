@@ -6,6 +6,7 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest::Client;
+use std::sync::Mutex;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -18,7 +19,7 @@ pub struct StreamableHttpTransport {
     /// 服务器基础 URL
     base_url: String,
     /// SSE 会话 ID（如果已建立）
-    session_id: Option<String>,
+    session_id: Mutex<Option<String>>,
     /// 发送通道
     tx: mpsc::Sender<String>,
     /// 接收通道
@@ -43,7 +44,7 @@ impl StreamableHttpTransport {
         let transport = Self {
             client,
             base_url: base_url.to_string(),
-            session_id: None,
+            session_id: Mutex::new(None),
             tx,
             rx,
             alive,
@@ -58,7 +59,7 @@ impl StreamableHttpTransport {
     /// 初始化连接
     async fn initialize(&self) -> Result<()> {
         // 发送 OPTIONS 请求探测服务器能力
-        let url = self.base_url.trim_end_matches('/') + "/capabilities";
+        let url = format!("{}/capabilities", self.base_url.trim_end_matches('/'));
         
         debug!("Probing MCP capabilities: {}", url);
         
@@ -80,7 +81,7 @@ impl StreamableHttpTransport {
 
     /// 处理 SSE 流
     async fn handle_sse_stream(&self, session_id: &str) -> Result<()> {
-        let url = self.base_url.trim_end_matches('/') + "/sse/" + session_id;
+        let url = format!("{}/sse/{}", self.base_url.trim_end_matches('/'), session_id);
         
         debug!("Starting SSE stream: {}", url);
 
@@ -100,42 +101,32 @@ impl StreamableHttpTransport {
                     }
 
                     // 处理 SSE 事件流
-                    let mut stream = resp.bytes_stream();
-                    use futures_util::StreamExt;
-
-                    let mut event_data = String::new();
-                    
-                    while let Some(chunk) = stream.next().await {
-                        if !self.alive.load(std::sync::atomic::Ordering::Relaxed) {
+                    let bytes = match resp.bytes().await {
+                        Ok(b) => b,
+                        Err(e) => {
+                            error!("Failed to read SSE response body: {}", e);
                             break;
                         }
+                    };
 
-                        match chunk {
-                            Ok(bytes) => {
-                                let chunk_str = String::from_utf8_lossy(&bytes);
-                                
-                                // 简化的 SSE 解析（实际应使用标准库）
-                                for line in chunk_str.lines() {
-                                    if line.starts_with("data: ") {
-                                        event_data.push_str(&line[6..]);
-                                    } else if line.is_empty() && !event_data.is_empty() {
-                                        // 空行表示事件结束
-                                        debug!("Received SSE event: {}", event_data);
-                                        
-                                        // 发送到接收通道
-                                        if self.tx.send(event_data.clone()).await.is_err() {
-                                            error!("Failed to send SSE event to channel");
-                                            break;
-                                        }
-                                        
-                                        event_data.clear();
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                error!("SSE stream error: {}", e);
+                    let chunk_str = String::from_utf8_lossy(&bytes);
+                    
+                    // 简化的 SSE 解析（实际应使用标准库）
+                    let mut event_data = String::new();
+                    for line in chunk_str.lines() {
+                        if line.starts_with("data: ") {
+                            event_data.push_str(&line[6..]);
+                        } else if line.is_empty() && !event_data.is_empty() {
+                            // 空行表示事件结束
+                            debug!("Received SSE event: {}", event_data);
+                            
+                            // 发送到接收通道
+                            if self.tx.send(event_data.clone()).await.is_err() {
+                                error!("Failed to send SSE event to channel");
                                 break;
                             }
+                            
+                            event_data.clear();
                         }
                     }
                 }
@@ -158,8 +149,8 @@ impl Transport for StreamableHttpTransport {
         }
 
         // 构建 POST 请求 URL
-        let url = if let Some(session_id) = &self.session_id {
-            self.base_url.trim_end_matches('/') + "/message/" + session_id
+        let url = if let Some(session_id) = self.session_id.lock().unwrap().as_ref() {
+            format!("{}/message/{}", self.base_url.trim_end_matches('/'), session_id)
         } else {
             self.base_url.clone()
         };
@@ -178,22 +169,19 @@ impl Transport for StreamableHttpTransport {
         if let Some(session_id) = response.headers().get("Mcp-Session-Id") {
             let new_session_id = session_id.to_str().unwrap_or_default().to_string();
             
-            if self.session_id.as_ref() != Some(&new_session_id) {
+            if self.session_id.lock().unwrap().as_ref() != Some(&new_session_id) {
                 debug!("New session ID: {}", new_session_id);
                 
                 // 启动 SSE 流处理（在新的 spawn 中）
                 let transport_clone = self.clone_transport();
+                let session_for_spawn = new_session_id.clone();
                 tokio::spawn(async move {
-                    if let Err(e) = transport_clone.handle_sse_stream(&new_session_id).await {
+                    if let Err(e) = transport_clone.handle_sse_stream(&session_for_spawn).await {
                         error!("SSE stream handler failed: {}", e);
                     }
                 });
                 
-                unsafe {
-                    // 安全：此时只有一个引用
-                    let self_mut = &mut *(self as *const Self as *mut Self);
-                    self_mut.session_id = Some(new_session_id);
-                }
+                *self.session_id.lock().unwrap() = Some(new_session_id);
             }
         }
 
@@ -207,7 +195,7 @@ impl Transport for StreamableHttpTransport {
         Ok(())
     }
 
-    async fn recv(&self) -> Result<Option<String>> {
+    async fn recv(&mut self) -> Result<Option<String>> {
         if !self.alive.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(None);
         }
@@ -226,11 +214,16 @@ impl Transport for StreamableHttpTransport {
         self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
 
         // 发送 DELETE 请求关闭会话
-        if let Some(session_id) = &self.session_id {
-            let url = self.base_url.trim_end_matches('/') + "/message/" + session_id;
-            
+        let url_to_close = {
+            if let Some(session_id) = self.session_id.lock().unwrap().as_ref() {
+                Some(format!("{}/message/{}", self.base_url.trim_end_matches('/'), session_id))
+            } else {
+                None
+            }
+        };
+        
+        if let Some(url) = url_to_close {
             debug!("Closing SSE session: {}", url);
-            
             self.client
                 .delete(&url)
                 .send()
@@ -253,7 +246,7 @@ impl StreamableHttpTransport {
         Self {
             client: self.client.clone(),
             base_url: self.base_url.clone(),
-            session_id: self.session_id.clone(),
+            session_id: Mutex::new(self.session_id.lock().unwrap().clone()),
             tx,
             rx,
             alive: self.alive.clone(),

@@ -12,14 +12,14 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 use crate::config::AgentConfig;
-use crate::message::{Message, AssistantMessage, SystemMessage, SystemMessageLevel, ToolUseSummaryMessage};
+use crate::message::{Message, AssistantMessage, SystemMessage, SystemMessageLevel, ToolUseSummaryMessage, ContentBlock};
 use crate::state::{State, Terminal, TerminalReason, Continue, ContinueReason};
 use crate::deps::{QueryDeps, ProductionDeps, ModelCallParams};
 use crate::tools::{ToolRegistry, ToolContext};
 use crate::tools::partition::{ConcurrentPartitioner, ToolUseCallInfo};
 use crate::tools::executor::{StreamingToolExecutor, BatchToolExecutor, ExecutorConfig, ToolExecutionResult};
 use crate::context::{ContextManager, ContextPipelineResult};
-use crate::subagent::{SubagentExecutor, SubagentRegistry, SubagentParams, SubagentType, SubagentResult};
+use crate::subagent::{SubagentExecutor, SubagentRegistry, SubagentParams, SubagentType, SubagentResult, SubagentDefinition};
 use crate::subagent::types::{ForkSubagentConfig, CacheSafeParams, ToolUseContext, ThinkingConfig};
 
 /// Agent 状态枚举
@@ -136,12 +136,12 @@ impl Agent {
 
     /// 配置 Fork 子代理启用状态
     pub async fn configure_fork(&self, enabled: bool) {
-        let mut executor = self.subagent_executor.write().await;
         let current_config = ForkSubagentConfig {
             enabled,
             ..ForkSubagentConfig::default()
         };
-        *executor = executor.clone().with_fork_config(current_config);
+        let new_executor = SubagentExecutor::new().with_fork_config(current_config);
+        *self.subagent_executor.write().await = new_executor;
     }
 
     /// 获取子代理注册表（只读）
@@ -207,11 +207,13 @@ pub struct AgentLoop {
     /// 工具注册表
     tool_registry: Arc<RwLock<ToolRegistry>>,
     /// 工具执行器
-    tool_executor: ToolExecutor,
+    tool_executor: StreamingToolExecutor,
     /// 子代理注册表
     subagent_registry: Arc<RwLock<SubagentRegistry>>,
     /// 子代理执行器
     subagent_executor: Arc<RwLock<SubagentExecutor>>,
+    /// 上下文管理器
+    context_manager: ContextManager,
 }
 
 impl AgentLoop {
@@ -231,9 +233,10 @@ impl AgentLoop {
             state: State::initial(initial_messages),
             deps,
             tool_registry,
-            tool_executor: ToolExecutor::default(),
+            tool_executor: StreamingToolExecutor::with_defaults(),
             subagent_registry: Arc::new(RwLock::new(registry)),
             subagent_executor: Arc::new(RwLock::new(executor)),
+            context_manager: ContextManager::with_defaults(),
         }
     }
 
@@ -257,9 +260,10 @@ impl AgentLoop {
             state: State::initial(initial_messages),
             deps,
             tool_registry,
-            tool_executor: ToolExecutor::default(),
+            tool_executor: StreamingToolExecutor::with_defaults(),
             subagent_registry: Arc::new(RwLock::new(registry)),
             subagent_executor: Arc::new(RwLock::new(executor)),
+            context_manager: ContextManager::with_defaults(),
         }
     }
 
@@ -384,10 +388,12 @@ impl AgentLoop {
 
             // 检查是否有 Agent 工具调用（子代理）
             let mut has_agent_tool = false;
-            for block in &tool_use_blocks {
-                if block.name == "Agent" || block.name == "Subagent" {
-                    has_agent_tool = true;
-                    break;
+            for block in tool_use_blocks {
+                if let ContentBlock::ToolUse { name, .. } = block {
+                    if name == "Agent" || name == "Subagent" {
+                        has_agent_tool = true;
+                        break;
+                    }
                 }
             }
 

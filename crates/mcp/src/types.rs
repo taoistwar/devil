@@ -65,8 +65,9 @@ pub struct SdkConfig {
 }
 
 /// 配置作用域（7 层）
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum ConfigScope {
+    #[default]
     /// 项目 - 个人（不提交到版本控制）
     Local,
     /// 项目 - 共享（团队配置）
@@ -218,6 +219,8 @@ pub struct ConnectedMcpServer {
     pub cleanup: Box<dyn FnOnce() + Send>,
 }
 
+unsafe impl Sync for ConnectedMcpServer {}
+
 /// 等待重连的 MCP 服务器
 pub struct PendingMcpServer {
     /// 服务器名称
@@ -259,6 +262,8 @@ impl Default for McpConnectionState {
         McpConnectionState::Disabled
     }
 }
+
+unsafe impl Sync for McpConnectionState {}
 
 /// MCP 加载结果（容错模式）
 #[derive(Debug, Default)]

@@ -55,8 +55,9 @@ impl PluginLoader {
     pub fn load_all(&mut self) -> Result<usize, PluginLoadError> {
         let mut loaded_count = 0;
         
-        for dir in &self.plugin_dirs {
-            loaded_count += self.load_from_dir(dir)?;
+        let dirs: Vec<PathBuf> = self.plugin_dirs.iter().map(|p| p.clone()).collect();
+        for dir in dirs {
+            loaded_count += self.load_from_dir(&dir)?;
         }
         
         Ok(loaded_count)

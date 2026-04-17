@@ -11,11 +11,15 @@ members = [
     "crates/streaming",
 ]
 
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
 # 主程序包
 [package]
 name = "devil-agent"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "Devil Agent - 智能开发助手"
 
 [[bin]]
@@ -23,7 +27,7 @@ name = "devil"
 path = "src/main.rs"
 
 [dependencies]
-devil-agent-core = { path = "crates/agent" }
+devil-agent-core = { package = "agent", path = "crates/agent" }
 devil-streaming = { path = "crates/streaming" }
 devil-mcp = { path = "crates/mcp" }
 providers = { path = "crates/providers" }
@@ -33,18 +37,19 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-trait = "0.1"
-tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 anyhow = "1"
 thiserror = "1"
-chrono = "0.4"
-reqwest = "0.11.14"
+chrono = { version = "0.4", features = ["serde"] }
+reqwest = { version = "0.11.14", features = ["json", "stream"] }
 uuid = { version = "1", features = ["v4"] }
 futures = "0.3"
 futures-util = "0.3"

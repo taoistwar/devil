@@ -90,7 +90,7 @@ impl BashSemanticAnalyzer {
         let first_part = command.trim_start();
 
         // 提取第一个命令
-        let mut parts: Vec<&str> = Vec::new();
+        let mut parts: Vec<String> = Vec::new();
         let mut current = String::new();
         let mut in_quote = false;
         let mut quote_char = None;
@@ -123,7 +123,7 @@ impl BashSemanticAnalyzer {
 
             if !in_quote && c.is_whitespace() {
                 if !current.is_empty() {
-                    parts.push(current.as_str());
+                    parts.push(current.clone());
                     current = String::new();
                 }
             } else {
@@ -132,12 +132,12 @@ impl BashSemanticAnalyzer {
         }
 
         if !current.is_empty() {
-            parts.push(current.as_str());
+            parts.push(current);
         }
 
         // 处理命令替换和管道
         parts.first()
-            .map(|s| s.to_string())
+            .map(|s| s.clone())
             .unwrap_or_else(|| {
                 // 检查是否以管道或重定向开始
                 if first_part.starts_with('|') {

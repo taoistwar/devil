@@ -5,7 +5,7 @@ edition = "2021"
 description = "MCP (Model Context Protocol) integration for Devil Agent"
 
 [dependencies]
-devil-agent = { path = "../agent" }
+agent = { path = "../agent" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

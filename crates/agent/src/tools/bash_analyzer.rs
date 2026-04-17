@@ -180,7 +180,8 @@ pub fn is_search_or_read_command(command: &str) -> BashSemanticResult {
         }
 
         // 获取基础命令
-        let base_command = split_command_simple(part).first()
+        let parts_result = split_command_simple(part);
+        let base_command = parts_result.first()
             .map(|s| s.as_str())
             .unwrap_or("");
 
@@ -247,7 +248,8 @@ pub fn is_silent_bash_command(command: &str) -> bool {
             continue;
         }
 
-        let base_command = split_command_simple(part).first()
+        let parts_result = split_command_simple(part);
+        let base_command = parts_result.first()
             .map(|s| s.as_str())
             .unwrap_or("");
 

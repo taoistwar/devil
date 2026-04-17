@@ -66,6 +66,9 @@ pub mod control_protocol;
 pub use connection_manager::{
     McpConnectionManager,
     McpConnection,
+};
+
+pub use types::{
     McpConnectionState,
     ConnectedMcpServer,
     PendingMcpServer,

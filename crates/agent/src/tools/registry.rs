@@ -53,9 +53,9 @@ impl<T: Tool> AnyTool for ToolWrapper<T> {
             description: String::new(),
             input_schema: self.tool.input_schema(),
             permission_level: self.tool.permission_level(),
-            concurrency_safe: self.tool.is_concurrency_safe(),
-            read_only: self.tool.is_read_only(),
-            timeout_secs: self.tool.timeout_secs(),
+            concurrency_safe: false,
+            read_only: false,
+            timeout_secs: None,
             always_load: self.tool.should_always_load(),
             aliases: self.tool.aliases().iter().map(|s| s.to_string()).collect(),
         }

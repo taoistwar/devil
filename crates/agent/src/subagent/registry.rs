@@ -36,9 +36,9 @@ impl SubagentRegistry {
         self.builtin_agents.insert(
             "general-purpose".to_string(),
             SubagentDefinition {
-                agent_type: "general-purpose".to_string(),
-                when_to_use: "通用任务，无需特殊上下文".to_string(),
-                tools: vec!["*".to_string()],
+                agent_type: "general-purpose",
+                when_to_use: "通用任务，无需特殊上下文",
+                tools: &["*"],
                 max_turns: 200,
                 model: ModelConfig::ByPurpose(crate::subagent::types::ModelPurpose::Sonnet),
                 permission_mode: PermissionMode::Independent,
@@ -57,9 +57,9 @@ impl SubagentRegistry {
         self.builtin_agents.insert(
             "research".to_string(),
             SubagentDefinition {
-                agent_type: "research".to_string(),
-                when_to_use: "研究性任务，需要深入分析".to_string(),
-                tools: vec!["Read".to_string(), "Bash".to_string()],
+                agent_type: "research",
+                when_to_use: "研究性任务，需要深入分析",
+                tools: &["Read", "Bash"],
                 max_turns: 100,
                 model: ModelConfig::ByPurpose(crate::subagent::types::ModelPurpose::Opus),
                 permission_mode: PermissionMode::Independent,
@@ -71,9 +71,9 @@ impl SubagentRegistry {
         self.builtin_agents.insert(
             "test".to_string(),
             SubagentDefinition {
-                agent_type: "test".to_string(),
-                when_to_use: "编写和运行测试".to_string(),
-                tools: vec!["Bash".to_string(), "Read".to_string(), "Write".to_string()],
+                agent_type: "test",
+                when_to_use: "编写和运行测试",
+                tools: &["Bash", "Read", "Write"],
                 max_turns: 50,
                 model: ModelConfig::ByPurpose(crate::subagent::types::ModelPurpose::Sonnet),
                 permission_mode: PermissionMode::Independent,
@@ -85,7 +85,7 @@ impl SubagentRegistry {
     
     /// 注册自定义子代理
     pub fn register_custom(&mut self, agent: SubagentDefinition) {
-        self.custom_agents.insert(agent.agent_type.clone(), agent);
+        self.custom_agents.insert(agent.agent_type.to_string(), agent);
     }
     
     /// 获取子代理定义

@@ -124,7 +124,7 @@ impl CircuitBreaker {
         self.consecutive_failures.store(0, Ordering::SeqCst);
         self.set_state(CircuitBreakerState::Closed);
         
-        log::debug!(
+        tracing::debug!(
             "[{}] Circuit breaker reset to Closed (success after {} failures)",
             self.name,
             self.consecutive_failures.load(Ordering::Relaxed)
@@ -144,14 +144,14 @@ impl CircuitBreaker {
             if old_state != CircuitBreakerState::Open {
                 self.set_state(CircuitBreakerState::Open);
                 
-                log::warn!(
+                tracing::warn!(
                     "[{}] Circuit breaker OPENED after {} consecutive failures",
                     self.name,
                     failures
                 );
             }
         } else {
-            log::debug!(
+            tracing::debug!(
                 "[{}] Recorded failure {}/{}",
                 self.name,
                 failures,
@@ -171,7 +171,7 @@ impl CircuitBreaker {
         *self.last_failure_time.write().unwrap() = None;
         self.set_state(CircuitBreakerState::Closed);
         
-        log::info!("[{}] Circuit breaker manually reset", self.name);
+        tracing::info!("[{}] Circuit breaker manually reset", self.name);
     }
 
     /// 获取统计信息
@@ -263,7 +263,7 @@ pub fn handle_compaction_result(
         
         // 如果是 prompt_too_long 错误，可能意味着上下文不可压缩
         if result.is_prompt_too_long {
-            log::warn!(
+            tracing::warn!(
                 "[Compaction] Prompt too long error - context may be irrecoverable"
             );
         }

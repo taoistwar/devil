@@ -5,7 +5,7 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::{Child, Command};
+use tokio::process::{Child, ChildStdout, Command};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
@@ -15,10 +15,14 @@ use super::Transport;
 pub struct StdioTransport {
     /// 子进程句柄
     child: Child,
+    /// 标准输出读取器
+    stdout: ChildStdout,
     /// 发送通道
     tx: mpsc::Sender<String>,
     /// 是否存活标志
     alive: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// 进程 ID（用于优雅终止）
+    pid: u32,
 }
 
 impl StdioTransport {
@@ -85,23 +89,26 @@ impl StdioTransport {
         });
 
         // 读取循环：从子进程 stdout 读取消息（由外部管理处理）
-        let _stdout_reader = stdout; // 在 recv 方法中处理
+        let stdout_reader = stdout; // 在 recv 方法中处理
+        
+        let pid = child.id().context("Failed to get child PID")?;
 
         Ok(Self {
             child,
+            stdout: stdout_reader,
             tx,
             alive,
+            pid,
         })
     }
 
     /// 内部读取消息
-    pub async fn read_line(&self) -> Result<Option<String>> {
+    pub async fn read_line(&mut self) -> Result<Option<String>> {
         if !self.alive.load(std::sync::atomic::Ordering::Relaxed) {
             return Ok(None);
         }
 
-        let stdout = self.child.stdout.as_ref().context("No stdout")?;
-        let mut reader = BufReader::new(stdout);
+        let mut reader = BufReader::new(&mut self.stdout);
         let mut line = String::new();
 
         match reader.read_line(&mut line).await {
@@ -135,35 +142,23 @@ impl Transport for StdioTransport {
         Ok(())
     }
 
-    async fn recv(&self) -> Result<Option<String>> {
+    async fn recv(&mut self) -> Result<Option<String>> {
         self.read_line().await
     }
 
     async fn close(&self) -> Result<()> {
         self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
         
-        // 尝试优雅关闭
-        let mut child = self.child.try_clone().context("Failed to clone child")?;
-        
         #[cfg(unix)]
         {
             use nix::sys::signal::{kill, Signal};
             use nix::unistd::Pid;
             
-            let pid = child.id().context("No PID")?;
-            kill(Pid::from_raw(pid as i32), Signal::SIGTERM).ok();
-            
-            // 等待 5 秒，然后强制杀死
-            tokio::time::timeout(
-                std::time::Duration::from_secs(5),
-                child.wait()
-            ).await.ok();
+            kill(Pid::from_raw(self.pid as i32), Signal::SIGTERM).ok();
         }
 
-        // 确保进程终止
-        child.kill().await.ok();
-        
-        info!("MCP server process terminated");
+        // kill_on_drop(true) 会在 drop 时自动杀死进程
+        info!("MCP server process termination requested");
         Ok(())
     }
 

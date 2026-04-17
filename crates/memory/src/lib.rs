@@ -52,8 +52,9 @@ impl ShortTermMemory {
             }
         }
         
-        entries.insert(entry.id.clone(), entry);
-        info!("Added short-term memory: {}", entry.id);
+        let id = entry.id.clone();
+        entries.insert(id.clone(), entry);
+        info!("Added short-term memory: {}", id);
         Ok(())
     }
 
@@ -107,8 +108,9 @@ impl LongTermMemory {
     /// 存储记忆
     pub async fn store(&self, entry: MemoryEntry) -> Result<()> {
         let mut entries = self.entries.write().await;
-        entries.insert(entry.id.clone(), entry);
-        info!("Stored long-term memory: {}", entry.id);
+        let id = entry.id.clone();
+        entries.insert(id.clone(), entry);
+        info!("Stored long-term memory: {}", id);
         Ok(())
     }
 

@@ -94,15 +94,6 @@ pub enum StopReason {
     StopSequence,
 }
 
-/// Usage 增量
-#[derive(Debug, Clone, Default)]
-pub struct UsageDelta {
-    pub input_tokens: Option<u32>,
-    pub output_tokens: Option<u32>,
-    pub cache_creation_input_tokens: Option<u32>,
-    pub cache_read_input_tokens: Option<u32>,
-}
-
 /// 文件状态
 #[derive(Debug, Clone)]
 pub struct FileState {
@@ -112,7 +103,7 @@ pub struct FileState {
 }
 
 /// 依赖注入接口
-pub trait QueryDeps: Send + Sync {
+pub trait QueryDeps: Send {
     /// 调用模型 API
     fn call_model(
         &self,

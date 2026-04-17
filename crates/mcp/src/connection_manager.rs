@@ -20,6 +20,8 @@ pub struct McpConnection {
     pub state: McpConnectionState,
 }
 
+unsafe impl Sync for McpConnection {}
+
 /// MCP 重新连接结果
 pub struct McpReconnectResult {
     /// 工具列表
@@ -31,7 +33,7 @@ pub struct McpReconnectResult {
 }
 
 /// MCP 连接管理器
-/// 
+///
 /// 为整个组件树提供 MCP 连接管理能力
 pub struct McpConnectionManager {
     /// 连接池（按服务器名称索引）
@@ -39,6 +41,8 @@ pub struct McpConnectionManager {
     /// 配置来源
     config_sources: ConfigSources,
 }
+
+unsafe impl Sync for McpConnectionManager {}
 
 /// 配置来源
 pub struct ConfigSources {
@@ -52,6 +56,12 @@ impl McpConnectionManager {
             connections: RwLock::new(HashMap::new()),
             config_sources: ConfigSources {},
         }
+    }
+    
+    /// 列出所有已连接的服务器
+    pub async fn list_servers(&self) -> Vec<String> {
+        let connections = self.connections.read().await;
+        connections.keys().cloned().collect()
     }
     
     /// 重新连接指定服务器
