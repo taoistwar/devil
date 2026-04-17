@@ -233,88 +233,172 @@ impl Default for SkillLoader {
 /// 内置 Skills（编译时打包）
 pub mod bundled {
     use super::*;
-    use std::io::{self, Write};
+    use std::io::{self, Read};
     use std::fs::{File, create_dir_all};
+    use std::time::{SystemTime, UNIX_EPOCH};
     
     /// 内置 Skills 压缩数据（编译时嵌入）
     /// 
     /// 使用 include_bytes! 宏将 skills 目录打包为字节数组
-    /// 实际项目中应使用 build.rs 脚本在构建时生成此文件
-    const BUNDLED_SKILLS_DATA: &[u8] = &[];
+    const BUNDLED_SKILLS_DATA: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/bundled_skills.tar.gz"));
     
-    /// 首次使用时的提取标记
-    static mut EXTRACTION_DONE: bool = false;
+    /// 提取标记（使用 Once 确保线程安全）
+    static EXTRACTION_DONE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    static EXTRACTED_DIR: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
     
     /// 注册内置 Skills
     /// 
     /// 关键特性：
     /// - 延迟文件提取：首次调用时才解压到临时目录
-    /// - 闭包级 memoize：并发调用共享同一个 extraction promise
+    /// - 线程安全的惰性单例模式
     /// - 来源标记为 'bundled'，在 Prompt 预算中享有不可截断的特权
     pub fn register_bundled_skills() -> Vec<SkillCommand> {
-        // 检查是否已提取
-        unsafe {
-            if !EXTRACTION_DONE {
-                // 首次调用时提取
-                if let Ok(extracted_dir) = extract_bundled_skills() {
-                    // 从提取目录加载 Skills
-                    let mut loader = SkillLoader::new();
-                    match loader.load_from_dir(
-                        &extracted_dir,
-                        SkillSource::Bundled,
-                        SkillLoadSource::Managed,
-                    ) {
-                        Ok(_) => {
-                            EXTRACTION_DONE = true;
-                            return loader.skills;
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to load bundled skills: {}", e);
-                        }
-                    }
-                }
+        // 使用原子操作检查是否已提取（无锁快速路径）
+        if EXTRACTION_DONE.load(std::sync::atomic::Ordering::Relaxed) {
+            // 已提取，从缓存获取目录
+            let dir = EXTRACTED_DIR.lock().unwrap();
+            if let Some(ref extracted_dir) = *dir {
+                return load_skills_from_dir(extracted_dir);
             }
+            return vec![];
         }
         
-        vec![]
+        // 需要提取（加锁慢速路径）
+        let mut dir_guard = EXTRACTED_DIR.lock().unwrap();
+        
+        // 双重检查锁定模式
+        if let Some(ref extracted_dir) = *dir_guard {
+            return load_skills_from_dir(extracted_dir);
+        }
+        
+        // 执行提取
+        match extract_bundled_skills() {
+            Ok(extracted_dir) => {
+                *dir_guard = Some(extracted_dir.clone());
+                EXTRACTION_DONE.store(true, std::sync::atomic::Ordering::Relaxed);
+                drop(dir_guard); // 释放锁
+                
+                load_skills_from_dir(&extracted_dir)
+            }
+            Err(e) => {
+                eprintln!("Failed to load bundled skills: {}", e);
+                vec![]
+            }
+        }
+    }
+    
+    /// 从目录加载 Skills 的辅助函数
+    fn load_skills_from_dir(dir: &Path) -> Vec<SkillCommand> {
+        let mut loader = SkillLoader::new();
+        match loader.load_from_dir(
+            dir,
+            SkillSource::Bundled,
+            SkillLoadSource::Managed,
+        ) {
+            Ok(_) => loader.skills,
+            Err(e) => {
+                eprintln!("Failed to load bundled skills from {:?}: {}", dir, e);
+                vec![]
+            }
+        }
     }
     
     /// 解压内置 Skills 到临时目录
+    /// 
+    /// 使用惰性单例模式，确保并发调用共享同一个提取结果
     fn extract_bundled_skills() -> Result<PathBuf, String> {
-        use std::time::{SystemTime, UNIX_EPOCH};
+        // 检查数据是否为空
+        if BUNDLED_SKILLS_DATA.is_empty() {
+            return Err("Bundled skills data is empty".to_string());
+        }
         
-        // 获取临时目录
+        // 解析归档数据（简化格式）
+        let data_str = String::from_utf8_lossy(BUNDLED_SKILLS_DATA);
+        let mut lines = data_str.lines();
+        
+        // 验证头部
+        let header = lines.next().ok_or("Invalid archive: missing header")?;
+        if header != "BUNDLED_SKILLS_V1" {
+            return Err(format!("Invalid archive header: {}", header));
+        }
+        
+        // 创建带时间戳的临时目录（确保唯一性）
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        
         let temp_dir = std::env::temp_dir()
             .join("claude-bundled-skills")
-            .join(format!(
-                "{}",
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs()
-            ));
+            .join(format!("{}", timestamp));
         
-        // 创建目录
         create_dir_all(&temp_dir)
             .map_err(|e| format!("Failed to create temp dir: {}", e))?;
         
-        // 如果内置数据为空，返回空目录
-        if BUNDLED_SKILLS_DATA.is_empty() {
-            return Ok(temp_dir);
+        // 解析并提取每个技能
+        let mut current_skill_name: Option<String> = None;
+        let mut current_content = String::new();
+        let mut in_content = false;
+        
+        for line in lines {
+            if line.starts_with("SKILL:") {
+                // 新技能开始
+                if let Some(name) = current_skill_name.take() {
+                    // 保存前一个技能
+                    save_skill(&temp_dir, &name, &current_content)?;
+                    current_content.clear();
+                }
+                current_skill_name = Some(line[6..].to_string());
+                in_content = false;
+            } else if line.starts_with("SIZE:") {
+                // 跳过大小行（可以用于预分配）
+                in_content = false;
+            } else if line == "BEGIN_CONTENT" {
+                in_content = true;
+            } else if line == "END_CONTENT" {
+                in_content = false;
+            } else if in_content {
+                if !current_content.is_empty() {
+                    current_content.push('\n');
+                }
+                current_content.push_str(line);
+            }
         }
         
-        // 解码并解压数据（假设是 tar.gz 格式）
-        // 实际实现需要使用 flate2 和 tar crate
-        // 这里提供框架实现
-        
-        // 示例：如果是 zip 格式
-        // let cursor = io::Cursor::new(BUNDLED_SKILLS_DATA);
-        // let mut archive = zip::ZipArchive::new(cursor)
-        //     .map_err(|e| format!("Failed to open zip: {}", e))?;
-        // archive.extract(&temp_dir)
-        //     .map_err(|e| format!("Failed to extract zip: {}", e))?;
+        // 保存最后一个技能
+        if let Some(name) = current_skill_name {
+            save_skill(&temp_dir, &name, &current_content)?;
+        }
         
         Ok(temp_dir)
+    }
+    
+    /// 保存单个技能文件
+    fn save_skill(temp_dir: &Path, name: &str, content: &str) -> Result<(), String> {
+        let skill_dir = temp_dir.join(name);
+        create_dir_all(&skill_dir)
+            .map_err(|e| format!("Failed to create skill dir {}: {}", name, e))?;
+        
+        let skill_md_path = skill_dir.join("SKILL.md");
+        let mut file = File::create(&skill_md_path)
+            .map_err(|e| format!("Failed to create {:?}: {}", skill_md_path, e))?;
+        
+        // 使用安全的文件权限 (0o600)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let metadata = file.metadata()
+                .map_err(|e| format!("Failed to get metadata: {}", e))?;
+            let mut permissions = metadata.permissions();
+            permissions.set_mode(0o600);
+            file.set_permissions(permissions)
+                .map_err(|e| format!("Failed to set permissions: {}", e))?;
+        }
+        
+        file.write_all(content.as_bytes())
+            .map_err(|e| format!("Failed to write skill file: {}", e))?;
+        
+        Ok(())
     }
 }
 
