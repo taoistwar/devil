@@ -39,9 +39,31 @@ pub async fn run_repl() -> Result<()> {
 
 /// Display configuration
 pub fn show_config() -> Result<()> {
+    let config = crate::config::Config::load().unwrap_or_default();
+
     println!("Configuration:");
-    println!("  App: {}", APP_NAME);
-    println!("  Version: {}", VERSION);
+    println!("  App: {}", config.app_name);
+    println!("  Provider: {}", config.provider);
+    println!("  Model: {}", config.model);
+    println!(
+        "  API Key: {}",
+        if config.has_api_key() {
+            "***"
+        } else {
+            "not set"
+        }
+    );
+    println!("  Max Context Tokens: {}", config.max_context_tokens);
+    println!("  Max Turns: {}", config.max_turns);
+    println!("  Tool Timeout: {}s", config.tool_timeout_secs);
+    println!("  Verbose: {}", config.verbose);
+
+    // Show environment variables
+    println!("\nEnvironment Variables:");
+    for (name, desc) in crate::config::list_env_vars() {
+        println!("  {} - {}", name, desc);
+    }
+
     Ok(())
 }
 

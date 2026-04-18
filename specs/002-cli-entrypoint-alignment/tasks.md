@@ -63,10 +63,10 @@ description: "Task list for CLI Entry Point Alignment"
 
 ### Phase 2.3: Config Loading
 
-- [ ] T015 Create `src/config/mod.rs` with `Config` struct
-- [ ] T016 [P] Implement `Config::load()` to read from `~/.devil/config.toml`
-- [ ] T017 [P] Implement environment variable override in `Config::load()`
-- [ ] T018 Create `src/config/settings.rs` for runtime settings management
+- [X] T015 Create `src/config/mod.rs` with `Config` struct
+- [X] T016 [P] Implement `Config::load()` to read from `~/.devil/config.toml`
+- [X] T017 [P] Implement environment variable override in `Config::load()`
+- [X] T018 Create `src/config/settings.rs` for runtime settings management
 
 **Checkpoint**: Foundation ready - all commands can be implemented
 
@@ -162,9 +162,9 @@ description: "Task list for CLI Entry Point Alignment"
 
 **Independent Test**: Set `DEVIL_API_KEY` and verify it's loaded
 
-- [ ] T040 [US6] Implement environment variable prefix `DEVIL_` scanning in `src/config/mod.rs`
-- [ ] T041 [US6] Add priority: ENV > config file > defaults
-- [ ] T042 [US6] Document environment variables in help text
+- [X] T040 [US6] Implement environment variable prefix `DEVIL_` scanning in `src/config/mod.rs`
+- [X] T041 [US6] Add priority: ENV > config file > defaults
+- [X] T042 [US6] Document environment variables in help text
 
 **Checkpoint**: Environment variables take precedence
 

@@ -38,6 +38,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
+toml = "0.8"
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }

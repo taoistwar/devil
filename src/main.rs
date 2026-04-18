@@ -23,6 +23,7 @@
 //! ```
 
 mod cli;
+mod config;
 
 use anyhow::Result;
 use std::env;
