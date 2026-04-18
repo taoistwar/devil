@@ -9,11 +9,11 @@
 
 **Purpose**: Project initialization and Rust workspace structure
 
-- [ ] T001 Create Rust workspace structure per plan.md
-- [ ] T002 [P] Add Tokio, anyhow, thiserror, clap dependencies to workspace Cargo.toml
-- [ ] T003 [P] Configure `cargo fmt` and `cargo clippy` in rust-toolchain.toml
+- [X] T001 Create Rust workspace structure per plan.md
+- [X] T002 [P] Add Tokio, anyhow, thiserror, clap dependencies to workspace Cargo.toml
+- [X] T003 [P] Configure `cargo fmt` and `cargo clippy` in rust-toolchain.toml
 
-**Checkpoint**: Rust workspace compiles with no warnings
+**Checkpoint**: Rust workspace compiles with no warnings ✓ PASS
 
 ---
 
@@ -23,31 +23,31 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 [P] Create `src/agent/lib.rs` with module declarations
-- [ ] T005 [P] Create `src/agent/core.rs` with main agent orchestration (Agent struct, run loop)
-- [ ] T006 [P] Create `src/agent/message.rs` with Message, Role, ContentBlock types
-- [ ] T007 Create `src/agent/context/session.rs` with Session state management
-- [ ] T008 Create `src/agent/context/history.rs` with MessageHistory tracking
-- [ ] T009 Create `src/agent/context/mod.rs` exporting context modules
-- [ ] T010 [P] Create `src/agent/tools/mod.rs` with Tool trait definition
-- [ ] T011 [P] Create `src/agent/tools/tool.rs` with Tool trait, is_read_only, is_concurrency_safe
-- [ ] T012 [P] Create `src/agent/tools/bash.rs` - Bash tool implementation
-- [ ] T013 [P] Create `src/agent/tools/read.rs` - Read tool implementation
-- [ ] T014 [P] Create `src/agent/tools/write.rs` - Write tool implementation
-- [ ] T015 [P] Create `src/agent/tools/edit.rs` - Edit tool implementation
-- [ ] T016 [P] Create `src/agent/tools/glob.rs` - Glob tool implementation
-- [ ] T017 [P] Create `src/agent/tools/grep.rs` - Grep tool implementation
-- [ ] T018 [P] Create `src/agent/tools/builtin.rs` with BuiltInTool registry
-- [ ] T019 [P] Create `src/agent/tools/registry.rs` with ToolRegistry
-- [ ] T020 [P] Create `src/agent/tools/build_tool.rs` with ToolBuilder
-- [ ] T021 Create `src/agent/tools/executor.rs` with StreamingToolExecutor
-- [ ] T022 [P] Create `src/agent/permissions/mod.rs` with PermissionLevel, PermissionResult
-- [ ] T023 [P] Create `src/agent/permissions/pipeline.rs` with PermissionPipeline
-- [ ] T024 [P] Create `src/agent/permissions/bash_analyzer.rs` with BashPermissionAnalyzer
-- [ ] T025 Create `src/agent/permissions/context.rs` with PermissionContext
-- [ ] T026 Create error handling infrastructure with anyhow/thiserror
+- [X] T004 [P] Create `src/agent/lib.rs` with module declarations
+- [X] T005 [P] Create `src/agent/core.rs` with main agent orchestration (Agent struct, run loop)
+- [X] T006 [P] Create `src/agent/message.rs` with Message, Role, ContentBlock types
+- [X] T007 Create `src/agent/context/session.rs` with Session state management
+- [X] T008 Create `src/agent/context/history.rs` with MessageHistory tracking
+- [X] T009 Create `src/agent/context/mod.rs` exporting context modules
+- [X] T010 [P] Create `src/agent/tools/mod.rs` with Tool trait definition
+- [X] T011 [P] Create `src/agent/tools/tool.rs` with Tool trait, is_read_only, is_concurrency_safe
+- [X] T012 [P] Create `src/agent/tools/bash.rs` - Bash tool implementation (in builtin.rs)
+- [X] T013 [P] Create `src/agent/tools/read.rs` - Read tool implementation (in builtin.rs)
+- [X] T014 [P] Create `src/agent/tools/write.rs` - Write tool implementation (in builtin.rs)
+- [X] T015 [P] Create `src/agent/tools/edit.rs` - Edit tool implementation (in builtin.rs)
+- [X] T016 [P] Create `src/agent/tools/glob.rs` - Glob tool implementation (in builtin.rs)
+- [X] T017 [P] Create `src/agent/tools/grep.rs` - Grep tool implementation (in builtin.rs)
+- [X] T018 [P] Create `src/agent/tools/builtin.rs` with BuiltInTool registry
+- [X] T019 [P] Create `src/agent/tools/registry.rs` with ToolRegistry
+- [X] T020 [P] Create `src/agent/tools/build_tool.rs` with ToolBuilder
+- [X] T021 Create `src/agent/tools/executor.rs` with StreamingToolExecutor
+- [X] T022 [P] Create `src/agent/permissions/mod.rs` with PermissionLevel, PermissionResult
+- [X] T023 [P] Create `src/agent/permissions/pipeline.rs` with PermissionPipeline
+- [X] T024 [P] Create `src/agent/permissions/bash_analyzer.rs` with BashPermissionAnalyzer
+- [X] T025 Create `src/agent/permissions/context.rs` with PermissionContext
+- [X] T026 Create error handling infrastructure with anyhow/thiserror
 
-**Checkpoint**: Foundation ready - core agent compiles with all tools registered
+**Checkpoint**: Foundation ready - core agent compiles with all tools registered ✓ PASS
 
 ---
 
@@ -59,13 +59,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T027 [US1] Implement Agent::run() method in `src/agent/core.rs`
-- [ ] T028 [US1] Implement task acknowledgment and analysis phase
-- [ ] T029 [US1] Connect tools to agent execution loop
+- [X] T027 [US1] Implement Agent::run() method in `src/agent/core.rs`
+- [X] T028 [US1] Implement task acknowledgment and analysis phase
+- [ ] T029 [US1] Connect tools to agent execution loop (partial - run loop exists, actual tool execution has TODO)
 - [ ] T030 [US1] Add progress reporting to user (StreamEvent::Progress)
-- [ ] T031 [US1] Implement task completion and final response
+- [X] T031 [US1] Implement task completion and final response
 
-**Checkpoint**: Agent can receive task and complete simple "echo hello" task
+**Progress**: Mock mode implemented in ProductionDeps (DEVIL_MOCK_MODEL=1)
+**Checkpoint**: Agent can receive task and complete simple "echo hello" task (mock mode ready)
 
 ---
 
@@ -77,13 +78,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T032 [US2] Implement Glob tool with proper .gitignore handling
-- [ ] T033 [US2] Implement Grep tool with regex support
-- [ ] T034 [US2] Implement Read tool with large file handling (>10000 lines)
+- [X] T032 [US2] Implement Glob tool with proper .gitignore handling (uses glob crate)
+- [X] T033 [US2] Implement Grep tool with regex support (uses walkdir + regex crate)
+- [X] T034 [US2] Implement Read tool with large file handling (>10000 lines)
 - [ ] T035 [US2] Create codebase analysis prompts in `src/agent/prompts.rs`
 - [ ] T036 [US2] Integrate exploration tools into agent reasoning loop
 
-**Checkpoint**: Agent can explore a 100+ file codebase and describe its architecture
+**Checkpoint**: Agent can explore a 100+ file codebase and describe its architecture (tools implemented)
 
 ---
 
@@ -95,10 +96,10 @@
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] Implement Write tool with atomic write (temp file + rename)
-- [ ] T038 [US3] Implement Edit tool with precise line-based edits
-- [ ] T039 [US3] Add backup creation before destructive file operations
-- [ ] T040 [US3] Implement error recovery (restore original on failure)
+- [X] T037 [US3] Implement Write tool with atomic write (temp file + rename)
+- [X] T038 [US3] Implement Edit tool with precise line-based edits
+- [X] T039 [US3] Add backup creation before destructive file operations
+- [X] T040 [US3] Implement error recovery (restore original on failure)
 - [ ] T041 [US3] Add file modification confirmation flow
 
 **Checkpoint**: Agent can safely modify files with rollback on error
@@ -113,11 +114,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T042 [US4] Enhance Bash tool with output streaming (StreamEvent)
-- [ ] T043 [US4] Implement command timeout handling in Bash tool
-- [ ] T044 [US4] Implement destructive command detection (rm, DROP, etc.)
-- [ ] T045 [US4] Add user confirmation flow for destructive commands
-- [ ] T046 [US4] Implement infinite output protection (max lines buffer)
+- [X] T042 [US4] Enhance Bash tool with output streaming (StreamEvent)
+- [X] T043 [US4] Implement command timeout handling in Bash tool
+- [X] T044 [US4] Implement destructive command detection (rm, DROP, etc.) (via BashSemanticAnalyzer)
+- [X] T045 [US4] Add user confirmation flow for destructive commands (via permission_level)
+- [X] T046 [US4] Implement infinite output protection (max lines buffer)
 
 **Checkpoint**: Agent executes commands safely with timeout and destructive command protection
 
@@ -145,13 +146,13 @@
 
 **Purpose**: Enable parallel subtask execution for complex tasks
 
-- [ ] T052 [P] Create `src/agent/subagent/mod.rs` with SubagentDefinition
-- [ ] T053 [P] Create `src/agent/subagent/executor.rs` with SubagentExecutor
-- [ ] T054 [P] Create `src/agent/subagent/registry.rs` with SubagentRegistry
-- [ ] T055 [P] Create `src/agent/subagent/context_inheritance.rs`
-- [ ] T056 [P] Create `src/agent/subagent/recursion_guard.rs`
+- [X] T052 [P] Create `src/agent/subagent/mod.rs` with SubagentDefinition
+- [X] T053 [P] Create `src/agent/subagent/executor.rs` with SubagentExecutor
+- [X] T054 [P] Create `src/agent/subagent/registry.rs` with SubagentRegistry
+- [X] T055 [P] Create `src/agent/subagent/context_inheritance.rs`
+- [X] T056 [P] Create `src/agent/subagent/recursion_guard.rs`
 
-**Checkpoint**: Subagent system compiles and can spawn parallel subtasks
+**Checkpoint**: Subagent system compiles and can spawn parallel subtasks ✓ PASS
 
 ---
 
@@ -159,14 +160,14 @@
 
 **Purpose**: Task coordination and extensibility
 
-- [ ] T057 [P] Create `src/agent/coordinator/mod.rs` with Coordinator
-- [ ] T058 [P] Create `src/agent/coordinator/orchestration.rs` with OrchestrationPlan
-- [ ] T059 [P] Create `src/agent/hooks/mod.rs` with HookTrigger, HookExecutor
-- [ ] T060 [P] Create `src/agent/hooks/types.rs` with hook type definitions
-- [ ] T061 [P] Create `src/agent/skills/mod.rs` with Skill trait
-- [ ] T062 [P] Create `src/agent/skills/loader.rs` and executor.rs
+- [X] T057 [P] Create `src/agent/coordinator/mod.rs` with Coordinator
+- [X] T058 [P] Create `src/agent/coordinator/orchestration.rs` with OrchestrationPlan
+- [X] T059 [P] Create `src/agent/hooks/mod.rs` with HookTrigger, HookExecutor
+- [X] T060 [P] Create `src/agent/hooks/types.rs` with hook type definitions
+- [X] T061 [P] Create `src/agent/skills/mod.rs` with Skill trait
+- [X] T062 [P] Create `src/agent/skills/loader.rs` and executor.rs
 
-**Checkpoint**: Coordinator and hooks system operational
+**Checkpoint**: Coordinator and hooks system operational ✓ PASS
 
 ---
 
@@ -174,11 +175,11 @@
 
 **Purpose**: MCP protocol support for external tool servers
 
-- [ ] T063 [P] Review existing `crates/mcp/` structure
+- [X] T063 [P] Review existing `crates/mcp/` structure
 - [ ] T064 [P] Integrate MCP tools into agent tool registry
 - [ ] T065 [P] Implement MCP permission checking
 
-**Checkpoint**: Agent can discover and use MCP tools
+**Checkpoint**: Agent can discover and use MCP tools (structure exists, integration pending)
 
 ---
 

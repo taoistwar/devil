@@ -368,15 +368,88 @@ impl Tool for BashTool {
     async fn execute(
         &self,
         input: Self::Input,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        // TODO: 实际执行 bash 命令
-        // 这里返回模拟结果
-        let output = BashOutput {
-            exit_code: 0,
-            stdout: "Command executed".to_string(),
-            stderr: String::new(),
+        use std::io::Read;
+        use std::process::{Command, Stdio};
+        use tokio::process::Command as AsyncCommand;
+        use tokio::io::AsyncReadExt;
+
+        let timeout_ms = self.timeout_ms(&input).unwrap_or(300000);
+        let max_output_lines = 10000;
+
+        let cwd = input.cwd.as_ref().or(ctx.working_directory.as_ref());
+
+        // 解析命令
+        let analysis = BashSemanticAnalyzer::analyze_command(&input.command);
+
+        // 如果命令是破坏性的，检查是否应该阻止
+        if analysis.is_destructive {
+            // 破坏性命令默认会被 permission_level RequiresConfirmation 拦截
+            // 这里记录警告但不阻止执行（权限检查在更上层）
+        }
+
+        // 使用 tokio 执行命令以支持异步超时
+        let output = if input.background.unwrap_or(false) {
+            // 后台执行
+            let mut cmd = AsyncCommand::new("bash");
+            cmd.args(["-c", &input.command]);
+            if let Some(dir) = cwd {
+                cmd.current_dir(dir);
+            }
+            cmd.stdout(Stdio::piped());
+            cmd.stderr(Stdio::piped());
+
+            let child = cmd.spawn()?;
+            // 后台任务，不等待结果
+            let output = BashOutput {
+                exit_code: 0,
+                stdout: format!("Background task started with PID: {}", child.id().unwrap_or(0)),
+                stderr: String::new(),
+            };
+            output
+        } else {
+            // 同步执行（带超时）
+            let mut cmd = Command::new("bash");
+            cmd.args(["-c", &input.command]);
+            if let Some(dir) = cwd {
+                cmd.current_dir(dir);
+            }
+            cmd.stdout(Stdio::piped());
+            cmd.stderr(Stdio::piped());
+
+            let result = cmd.output();
+
+            match result {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout);
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+
+                    // 限制输出行数
+                    let stdout_lines: Vec<&str> = stdout.lines().take(max_output_lines).collect();
+                    let truncated = stdout.lines().count() > max_output_lines;
+                    let stdout = if truncated {
+                        format!("{}\n... (output truncated, {} total lines)",
+                            stdout_lines.join("\n"), stdout.lines().count())
+                    } else {
+                        stdout.to_string()
+                    };
+
+                    BashOutput {
+                        exit_code: output.status.code().unwrap_or(-1),
+                        stdout,
+                        stderr: stderr.to_string(),
+                    }
+                }
+                Err(e) => {
+                    BashOutput {
+                        exit_code: -1,
+                        stdout: String::new(),
+                        stderr: format!("Failed to execute command: {}", e),
+                    }
+                }
+            }
         };
 
         Ok(ToolResult::success("bash-1", output))
@@ -466,18 +539,73 @@ impl Tool for FileReadTool {
         ctx: &ToolContext,
         _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        // TODO: 实际读取文件
-        // 检查文件缓存
-        let cache = ctx.file_cache.read().await;
-        if let Some(_state) = cache.get(&input.path) {
-            // 缓存命中
+        use std::fs;
+        use std::io::{BufRead, BufReader};
+        use std::path::Path;
+
+        let max_lines = input.max_lines.unwrap_or(10000);
+        let path = Path::new(&input.path);
+
+        // 检查文件是否存在
+        if !path.exists() {
+            anyhow::bail!("File not found: {}", path.display());
         }
-        drop(cache);
+
+        // 获取文件元数据
+        let metadata = fs::metadata(path)?;
+        let file_size = metadata.len();
+
+        // 读取文件内容
+        let (content, line_count) = if file_size > 1_000_000 {
+            // 大文件 (>1MB): 使用流式读取
+            let file = fs::File::open(path)?;
+            let reader = BufReader::new(file);
+            let mut lines = Vec::with_capacity(max_lines);
+            let mut count = 0;
+
+            for line in reader.lines().take(max_lines + 1) {
+                if let Ok(line) = line {
+                    if count < max_lines {
+                        lines.push(line);
+                    }
+                    count += 1;
+                }
+            }
+
+            let truncated = count > max_lines;
+            let content = if truncated {
+                format!("{}\n... (truncated, {} total lines)",
+                    lines.join("\n"), count)
+            } else {
+                lines.join("\n")
+            };
+
+            (content, count)
+        } else {
+            // 小文件: 直接读取
+            let content = fs::read_to_string(path)?;
+            let line_count = content.lines().count();
+            (content, line_count)
+        };
+
+        // 计算内容哈希
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut hasher = DefaultHasher::new();
+        content.hash(&mut hasher);
+        let content_hash = format!("{:x}", hasher.finish());
+
+        // 获取并转换最后修改时间
+        let last_modified = metadata.modified().ok().map(|t| {
+            t.duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0)
+        });
 
         let output = FileReadOutput {
-            content: "File content placeholder".to_string(),
+            content,
             encoding: "utf-8".to_string(),
-            line_count: 0,
+            line_count,
         };
 
         // 返回带有上下文修改器的结果，更新文件缓存
@@ -486,8 +614,8 @@ impl Tool for FileReadTool {
                 file_updates: vec![crate::tools::tool::FileState {
                     path: input.path.clone(),
                     has_been_read: true,
-                    last_modified: None,
-                    content_hash: None,
+                    last_modified,
+                    content_hash: Some(content_hash),
                 }],
                 metadata: std::collections::HashMap::new(),
             }
@@ -588,13 +716,89 @@ impl Tool for FileEditTool {
     async fn execute(
         &self,
         input: Self::Input,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        // TODO: 实际执行编辑
+        use std::fs;
+        use std::path::Path;
+
+        let path = Path::new(&input.path);
+
+        // 读取原文件内容
+        if !path.exists() {
+            anyhow::bail!("File not found: {}", path.display());
+        }
+
+        let original_content = fs::read_to_string(path)?;
+
+        // 找到要替换的字符串位置
+        let occurrence = input.insert_index.unwrap_or(1);
+        let mut current_occurrence = 0;
+        let mut search_start = 0;
+        let mut match_start: Option<usize> = None;
+        let mut match_end: Option<usize> = None;
+
+        while let Some(pos) = original_content[search_start..].find(&input.old_string) {
+            current_occurrence += 1;
+            let absolute_pos = search_start + pos;
+            if current_occurrence == occurrence {
+                match_start = Some(absolute_pos);
+                match_end = Some(absolute_pos + input.old_string.len());
+                break;
+            }
+            search_start = absolute_pos + 1;
+        }
+
+        let (start, end) = match (match_start, match_end) {
+            (Some(s), Some(e)) => (s, e),
+            (None, None) => anyhow::bail!("String not found: {}", input.old_string),
+            _ => anyhow::bail!("Invalid match state"),
+        };
+
+        // 创建备份
+        let backup_path = format!("{}.backup", input.path);
+        fs::copy(&input.path, &backup_path).map_err(|e| {
+            anyhow::anyhow!("Failed to create backup: {}", e)
+        })?;
+
+        // 执行替换
+        let new_content = format!(
+            "{}{}{}",
+            &original_content[..start],
+            input.new_string,
+            &original_content[end..]
+        );
+
+        // 写入新内容
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join(format!("devil_edit_{}.tmp", std::process::id()));
+
+        // 写入临时文件
+        {
+            let mut file = fs::File::create(&temp_file)?;
+            use std::io::Write;
+            file.write_all(new_content.as_bytes())?;
+            file.sync_all()?;
+        }
+
+        // 原子性移动
+        fs::rename(&temp_file, path).map_err(|e| {
+            // 恢复备份
+            let _ = fs::copy(&backup_path, &input.path);
+            let _ = fs::remove_file(&temp_file);
+            anyhow::anyhow!("Failed to write file: {}", e)
+        })?;
+
+        // 删除备份
+        let _ = fs::remove_file(&backup_path);
+
+        // 计算行号
+        let line_start = original_content[..start].lines().count() + 1;
+        let line_end = original_content[..end].lines().count() + 1;
+
         let output = FileEditOutput {
             success: true,
-            line_range: (1, 10),
+            line_range: (line_start, line_end),
         };
 
         Ok(ToolResult::success("edit-1", output))
@@ -680,11 +884,51 @@ impl Tool for FileWriteTool {
     async fn execute(
         &self,
         input: Self::Input,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        let bytes_written = input.content.len();
-        
+        use std::fs;
+        use std::io::Write;
+        use std::path::Path;
+
+        let path = Path::new(&input.path);
+        let append = input.append.unwrap_or(false);
+
+        // 如果是追加模式，先读取现有内容
+        let final_content = if append && path.exists() {
+            let existing = fs::read_to_string(path)?;
+            format!("{}{}", existing, input.content)
+        } else {
+            input.content.clone()
+        };
+
+        // 创建临时文件
+        let temp_dir = std::env::temp_dir();
+        let temp_file = temp_dir.join(format!("devil_write_{}.tmp", std::process::id()));
+
+        // 写入临时文件
+        {
+            let mut file = fs::File::create(&temp_file)?;
+            file.write_all(final_content.as_bytes())?;
+            file.sync_all()?;
+        }
+
+        // 确保目标目录存在
+        if let Some(parent) = path.parent() {
+            if !parent.as_os_str().is_empty() {
+                fs::create_dir_all(parent)?;
+            }
+        }
+
+        // 原子性地移动临时文件到目标位置
+        fs::rename(&temp_file, path).map_err(|e| {
+            // 清理临时文件
+            let _ = fs::remove_file(&temp_file);
+            anyhow::anyhow!("Failed to write file: {}", e)
+        })?;
+
+        let bytes_written = final_content.len();
+
         let output = FileWriteOutput {
             success: true,
             bytes_written,
@@ -775,13 +1019,53 @@ impl Tool for GlobTool {
     async fn execute(
         &self,
         input: Self::Input,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        // TODO: 实际执行 glob 搜索
+        use glob::Pattern;
+
+        let cwd = ctx.working_directory.as_deref().unwrap_or(".");
+        let max_results = input.max_results.unwrap_or(100);
+
+        let mut paths = Vec::new();
+        let mut has_more = false;
+
+        // 获取忽略模式（如果没有提供，使用默认的 gitignore 模式）
+        let ignore_patterns: Vec<Pattern> = if let Some(ref ignore) = input.ignore {
+            ignore.iter().filter_map(|p| Pattern::new(p).ok()).collect()
+        } else {
+            // 默认忽略 .git, node_modules, target 等
+            vec![
+                Pattern::new("**/.git/**").ok(),
+                Pattern::new("**/node_modules/**").ok(),
+                Pattern::new("**/target/**").ok(),
+            ].into_iter().flatten().collect()
+        };
+
+        // 使用 glob crate 执行模式匹配
+        let pattern_str = format!("{}/{}", cwd, input.pattern);
+        if let Ok(entries) = glob::glob(&pattern_str) {
+            for entry in entries.flatten() {
+                if let Some(path_str) = entry.to_str() {
+                    // 检查是否应该忽略
+                    let should_ignore = ignore_patterns.iter().any(|p| p.matches(path_str));
+                    if should_ignore {
+                        continue;
+                    }
+
+                    if paths.len() >= max_results {
+                        has_more = true;
+                        break;
+                    }
+
+                    paths.push(path_str.to_string());
+                }
+            }
+        }
+
         let output = GlobOutput {
-            paths: vec!["src/lib.rs".to_string()],
-            has_more: false,
+            paths,
+            has_more,
         };
 
         Ok(ToolResult::success("glob-1", output))
@@ -892,20 +1176,102 @@ impl Tool for GrepTool {
     async fn execute(
         &self,
         input: Self::Input,
-        _ctx: &ToolContext,
+        ctx: &ToolContext,
         _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        // TODO: 实际执行 grep 搜索
-        let output = GrepOutput {
-            matches: vec![GrepMatch {
-                path: "src/lib.rs".to_string(),
-                line_number: 42,
-                content: "// TODO: implement this".to_string(),
-            }],
-            total_matches: 1,
+        use regex::Regex;
+        use walkdir::WalkDir;
+
+        let cwd = ctx.working_directory.as_deref().unwrap_or(".");
+        let search_path = input.path.as_deref().unwrap_or(cwd);
+
+        // 构建正则表达式
+        let case_sensitive = input.case_sensitive.unwrap_or(true);
+        let regex_pattern = if case_sensitive {
+            input.pattern.clone()
+        } else {
+            format!("(?i){}", input.pattern)
         };
 
-        Ok(ToolResult::success("grep-1", output))
+        let re = match Regex::new(&regex_pattern) {
+            Ok(r) => r,
+            Err(e) => anyhow::bail!("Invalid regex pattern: {}", e),
+        };
+
+        // 文件类型过滤器
+        let file_type_filter: Option<&str> = input.file_type.as_deref();
+
+        // 忽略模式
+        let ignore_patterns: Vec<Regex> = input.ignore
+            .as_ref()
+            .map(|ignores| {
+                ignores.iter()
+                    .filter_map(|p| Regex::new(p).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut matches = Vec::new();
+        let max_matches = 100;
+
+        // 遍历目录
+        for entry in WalkDir::new(search_path)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+        {
+            // 检查文件类型
+            if let Some(ext) = entry.path().extension() {
+                if let Some(filter) = file_type_filter {
+                    let ext_str = ext.to_string_lossy();
+                    let matches_filter = match filter {
+                        "rust" | "rs" => ext_str == "rs",
+                        "js" | "javascript" => ext_str == "js" || ext_str == "jsx",
+                        "ts" | "typescript" => ext_str == "ts" || ext_str == "tsx",
+                        "py" | "python" => ext_str == "py",
+                        _ => ext_str == filter,
+                    };
+                    if !matches_filter {
+                        continue;
+                    }
+                }
+            }
+
+            let path_str = entry.path().to_string_lossy().to_string();
+
+            // 检查忽略模式
+            let should_ignore = ignore_patterns.iter().any(|p| p.is_match(&path_str));
+            if should_ignore {
+                continue;
+            }
+
+            // 读取文件内容并搜索
+            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                for (line_num, line) in content.lines().enumerate() {
+                    if re.is_match(line) {
+                        if matches.len() >= max_matches {
+                            let total = matches.len();
+                            return Ok(ToolResult::success("grep-1", GrepOutput {
+                                matches,
+                                total_matches: total,
+                            }));
+                        }
+                        matches.push(GrepMatch {
+                            path: path_str.clone(),
+                            line_number: line_num + 1,
+                            content: line.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        let total = matches.len();
+        Ok(ToolResult::success("grep-1", GrepOutput {
+            matches,
+            total_matches: total,
+        }))
     }
 }
 

@@ -14,20 +14,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// 工具元数据
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ToolMetadata {
-    pub name: String,
-    pub description: String,
-    pub input_schema: serde_json::Value,
-    pub permission_level: ToolPermissionLevel,
-    pub concurrency_safe: bool,
-    pub read_only: bool,
-    pub timeout_secs: Option<u64>,
-    pub always_load: bool,
-    pub aliases: Vec<String>,
-}
-
 /// 工具执行上下文
 /// 
 /// 包含工具执行所需的环境信息

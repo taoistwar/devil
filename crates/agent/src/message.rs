@@ -81,6 +81,18 @@ impl UserMessage {
         }
     }
 
+    /// 获取纯文本内容（不包括工具调用）
+    pub fn text_content(&self) -> String {
+        self.content
+            .iter()
+            .filter_map(|c| match c {
+                ContentBlock::Text { text } => Some(text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("")
+    }
+
     /// 添加工具执行结果
     pub fn with_tool_result(
         tool_use_id: impl Into<String>,

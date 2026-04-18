@@ -121,11 +121,38 @@ impl Default for ProductionDeps {
 impl QueryDeps for ProductionDeps {
     async fn call_model(
         &self,
-        _params: ModelCallParams,
+        params: ModelCallParams,
     ) -> Result<ModelCallResult> {
+        // 检查是否启用 mock 模式（用于测试）
+        if std::env::var("DEVIL_MOCK_MODEL").is_ok() {
+            // Mock 模式：简单回显用户消息
+            let user_text = params.messages.iter()
+                .filter_map(|msg| {
+                    if let Message::User(ref u) = msg {
+                        Some(u.text_content())
+                    } else {
+                        None
+                    }
+                })
+                .last()
+                .unwrap_or_default();
+
+            let echo_response = format!(
+                "I received your message: '{}'. How can I help you with your task?",
+                user_text
+            );
+
+            return Ok(ModelCallResult {
+                assistant_message: AssistantMessage::text(echo_response),
+                input_tokens: 10,
+                output_tokens: 20,
+                stop_reason: Some("stop_sequence".to_string()),
+            });
+        }
+
         // TODO: 实现真实的 API 调用
         // 这里应该调用 Anthropic API
-        anyhow::bail!("Model call not implemented")
+        anyhow::bail!("Model call not implemented - set DEVIL_MOCK_MODEL=1 for testing")
     }
 
     async fn micro_compact(
@@ -300,5 +327,29 @@ mod tests {
 
         assert!(result.assistant_message.text_content().contains("Called with"));
         assert_eq!(result.input_tokens, 100);
+    }
+
+    #[tokio::test]
+    async fn test_mock_mode_echo() {
+        // 测试 mock 模式下的简单回显
+        std::env::set_var("DEVIL_MOCK_MODEL", "1");
+        let deps = ProductionDeps::new();
+
+        let messages = vec![Message::User(UserMessage::text("hello"))];
+        let result = deps
+            .call_model(ModelCallParams {
+                system_prompt: "You are a helpful assistant.".to_string(),
+                messages,
+                max_tokens: 1000,
+                model: "test-model".to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.assistant_message.text_content().contains("hello"));
+        assert_eq!(result.input_tokens, 10);
+        assert_eq!(result.output_tokens, 20);
+
+        std::env::remove_var("DEVIL_MOCK_MODEL");
     }
 }
