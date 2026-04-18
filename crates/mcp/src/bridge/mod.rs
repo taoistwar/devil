@@ -7,11 +7,11 @@
 //! - 心跳和超时处理
 //! - 去重（BoundedUUIDSet）
 
-pub mod message_router;
 pub mod dedup;
+pub mod message_router;
 
-pub use message_router::MessageRouter;
 pub use dedup::BoundedUuidSet;
+pub use message_router::MessageRouter;
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -104,12 +104,12 @@ impl McpBridge {
     /// 启动 Bridge
     pub async fn start(&self) -> Result<()> {
         info!("Starting MCP Bridge for server: {}", self.server_id);
-        
+
         *self.state.write().await = BridgeState::Connecting;
-        
+
         // 启动消息处理循环
         self.start_message_loop();
-        
+
         Ok(())
     }
 
@@ -125,7 +125,7 @@ impl McpBridge {
         params: serde_json::Value,
     ) -> Result<serde_json::Value> {
         let id = uuid::Uuid::new_v4().to_string();
-        
+
         debug!("Sending request {} (id: {}): {:?}", method, id, params);
 
         // 创建响应接收器
@@ -145,7 +145,9 @@ impl McpBridge {
         match tokio::time::timeout(
             std::time::Duration::from_millis(self.timeout_ms),
             response_rx.recv(),
-        ).await {
+        )
+        .await
+        {
             Ok(Some(BridgeMessage::Response { result, error, .. })) => {
                 if let Some(err) = error {
                     anyhow::bail!("JSON-RPC error {}: {}", err.code, err.message);
@@ -166,11 +168,7 @@ impl McpBridge {
     }
 
     /// 发送通知（不等待响应）
-    pub async fn send_notification(
-        &self,
-        method: &str,
-        params: serde_json::Value,
-    ) -> Result<()> {
+    pub async fn send_notification(&self, method: &str, params: serde_json::Value) -> Result<()> {
         debug!("Sending notification {}: {:?}", method, params);
 
         let msg = BridgeMessage::Notification {
@@ -178,16 +176,15 @@ impl McpBridge {
             params,
         };
 
-        self.tx.send(msg).await.context("Failed to send notification")?;
+        self.tx
+            .send(msg)
+            .await
+            .context("Failed to send notification")?;
         Ok(())
     }
 
     /// 发送控制命令
-    pub async fn send_control(
-        &self,
-        command: &str,
-        payload: serde_json::Value,
-    ) -> Result<()> {
+    pub async fn send_control(&self, command: &str, payload: serde_json::Value) -> Result<()> {
         debug!("Sending control command {}: {:?}", command, payload);
 
         let msg = BridgeMessage::Control {
@@ -217,7 +214,8 @@ impl McpBridge {
 
     /// 发送 tools/list 请求
     pub async fn list_tools(&self) -> Result<serde_json::Value> {
-        self.send_request("tools/list", serde_json::Value::Null).await
+        self.send_request("tools/list", serde_json::Value::Null)
+            .await
     }
 
     /// 发送 tools/call 请求
@@ -236,12 +234,14 @@ impl McpBridge {
 
     /// 发送 resources/list 请求
     pub async fn list_resources(&self) -> Result<serde_json::Value> {
-        self.send_request("resources/list", serde_json::Value::Null).await
+        self.send_request("resources/list", serde_json::Value::Null)
+            .await
     }
 
     /// 发送 prompts/list 请求
     pub async fn list_prompts(&self) -> Result<serde_json::Value> {
-        self.send_request("prompts/list", serde_json::Value::Null).await
+        self.send_request("prompts/list", serde_json::Value::Null)
+            .await
     }
 
     /// 获取当前状态
@@ -264,10 +264,10 @@ impl McpBridge {
     /// 关闭 Bridge
     pub async fn close(&self) -> Result<()> {
         info!("Closing MCP Bridge for server: {}", self.server_id);
-        
+
         self.set_state(BridgeState::Disconnected).await;
         self.router.clear().await;
-        
+
         Ok(())
     }
 }

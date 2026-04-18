@@ -1,11 +1,11 @@
 //! 断路器模式实现
-//! 
+//!
 //! 保护系统免受级联失败影响
 //! 连续 3 次压缩失败后停止尝试
 
+use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, RwLock};
-use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 
 /// 断路器状态
@@ -22,7 +22,10 @@ pub enum CircuitBreakerState {
 impl CircuitBreakerState {
     /// 判断是否允许执行
     pub fn allows_execution(&self) -> bool {
-        matches!(self, CircuitBreakerState::Closed | CircuitBreakerState::HalfOpen)
+        matches!(
+            self,
+            CircuitBreakerState::Closed | CircuitBreakerState::HalfOpen
+        )
     }
 }
 
@@ -47,14 +50,14 @@ impl Default for CircuitBreakerConfig {
 }
 
 /// 断路器实现
-/// 
+///
 /// # 设计动机
-/// 
+///
 /// 当连续失败次数达到阈值时，系统直接跳过后续的压缩尝试。
 /// 如果盲目重试，系统会在每个轮次都发起注定失败的 API 调用，浪费大量资源。
-/// 
+///
 /// # 真实数据
-/// 
+///
 /// 引入断路器前曾观察到 1,279 个会话出现 50 次以上的连续压缩失败（最高达 3,272 次），
 /// 每天浪费约 250K 次 API 调用。引入后，这类级联失败被彻底消除。
 pub struct CircuitBreaker {
@@ -95,7 +98,7 @@ impl CircuitBreaker {
     /// 判断是否允许执行
     pub fn allows_execution(&self) -> bool {
         let state = self.get_state();
-        
+
         match state {
             CircuitBreakerState::Closed => true,
             CircuitBreakerState::Open => {
@@ -118,12 +121,12 @@ impl CircuitBreaker {
     }
 
     /// 记录成功
-    /// 
+    ///
     /// 成功时，失败计数器重置为零，断路器回到闭合状态
     pub fn record_success(&self) {
         self.consecutive_failures.store(0, Ordering::SeqCst);
         self.set_state(CircuitBreakerState::Closed);
-        
+
         tracing::debug!(
             "[{}] Circuit breaker reset to Closed (success after {} failures)",
             self.name,
@@ -132,18 +135,18 @@ impl CircuitBreaker {
     }
 
     /// 记录失败
-    /// 
+    ///
     /// 失败时，计数器递增。连续失败达到阈值后，断路器进入断开状态
     pub fn record_failure(&self) {
         let failures = self.consecutive_failures.fetch_add(1, Ordering::SeqCst) + 1;
-        
+
         *self.last_failure_time.write().unwrap() = Some(Instant::now());
-        
+
         if failures >= self.config.failure_threshold {
             let old_state = self.get_state();
             if old_state != CircuitBreakerState::Open {
                 self.set_state(CircuitBreakerState::Open);
-                
+
                 tracing::warn!(
                     "[{}] Circuit breaker OPENED after {} consecutive failures",
                     self.name,
@@ -170,7 +173,7 @@ impl CircuitBreaker {
         self.consecutive_failures.store(0, Ordering::SeqCst);
         *self.last_failure_time.write().unwrap() = None;
         self.set_state(CircuitBreakerState::Closed);
-        
+
         tracing::info!("[{}] Circuit breaker manually reset", self.name);
     }
 
@@ -241,7 +244,7 @@ impl CompactionAttemptResult {
         let error = error_message.into();
         let is_prompt_too_long = error.to_lowercase().contains("prompt_too_long")
             || error.to_lowercase().contains("context window");
-        
+
         Self {
             success: false,
             error_message: Some(error),
@@ -260,14 +263,12 @@ pub fn handle_compaction_result(
         true
     } else {
         circuit_breaker.record_failure();
-        
+
         // 如果是 prompt_too_long 错误，可能意味着上下文不可压缩
         if result.is_prompt_too_long {
-            tracing::warn!(
-                "[Compaction] Prompt too long error - context may be irrecoverable"
-            );
+            tracing::warn!("[Compaction] Prompt too long error - context may be irrecoverable");
         }
-        
+
         false
     }
 }
@@ -292,12 +293,12 @@ mod tests {
     #[test]
     fn test_circuit_breaker_opens_after_failures() {
         let cb = CircuitBreaker::new("test");
-        
+
         // 记录 3 次失败
         cb.record_failure();
         cb.record_failure();
         cb.record_failure();
-        
+
         // 应该打开
         assert_eq!(cb.get_state(), CircuitBreakerState::Open);
         assert!(!cb.allows_execution());
@@ -307,15 +308,15 @@ mod tests {
     #[test]
     fn test_circuit_breaker_resets_on_success() {
         let cb = CircuitBreaker::new("test");
-        
+
         // 记录 2 次失败
         cb.record_failure();
         cb.record_failure();
         assert_eq!(cb.get_consecutive_failures(), 2);
-        
+
         // 记录成功
         cb.record_success();
-        
+
         // 应该重置
         assert_eq!(cb.get_state(), CircuitBreakerState::Closed);
         assert_eq!(cb.get_consecutive_failures(), 0);
@@ -326,12 +327,12 @@ mod tests {
         let success = CompactionAttemptResult::success();
         assert!(success.success);
         assert!(success.error_message.is_none());
-        
+
         let failure = CompactionAttemptResult::failure("Network error");
         assert!(!failure.success);
         assert!(failure.error_message.is_some());
         assert!(!failure.is_prompt_too_long);
-        
+
         let prompt_failure = CompactionAttemptResult::failure("prompt_too_long");
         assert!(!prompt_failure.success);
         assert!(prompt_failure.is_prompt_too_long);
@@ -340,12 +341,12 @@ mod tests {
     #[test]
     fn test_handle_compaction_result() {
         let cb = CircuitBreaker::new("test");
-        
+
         // 成功
         let result = CompactionAttemptResult::success();
         assert!(handle_compaction_result(&cb, &result));
         assert_eq!(cb.get_consecutive_failures(), 0);
-        
+
         // 失败
         let result = CompactionAttemptResult::failure("Error");
         assert!(!handle_compaction_result(&cb, &result));
@@ -361,15 +362,15 @@ mod tests {
                 half_open_wait_secs: 1, // 1 秒用于测试
             },
         );
-        
+
         // 记录 2 次失败，进入 Open
         cb.record_failure();
         cb.record_failure();
         assert_eq!(cb.get_state(), CircuitBreakerState::Open);
-        
+
         // 等待超过半开时间
         std::thread::sleep(Duration::from_secs(2));
-        
+
         // 现在应该允许执行（进入 HalfOpen）
         assert!(cb.allows_execution());
         assert_eq!(cb.get_state(), CircuitBreakerState::HalfOpen);

@@ -1,5 +1,5 @@
 //! Bash 工具权限分析模块
-//! 
+//!
 //! 实现 Bash 命令的 AST 解析和语义分析：
 //! - 命令分类（搜索/读取/列表/静默/危险）
 //! - 路径安全性检查
@@ -52,7 +52,7 @@ pub struct BashSemanticAnalyzer;
 
 impl BashSemanticAnalyzer {
     /// 分析 Bash 命令
-    /// 
+    ///
     /// 解析命令并返回分析结果
     pub fn analyze_command(command: &str) -> BashCommandAnalysis {
         let mut analysis = BashCommandAnalysis {
@@ -136,82 +136,100 @@ impl BashSemanticAnalyzer {
         }
 
         // 处理命令替换和管道
-        parts.first()
-            .map(|s| s.clone())
-            .unwrap_or_else(|| {
-                // 检查是否以管道或重定向开始
-                if first_part.starts_with('|') {
-                    "pipeline".to_string()
-                } else if first_part.starts_with('>') || first_part.starts_with('<') {
-                    "redirect".to_string()
-                } else {
-                    String::new()
-                }
-            })
+        parts.first().map(|s| s.clone()).unwrap_or_else(|| {
+            // 检查是否以管道或重定向开始
+            if first_part.starts_with('|') {
+                "pipeline".to_string()
+            } else if first_part.starts_with('>') || first_part.starts_with('<') {
+                "redirect".to_string()
+            } else {
+                String::new()
+            }
+        })
     }
 
     /// 判断是否为搜索命令
     fn is_search_command(command: &str) -> bool {
         let search_commands: HashSet<&str> = [
             "grep", "rg", "ag", "find", "locate", "which", "whereis", "type",
-        ].iter().cloned().collect();
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
-        command.starts_with("grep") ||
-        command.starts_with("rg ") ||
-        command.starts_with("ag ") ||
-        command.starts_with("find ") ||
-        command.starts_with("locate ") ||
-        command.starts_with("which ") ||
-        command.starts_with("whereis ") ||
-        command.starts_with("type ")
+        command.starts_with("grep")
+            || command.starts_with("rg ")
+            || command.starts_with("ag ")
+            || command.starts_with("find ")
+            || command.starts_with("locate ")
+            || command.starts_with("which ")
+            || command.starts_with("whereis ")
+            || command.starts_with("type ")
     }
 
     /// 判断是否为读取命令
     fn is_read_command(command: &str) -> bool {
         let read_commands: HashSet<&str> = [
-            "cat", "head", "tail", "less", "more", "wc", "stat", "jq", "awk",
-            "sed", "file", "md5sum", "sha1sum", "sha256sum", "xxd", "od",
-        ].iter().cloned().collect();
+            "cat",
+            "head",
+            "tail",
+            "less",
+            "more",
+            "wc",
+            "stat",
+            "jq",
+            "awk",
+            "sed",
+            "file",
+            "md5sum",
+            "sha1sum",
+            "sha256sum",
+            "xxd",
+            "od",
+        ]
+        .iter()
+        .cloned()
+        .collect();
 
-        command.starts_with("cat ") ||
-        command.starts_with("head ") ||
-        command.starts_with("tail ") ||
-        command.starts_with("less ") ||
-        command.starts_with("more ") ||
-        command.starts_with("wc ") ||
-        command.starts_with("stat ") ||
-        command.starts_with("jq ") ||
-        command.starts_with("awk ") ||
-        command.starts_with("sed ") ||
-        command.starts_with("file ") ||
-        command.starts_with("md5sum ") ||
-        command.starts_with("sha1sum ") ||
-        command.starts_with("sha256sum ") ||
-        command.starts_with("xxd ") ||
-        command.starts_with("od ")
+        command.starts_with("cat ")
+            || command.starts_with("head ")
+            || command.starts_with("tail ")
+            || command.starts_with("less ")
+            || command.starts_with("more ")
+            || command.starts_with("wc ")
+            || command.starts_with("stat ")
+            || command.starts_with("jq ")
+            || command.starts_with("awk ")
+            || command.starts_with("sed ")
+            || command.starts_with("file ")
+            || command.starts_with("md5sum ")
+            || command.starts_with("sha1sum ")
+            || command.starts_with("sha256sum ")
+            || command.starts_with("xxd ")
+            || command.starts_with("od ")
     }
 
     /// 判断是否为列表命令
     fn is_list_command(command: &str) -> bool {
-        command.starts_with("ls ") ||
-        command.starts_with("tree ") ||
-        command.starts_with("du ") ||
-        command.starts_with("df ") ||
-        command == "ls" ||
-        command == "tree" ||
-        command.starts_with("ls -") ||
-        command.starts_with("tree ")
+        command.starts_with("ls ")
+            || command.starts_with("tree ")
+            || command.starts_with("du ")
+            || command.starts_with("df ")
+            || command == "ls"
+            || command == "tree"
+            || command.starts_with("ls -")
+            || command.starts_with("tree ")
     }
 
     /// 判断是否为静默命令
     fn is_silent_command(command: &str) -> bool {
-        command.starts_with("cp ") ||
-        command.starts_with("mv ") ||
-        command.starts_with("mkdir ") ||
-        command.starts_with("rm ") ||
-        command.starts_with("chmod ") ||
-        command.starts_with("chown ") ||
-        command.starts_with("touch ")
+        command.starts_with("cp ")
+            || command.starts_with("mv ")
+            || command.starts_with("mkdir ")
+            || command.starts_with("rm ")
+            || command.starts_with("chmod ")
+            || command.starts_with("chown ")
+            || command.starts_with("touch ")
     }
 
     /// 判断是否为破坏性操作
@@ -232,7 +250,8 @@ impl BashSemanticAnalyzer {
         }
 
         // 覆盖写入
-        if command.contains("> /etc/") || command.contains("> /var/") || command.contains("> /usr/") {
+        if command.contains("> /etc/") || command.contains("> /var/") || command.contains("> /usr/")
+        {
             return true;
         }
 
@@ -242,11 +261,29 @@ impl BashSemanticAnalyzer {
     /// 判断是否访问敏感路径
     fn accesses_sensitive_paths(command: &str) -> bool {
         let sensitive_paths = [
-            "/etc/", "/etc/passwd", "/etc/shadow", "/etc/sudoers",
-            "/var/", "/usr/", "/bin/", "/sbin/", "/lib/",
-            "/root/", "/boot/", "/proc/", "/sys/", "/dev/",
-            "/.env", "/.git/", "/.ssh/", "/.npmrc", "/.pypirc",
-            "id_rsa", ".pem", ".key", "credentials",
+            "/etc/",
+            "/etc/passwd",
+            "/etc/shadow",
+            "/etc/sudoers",
+            "/var/",
+            "/usr/",
+            "/bin/",
+            "/sbin/",
+            "/lib/",
+            "/root/",
+            "/boot/",
+            "/proc/",
+            "/sys/",
+            "/dev/",
+            "/.env",
+            "/.git/",
+            "/.ssh/",
+            "/.npmrc",
+            "/.pypirc",
+            "id_rsa",
+            ".pem",
+            ".key",
+            "credentials",
         ];
 
         sensitive_paths.iter().any(|path| command.contains(path))
@@ -297,42 +334,89 @@ impl BashSemanticAnalyzer {
             ("docker system prune", "Docker cleanup"),
         ];
 
-        dangerous_patterns.iter().any(|(pattern, _)| command.contains(pattern))
+        dangerous_patterns
+            .iter()
+            .any(|(pattern, _)| command.contains(pattern))
     }
 
     /// 检查是否为系统管理命令
     fn is_system_admin_command(command: &str) -> bool {
         let sysadmin_commands = [
-            "systemctl", "service", "journalctl",
-            "iptables", "ufw", "firewall-cmd", "nftables",
-            "fdisk", "parted", "mkfs", "mount", "umount",
-            "useradd", "userdel", "usermod", "passwd",
-            "visudo", "vi /etc/sudoers",
-            "chroot", "grub", "update-grub",
-            "shutdown", "reboot", "poweroff", "init ",
-            "telinit", "modprobe", "insmod", "rmmod",
+            "systemctl",
+            "service",
+            "journalctl",
+            "iptables",
+            "ufw",
+            "firewall-cmd",
+            "nftables",
+            "fdisk",
+            "parted",
+            "mkfs",
+            "mount",
+            "umount",
+            "useradd",
+            "userdel",
+            "usermod",
+            "passwd",
+            "visudo",
+            "vi /etc/sudoers",
+            "chroot",
+            "grub",
+            "update-grub",
+            "shutdown",
+            "reboot",
+            "poweroff",
+            "init ",
+            "telinit",
+            "modprobe",
+            "insmod",
+            "rmmod",
         ];
 
-        sysadmin_commands.iter().any(|cmd| {
-            command.starts_with(cmd) || command.contains(format!(" {}", cmd).as_str())
-        })
+        sysadmin_commands
+            .iter()
+            .any(|cmd| command.starts_with(cmd) || command.contains(format!(" {}", cmd).as_str()))
     }
 
     /// 获取危险原因
     fn get_danger_reason(command: &str) -> Option<String> {
         let dangerous_patterns = [
-            ("rm -rf /", "Attempt to remove root filesystem - extremely dangerous"),
-            ("rm -rf /*", "Attempt to remove all files from root - will destroy system"),
-            ("rm -rf ~", "Attempt to remove home directory - will lose all user data"),
-            ("mkfs", "Filesystem creation will destroy all data on the device"),
+            (
+                "rm -rf /",
+                "Attempt to remove root filesystem - extremely dangerous",
+            ),
+            (
+                "rm -rf /*",
+                "Attempt to remove all files from root - will destroy system",
+            ),
+            (
+                "rm -rf ~",
+                "Attempt to remove home directory - will lose all user data",
+            ),
+            (
+                "mkfs",
+                "Filesystem creation will destroy all data on the device",
+            ),
             ("> /dev/sd", "Direct disk write can corrupt storage devices"),
             ("Fork bomb", "Fork bomb will exhaust system resources"),
-            ("chmod -R 777 /", "Opening all permissions to everyone - major security risk"),
-            ("chmod -R 000 /", "Removing all permissions - will lock out all access"),
-            ("Pipe curl/wget to sudo/bash", "Running remote code with elevated privileges"),
+            (
+                "chmod -R 777 /",
+                "Opening all permissions to everyone - major security risk",
+            ),
+            (
+                "chmod -R 000 /",
+                "Removing all permissions - will lock out all access",
+            ),
+            (
+                "Pipe curl/wget to sudo/bash",
+                "Running remote code with elevated privileges",
+            ),
             ("sudo rm", "Using rm with sudo privileges"),
             ("npm publish", "Publishing package to registry"),
-            ("git push --force", "Force push can overwrite shared history"),
+            (
+                "git push --force",
+                "Force push can overwrite shared history",
+            ),
         ];
 
         for (pattern, reason) in dangerous_patterns.iter() {
@@ -362,7 +446,10 @@ impl BashSemanticAnalyzer {
         }
 
         // 需要网络访问的命令可以在沙箱中执行（取决于沙箱配置）
-        if command.starts_with("curl ") || command.starts_with("wget ") || command.starts_with("ping ") {
+        if command.starts_with("curl ")
+            || command.starts_with("wget ")
+            || command.starts_with("ping ")
+        {
             return true;
         }
 
@@ -380,16 +467,14 @@ impl BashSemanticAnalyzer {
 pub type PermissionMatcher = Box<dyn Fn(&str) -> bool + Send + Sync>;
 
 /// 为 Bash 工具准备权限匹配器
-/// 
+///
 /// 匹配器可以根据命令内容进行复杂的模式匹配
 pub fn prepare_bash_permission_matcher(command: &str) -> Option<PermissionMatcher> {
     // 提取命令前缀
     let prefix = command.split_whitespace().next()?.to_string();
 
     // 创建匹配器闭包
-    let matcher = move |input_command: &str| -> bool {
-        input_command.starts_with(&prefix)
-    };
+    let matcher = move |input_command: &str| -> bool { input_command.starts_with(&prefix) };
 
     Some(Box::new(matcher))
 }
@@ -425,12 +510,12 @@ fn simple_glob_match(pattern: &str, text: &str) -> bool {
     // 将 * 转换为正则表达式 .* 并匹配
     let regex_pattern = pattern.replace('*', ".*");
     let re_pattern = format!("^{}$", regex_pattern);
-    
+
     // 简化的正则匹配（避免依赖 regex crate）
     if regex_pattern == ".*" {
         return true;
     }
-    
+
     text.starts_with(&regex_pattern.replace(".*", ""))
 }
 
@@ -499,15 +584,24 @@ mod tests {
 
     #[test]
     fn test_command_prefix_extraction() {
-        assert_eq!(BashSemanticAnalyzer::extract_command_prefix("git status"), "git");
-        assert_eq!(BashSemanticAnalyzer::extract_command_prefix("npm run build"), "npm");
-        assert_eq!(BashSemanticAnalyzer::extract_command_prefix("  ls -la  "), "ls");
+        assert_eq!(
+            BashSemanticAnalyzer::extract_command_prefix("git status"),
+            "git"
+        );
+        assert_eq!(
+            BashSemanticAnalyzer::extract_command_prefix("npm run build"),
+            "npm"
+        );
+        assert_eq!(
+            BashSemanticAnalyzer::extract_command_prefix("  ls -la  "),
+            "ls"
+        );
     }
 
     #[test]
     fn test_is_command_allowed() {
         let whitelist = ["git:*, npm test, npm run:*"];
-        
+
         assert!(is_command_allowed("git status", &whitelist));
         assert!(is_command_allowed("git commit -m test", &whitelist));
         assert!(is_command_allowed("npm test", &whitelist));

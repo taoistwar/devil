@@ -6,20 +6,17 @@
 //! - ForkedAgent 使用 MCP 缓存共享
 
 use anyhow::{Context, Result};
-use futures::stream::StreamExt;
 use futures::future::FutureExt;
+use futures::stream::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-use crate::query_engine::{
-    ContentBlock, Message, QueryDeps, QueryEngine, StreamEvent,
-};
-use crate::streaming_tool_executor::{TrackedTool, ToolResult, StreamingToolExecutor};
+use crate::query_engine::{ContentBlock, Message, QueryDeps, QueryEngine, StreamEvent};
+use crate::streaming_tool_executor::{StreamingToolExecutor, ToolResult, TrackedTool};
 use devil_mcp::{
-    McpConnectionManager, PermissionChecker, ToolDiscoverer, 
-    MappedTool, McpServerConfig,
+    MappedTool, McpConnectionManager, McpServerConfig, PermissionChecker, ToolDiscoverer,
 };
 
 /// MCP-Aware QueryDeps 实现
@@ -82,15 +79,17 @@ impl McpQueryDeps {
                 let original_name = tool.original_name.clone();
 
                 // 建立名称映射
-                self.tool_name_map.write().await.insert(
-                    original_name.clone(),
-                    global_name.clone(),
-                );
+                self.tool_name_map
+                    .write()
+                    .await
+                    .insert(original_name.clone(), global_name.clone());
 
                 // 检查工具权限
                 match self.permission_checker.check_tool(&global_name).await {
                     devil_mcp::PermissionResult::Allowed => {
-                        self.tool_discoverer.update_authorization(&global_name, true).await?;
+                        self.tool_discoverer
+                            .update_authorization(&global_name, true)
+                            .await?;
                         all_tools.push(tool);
                         debug!("Tool {} authorized", global_name);
                     }
@@ -113,7 +112,8 @@ impl McpQueryDeps {
     ) -> Result<String> {
         // 查找全局工具名
         let tool_map = self.tool_name_map.read().await;
-        let global_name = tool_map.get(tool_name)
+        let global_name = tool_map
+            .get(tool_name)
             .with_context(|| format!("Tool not found: {}", tool_name))?;
 
         // 检查工具权限
@@ -136,7 +136,10 @@ impl McpQueryDeps {
         let original_tool_name = parts[2];
 
         // 通过 MCP Bridge 调用工具
-        info!("Executing MCP tool: {} on server {}", original_tool_name, server_id);
+        info!(
+            "Executing MCP tool: {} on server {}",
+            original_tool_name, server_id
+        );
 
         // TODO: 实际调用 MCP Bridge
         // let bridge = self.mcp_manager.get_bridge(server_id).await?;
@@ -174,9 +177,7 @@ impl QueryDeps for McpQueryDeps {
         let tool_name = tool.name.clone();
         let arguments = tool.input.clone();
 
-        async move {
-            this.execute_mcp_tool(&tool_name, arguments).await
-        }.boxed()
+        async move { this.execute_mcp_tool(&tool_name, arguments).await }.boxed()
     }
 }
 
@@ -223,14 +224,12 @@ impl McpToolConverter {
 
         // 只读工具
         let safe = [
-            "read", "grep", "glob", "fetch", "list", "search",
-            "get", "query", "select", "show",
+            "read", "grep", "glob", "fetch", "list", "search", "get", "query", "select", "show",
         ];
 
         // 写入工具
         let unsafe_ = [
-            "write", "edit", "delete", "remove", "create",
-            "bash", "shell", "exec", "run", "update",
+            "write", "edit", "delete", "remove", "create", "bash", "shell", "exec", "run", "update",
         ];
 
         if unsafe_.iter().any(|&t| name.contains(t)) {
@@ -299,7 +298,10 @@ impl McpStreamingIntegration {
         // 初始化 MCP 工具
         let tools = self.discover_tools().await?;
 
-        info!("MCP-Streaming integration initialized with {} tools", tools.len());
+        info!(
+            "MCP-Streaming integration initialized with {} tools",
+            tools.len()
+        );
 
         Ok(tools)
     }
@@ -367,11 +369,8 @@ mod tests {
         ));
         let tool_discoverer = Arc::new(ToolDiscoverer::new());
 
-        let mut integration = McpStreamingIntegration::new(
-            mcp_manager,
-            permission_checker,
-            tool_discoverer,
-        );
+        let mut integration =
+            McpStreamingIntegration::new(mcp_manager, permission_checker, tool_discoverer);
 
         // 初始化（不会有实际服务器连接）
         let tools = integration.initialize().await.unwrap();

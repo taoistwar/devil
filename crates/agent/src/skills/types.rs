@@ -1,5 +1,5 @@
 //! 技能系统类型定义
-//! 
+//!
 //! 定义 Skill 的核心类型、Frontmatter 字段和执行模式
 
 use serde::{Deserialize, Serialize};
@@ -191,16 +191,23 @@ impl SkillFrontmatter {
                 "inherit" => ModelOverride::Inherit,
                 _ => ModelOverride::Custom(m.clone()),
             }),
-            effort: self.effort.as_ref().map(|e| match e.to_lowercase().as_str() {
-                "low" => EffortLevel::Low,
-                "medium" => EffortLevel::Medium,
-                "high" => EffortLevel::High,
-                _ => EffortLevel::Medium,
-            }),
-            context: self.context.as_ref().map(|c| match c.to_lowercase().as_str() {
-                "fork" => ExecutionContext::Fork,
-                _ => ExecutionContext::Inline,
-            }).unwrap_or(ExecutionContext::Inline),
+            effort: self
+                .effort
+                .as_ref()
+                .map(|e| match e.to_lowercase().as_str() {
+                    "low" => EffortLevel::Low,
+                    "medium" => EffortLevel::Medium,
+                    "high" => EffortLevel::High,
+                    _ => EffortLevel::Medium,
+                }),
+            context: self
+                .context
+                .as_ref()
+                .map(|c| match c.to_lowercase().as_str() {
+                    "fork" => ExecutionContext::Fork,
+                    _ => ExecutionContext::Inline,
+                })
+                .unwrap_or(ExecutionContext::Inline),
             agent: self.agent.clone(),
             user_invocable: self.user_invocable,
             disable_model_invocation: self.disable_model_invocation,
@@ -217,7 +224,7 @@ impl SkillFrontmatter {
 }
 
 /// 安全属性白名单（正向安全设计）
-/// 
+///
 /// 任何不在白名单中的有意义的属性值都会触发权限请求
 pub const SAFE_SKILL_PROPERTIES: &[&str] = &[
     "name",
@@ -264,25 +271,25 @@ impl SkillUsage {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         let days_since_use = (now - self.last_used) as f64 / 86400.0;
         let decay_factor = (0.5_f64.powf(days_since_use / 7.0)).max(0.1);
-        
+
         self.ranking_score = self.usage_count as f64 * decay_factor;
     }
-    
+
     /// 记录使用（60 秒去抖）
     pub fn record_usage(&mut self) {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        
+
         // 60 秒去抖
         if now - self.last_used < 60 {
             return;
         }
-        
+
         self.usage_count += 1;
         self.last_used = now;
         self.calculate_score();
@@ -304,11 +311,11 @@ impl ConditionalSkills {
             .or_insert_with(Vec::new)
             .push(skill);
     }
-    
+
     /// 检查并激活匹配路径的 Skill
     pub fn activate_for_path(&mut self, path: &str) -> Vec<SkillCommand> {
         let mut activated = Vec::new();
-        
+
         self.skills_by_pattern.retain(|pattern, skills| {
             if Self::matches_pattern(pattern, path) {
                 activated.extend(skills.drain(..));
@@ -317,10 +324,10 @@ impl ConditionalSkills {
                 true // 保留
             }
         });
-        
+
         activated
     }
-    
+
     /// 检查路径是否匹配模式（gitignore 风格）
     fn matches_pattern(pattern: &str, path: &str) -> bool {
         // 简化实现：使用 glob 匹配
@@ -348,29 +355,29 @@ pub fn parse_frontmatter(content: &str) -> Result<SkillFrontmatter, String> {
     if !content.starts_with("---") {
         return Err("Missing frontmatter start (---)".to_string());
     }
-    
-    let end = content[3..].find("---")
+
+    let end = content[3..]
+        .find("---")
         .map(|i| i + 3)
         .ok_or("Missing frontmatter end (---)")?;
-    
+
     let yaml_content = &content[3..end];
-    
+
     // 解析 YAML
-    serde_yaml::from_str(yaml_content)
-        .map_err(|e| format!("Failed to parse frontmatter: {}", e))
+    serde_yaml::from_str(yaml_content).map_err(|e| format!("Failed to parse frontmatter: {}", e))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_glob_match() {
         assert!(glob_match("src/**/*.ts", "src/auth/validate.ts"));
         assert!(glob_match("*.test.ts", "auth.test.ts"));
         assert!(!glob_match("src/**/*.ts", "test/auth.test.ts"));
     }
-    
+
     #[test]
     fn test_skill_usage_score() {
         let mut usage = SkillUsage {
@@ -381,16 +388,16 @@ mod tests {
                 .as_secs(),
             ranking_score: 0.0,
         };
-        
+
         usage.calculate_score();
         assert_eq!(usage.ranking_score, 10.0); // 当天使用，无衰减
-        
+
         // 模拟 7 天前使用
         usage.last_used -= 7 * 86400;
         usage.calculate_score();
         assert!((usage.ranking_score - 5.0).abs() < 0.1); // 半衰期
     }
-    
+
     #[test]
     fn test_frontmatter_parsing() {
         let yaml_content = r#"---
@@ -404,17 +411,17 @@ effort: high
 context: fork
 ---
 这是技能内容"#;
-        
+
         let result = parse_frontmatter(yaml_content);
         assert!(result.is_ok());
-        
+
         let frontmatter = result.unwrap();
         assert_eq!(frontmatter.name, Some("Code Review".to_string()));
         assert_eq!(frontmatter.description, Some("代码审查技能".to_string()));
         assert_eq!(frontmatter.effort, Some("high".to_string()));
         assert_eq!(frontmatter.context, Some("fork".to_string()));
     }
-    
+
     #[test]
     fn test_frontmatter_missing() {
         let content = "没有 frontmatter 的内容";
@@ -422,14 +429,14 @@ context: fork
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("Missing frontmatter start"));
     }
-    
+
     #[test]
     fn test_frontmatter_incomplete() {
         let content = "---\nname: test\n没有结束标记";
         let result = parse_frontmatter(content);
         assert!(result.is_err());
     }
-    
+
     #[test]
     fn test_model_override_parsing() {
         let yaml_content = r#"---
@@ -437,10 +444,10 @@ name: Test
 model: opus
 ---
 content"#;
-        
+
         let result = parse_frontmatter(yaml_content);
         assert!(result.is_ok());
-        
+
         let frontmatter = result.unwrap();
         assert_eq!(frontmatter.model, Some("opus".to_string()));
     }

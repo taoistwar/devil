@@ -1,5 +1,5 @@
 //! Gateway crate - 提供 API 网关和 HTTP 接口
-//! 
+//!
 //! 本 crate 负责提供外部访问 Agent 的 HTTP API 接口
 
 use anyhow::Result;
@@ -59,10 +59,10 @@ impl Gateway {
             self.config.host, self.config.port
         );
         debug!("Channel manager ready");
-        
+
         // TODO: 实现 HTTP 服务器
         // 可以使用 warp、axum 或 actix-web 等框架
-        
+
         Ok(())
     }
 
@@ -82,7 +82,7 @@ mod tests {
         let config = GatewayConfig::default();
         let channel_manager = Arc::new(ChannelManager::default());
         let gateway = Gateway::new(config, channel_manager);
-        
+
         assert_eq!(gateway.config().port, 8080);
     }
 }

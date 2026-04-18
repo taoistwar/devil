@@ -1,19 +1,19 @@
 //! MCP (Model Context Protocol) 集成模块
-//! 
+//!
 //! 实现 MCP 客户端功能，包括：
 //! - 连接管理器与生命周期管理
 //! - 8 种传输协议实现
 //! - 工具发现、映射和注册
 //! - 四层权限模型与安全策略
 //! - Bridge 双向通信系统
-//! 
+//!
 //! ## 架构概览
-//! 
+//!
 //! MCP 是 AI 世界的"USB-C 接口"，定义了 AI 应用与外部数据源和工具之间的统一标准协议。
 //! 通过 MCP，Devil Agent 可以以统一的方式连接任何支持 MCP 的服务器。
-//! 
+//!
 //! ## 模块结构
-//! 
+//!
 //! ```
 //! mcp/
 //! ├── lib.rs                  # 模块入口
@@ -33,12 +33,12 @@
 //!     ├── router.rs
 //!     └── control.rs
 //! ```
-//! 
+//!
 //! ## 使用示例
-//! 
+//!
 //! ```rust,no_run
 //! use devil_mcp::{McpConnectionManager, McpServerConfig, ConfigScope};
-//! 
+//!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     // 创建连接管理器
@@ -55,74 +55,39 @@
 //! }
 //! ```
 
-pub mod connection_manager;
-pub mod types;
-pub mod transports;
-pub mod tool_discovery;
-pub mod permissions;
 pub mod bridge;
+pub mod connection_manager;
 pub mod control_protocol;
+pub mod permissions;
+pub mod tool_discovery;
+pub mod transports;
+pub mod types;
 
-pub use connection_manager::{
-    McpConnectionManager,
-    McpConnection,
-};
+pub use connection_manager::{McpConnection, McpConnectionManager};
 
-pub use types::{
-    McpConnectionState,
-    ConnectedMcpServer,
-    PendingMcpServer,
-};
+pub use types::{ConnectedMcpServer, McpConnectionState, PendingMcpServer};
 
-pub use types::{
-    McpServerConfig,
-    ConfigScope,
-    ServerCapabilities,
-};
+pub use types::{ConfigScope, McpServerConfig, ServerCapabilities};
 
 pub use transports::{
-    Transport,
-    TransportType,
-    StdioTransport,
-    StreamableHttpTransport,
-    HttpPollingTransport,
-    WebSocketTransport,
-    SdkTransport,
+    HttpPollingTransport, SdkTransport, StdioTransport, StreamableHttpTransport, Transport,
+    TransportType, WebSocketTransport,
 };
 
 pub use tool_discovery::{
-    ToolDiscoverer,
-    MappedTool,
-    McpTool,
+    clean_unicode, format_mcp_tool_name, parse_mcp_tool_name, MappedTool, McpTool, ToolDiscoverer,
     ToolStats,
-    clean_unicode,
-    format_mcp_tool_name,
-    parse_mcp_tool_name,
 };
 
 pub use permissions::{
-    PermissionChecker,
-    PermissionResult,
-    EnterprisePolicy,
-    IdeWhitelist,
-    UserPermissions,
+    EnterprisePolicy, IdeWhitelist, PermissionChecker, PermissionResult, UserPermissions,
 };
 
 pub use bridge::{
-    McpBridge,
-    BridgeState,
-    BridgeMessage,
-    JsonRpcError,
-    MessageRouter,
-    BoundedUuidSet,
+    BoundedUuidSet, BridgeMessage, BridgeState, JsonRpcError, McpBridge, MessageRouter,
 };
 
 pub use control_protocol::{
-    ControlRequest,
-    ControlResponse,
-    ControlProtocol,
-    ClientInfo,
-    ServerInfo,
-    build_initialize_request,
-    parse_initialize_response,
+    build_initialize_request, parse_initialize_response, ClientInfo, ControlProtocol,
+    ControlRequest, ControlResponse, ServerInfo,
 };

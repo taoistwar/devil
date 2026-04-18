@@ -1,16 +1,16 @@
 //! 工具注册表模块
-//! 
+//!
 //! 实现工具注册、发现和过滤机制：
 //! - getAllBaseTools() 完整工具清单
 //! - 工具过滤管线
 //! - ToolSearchTool 延迟发现机制
 
+use crate::tools::tool::{Tool, ToolContext, ToolMetadata, ToolPermissionLevel};
 use anyhow::Result;
 use std::collections::HashMap;
-use crate::tools::tool::{Tool, ToolContext, ToolMetadata, ToolPermissionLevel};
 
 /// 工具注册表
-/// 
+///
 /// 管理所有已注册的工具，支持按名称和别名查找
 pub struct ToolRegistry {
     /// 工具映射（按名称）
@@ -38,7 +38,9 @@ pub trait AnyTool: Send + Sync {
         &self,
         input: serde_json::Value,
         ctx: &ToolContext,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<serde_json::Value>> + Send + '_>>;
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = anyhow::Result<serde_json::Value>> + Send + '_>,
+    >;
 }
 
 /// 工具包装器
@@ -85,7 +87,9 @@ impl<T: Tool> AnyTool for ToolWrapper<T> {
         &self,
         input: serde_json::Value,
         ctx: &ToolContext,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<serde_json::Value>> + Send + '_>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = anyhow::Result<serde_json::Value>> + Send + '_>,
+    > {
         Box::pin(async move {
             // 这里需要泛型执行，简化处理
             Ok(serde_json::Value::Null)
@@ -105,7 +109,7 @@ impl ToolRegistry {
     /// 注册工具
     pub fn register<T: Tool + 'static>(&mut self, tool: T) -> Result<()> {
         let name = tool.name().to_string();
-        
+
         // 检查名称冲突
         if self.tools_by_name.contains_key(&name) {
             anyhow::bail!("Tool already registered: {}", name);
@@ -119,7 +123,7 @@ impl ToolRegistry {
         // 注册工具
         let wrapper = ToolWrapper { tool };
         self.tools_by_name.insert(name, Box::new(wrapper));
-        
+
         Ok(())
     }
 
@@ -129,12 +133,12 @@ impl ToolRegistry {
         if let Some(tool) = self.tools_by_name.get(name) {
             return Some(tool);
         }
-        
+
         // 再按别名查找
         if let Some(main_name) = self.aliases.get(name) {
             return self.tools_by_name.get(main_name);
         }
-        
+
         None
     }
 
@@ -162,7 +166,7 @@ impl ToolRegistry {
     }
 
     /// 获取所有基础工具清单
-    /// 
+    ///
     /// 这是所有内建工具的注册中心
     pub fn get_all_base_tools(&self) -> Vec<ToolMetadata> {
         // 按功能分类的工具清单
@@ -178,7 +182,7 @@ impl Default for ToolRegistry {
 }
 
 /// 工具过滤器
-/// 
+///
 /// 实现多层过滤管线
 pub struct ToolFilter {
     /// 简单模式下的工具白名单
@@ -193,11 +197,7 @@ impl ToolFilter {
     /// 创建新的过滤器
     pub fn new() -> Self {
         Self {
-            simple_mode_whitelist: vec![
-                "bash".to_string(),
-                "read".to_string(),
-                "edit".to_string(),
-            ],
+            simple_mode_whitelist: vec!["bash".to_string(), "read".to_string(), "edit".to_string()],
             deny_rules: Vec::new(),
             enabled_tools: Vec::new(),
         }
@@ -212,20 +212,14 @@ impl ToolFilter {
     }
 
     /// 模式过滤
-    /// 
+    ///
     /// 简单模式只保留 Bash、Read、Edit
-    pub fn filter_by_mode(
-        &self,
-        tools: Vec<ToolMetadata>,
-        mode: ToolMode,
-    ) -> Vec<ToolMetadata> {
+    pub fn filter_by_mode(&self, tools: Vec<ToolMetadata>, mode: ToolMode) -> Vec<ToolMetadata> {
         match mode {
-            ToolMode::Simple => {
-                tools
-                    .into_iter()
-                    .filter(|t| self.simple_mode_whitelist.contains(&t.name))
-                    .collect()
-            }
+            ToolMode::Simple => tools
+                .into_iter()
+                .filter(|t| self.simple_mode_whitelist.contains(&t.name))
+                .collect(),
             ToolMode::Normal => {
                 // 普通模式排除特殊工具
                 tools
@@ -234,24 +228,22 @@ impl ToolFilter {
     }
 
     /// 拒绝规则过滤
-    /// 
+    ///
     /// 移除被 blanket deny 规则匹配的工具
-    pub fn filter_by_deny_rules(
-        &self,
-        tools: Vec<ToolMetadata>,
-    ) -> Vec<ToolMetadata> {
+    pub fn filter_by_deny_rules(&self, tools: Vec<ToolMetadata>) -> Vec<ToolMetadata> {
         tools
             .into_iter()
             .filter(|t| {
-                !self.deny_rules.iter().any(|rule| {
-                    t.name.contains(rule) || t.description.contains(rule)
-                })
+                !self
+                    .deny_rules
+                    .iter()
+                    .any(|rule| t.name.contains(rule) || t.description.contains(rule))
             })
             .collect()
     }
 
     /// 启用状态检查
-    /// 
+    ///
     /// 过滤掉未启用的工具
     pub fn filter_by_enabled(&self, tools: Vec<ToolMetadata>) -> Vec<ToolMetadata> {
         // 如果启用列表包含 "*"，则启用所有工具
@@ -266,26 +258,22 @@ impl ToolFilter {
     }
 
     /// 完整的过滤管线
-    /// 
+    ///
     /// 从 getAllBaseTools() 到最终发送给 API 的工具列表
-    pub fn filter_all(
-        &self,
-        all_tools: Vec<ToolMetadata>,
-        mode: ToolMode,
-    ) -> Vec<ToolMetadata> {
+    pub fn filter_all(&self, all_tools: Vec<ToolMetadata>, mode: ToolMode) -> Vec<ToolMetadata> {
         // 1. 模式过滤
         let tools = self.filter_by_mode(all_tools, mode);
-        
+
         // 2. 拒绝规则过滤
         let tools = self.filter_by_deny_rules(tools);
-        
+
         // 3. 启用状态检查
         let tools = self.filter_by_enabled(tools);
-        
+
         // 4. 按名称排序（确保 prompt 缓存稳定性）
         let mut tools = tools;
         tools.sort_by(|a, b| a.name.cmp(&b.name));
-        
+
         tools
     }
 }
@@ -340,7 +328,7 @@ mod tests {
     #[test]
     fn test_tool_filter_mode() {
         let filter = ToolFilter::with_defaults();
-        
+
         let tools = vec![
             ToolMetadata {
                 name: "bash".to_string(),
@@ -386,7 +374,13 @@ mod tests {
 
     #[test]
     fn test_discovery_strategy() {
-        assert_eq!(DiscoveryStrategy::auto_select(10), DiscoveryStrategy::Immediate);
-        assert_eq!(DiscoveryStrategy::auto_select(100), DiscoveryStrategy::Deferred);
+        assert_eq!(
+            DiscoveryStrategy::auto_select(10),
+            DiscoveryStrategy::Immediate
+        );
+        assert_eq!(
+            DiscoveryStrategy::auto_select(100),
+            DiscoveryStrategy::Deferred
+        );
     }
 }

@@ -1,8 +1,8 @@
 //! 内置钩子
-//! 
+//!
 //! 提供系统预设的钩子实现
 
-use crate::hooks::{HookType, HookRegistry, HookPriority, HookSource, HookSourceType};
+use crate::hooks::{HookPriority, HookRegistry, HookSource, HookSourceType, HookType};
 
 /// 注册内置钩子
 pub fn register_builtin_hooks(registry: &mut HookRegistry) {
@@ -25,7 +25,7 @@ pub fn register_builtin_hooks(registry: &mut HookRegistry) {
         matcher: None,
         priority: HookPriority::BuiltinHook,
     });
-    
+
     // SessionStart: 加载项目说明
     registry.register(crate::hooks::RegisteredHook {
         hook: HookType::Prompt(crate::hooks::PromptHook {

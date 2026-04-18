@@ -1,10 +1,8 @@
 //! MCP 模块集成测试
 
 use devil_mcp::{
-    ControlProtocol, ControlRequest, ControlResponse, ClientInfo,
-    PermissionChecker, PermissionResult, EnterprisePolicy, IdeWhitelist, UserPermissions,
-    ToolDiscoverer, MappedTool,
-    BoundedUuidSet,
+    BoundedUuidSet, ClientInfo, ControlProtocol, ControlRequest, ControlResponse, EnterprisePolicy,
+    IdeWhitelist, MappedTool, PermissionChecker, PermissionResult, ToolDiscoverer, UserPermissions,
 };
 
 /// 测试控制协议端到端流程
@@ -20,18 +18,24 @@ async fn test_control_protocol_e2e() {
         },
     };
 
-    let response = ControlProtocol::handle_initialize(init_request).await.unwrap();
-    
+    let response = ControlProtocol::handle_initialize(init_request)
+        .await
+        .unwrap();
+
     match response {
-        ControlResponse::InitializeSuccess { protocol_version, .. } => {
+        ControlResponse::InitializeSuccess {
+            protocol_version, ..
+        } => {
             assert_eq!(protocol_version, "2024-11-05");
         }
         _ => panic!("Expected InitializeSuccess"),
     }
 
     // 2. 设置模型
-    let model_response = ControlProtocol::handle_set_model("gpt-4".to_string()).await.unwrap();
-    
+    let model_response = ControlProtocol::handle_set_model("gpt-4".to_string())
+        .await
+        .unwrap();
+
     match model_response {
         ControlResponse::ModelSet { model_id } => {
             assert_eq!(model_id, "gpt-4");
@@ -72,17 +76,20 @@ async fn test_permission_checker_layers() {
     let checker = PermissionChecker::new(enterprise, ide, user);
 
     // 测试服务器权限
-    
+
     // 被企业策略阻止的服务器
     let result = checker.check_server("blocked-server").await;
     assert!(matches!(result, PermissionResult::Denied(_)));
 
     // 在 IDE 白名单中的服务器
     let result = checker.check_server("allowed-server").await;
-    assert!(matches!(result, PermissionResult::Allowed | PermissionResult::NeedsConfirmation));
+    assert!(matches!(
+        result,
+        PermissionResult::Allowed | PermissionResult::NeedsConfirmation
+    ));
 
     // 测试工具权限
-    
+
     // 被企业策略阻止的工具
     let result = checker.check_tool("mcp__server__dangerous_tool").await;
     assert!(matches!(result, PermissionResult::Denied(_)));
@@ -116,19 +123,20 @@ async fn test_tool_discovery() {
         },
     ];
 
-    let mapped_tools = discoverer.discover_tools("test-server", raw_tools, "ServerId")
+    let mapped_tools = discoverer
+        .discover_tools("test-server", raw_tools, "ServerId")
         .await
         .unwrap();
 
     assert_eq!(mapped_tools.len(), 2);
-    
+
     // 验证名称映射
     assert_eq!(mapped_tools[0].global_name, "mcp__test-server__bash");
     assert_eq!(mapped_tools[0].original_name, "bash");
     assert_eq!(mapped_tools[0].server_id, "test-server");
-    
+
     assert_eq!(mapped_tools[1].global_name, "mcp__test-server__read_file");
-    
+
     // 验证工具查找
     let tool = discoverer.find_tool("mcp__test-server__bash").await;
     assert!(tool.is_some());
@@ -203,7 +211,7 @@ fn test_tool_name_parsing() {
 fn test_glob_matching() {
     // 使用 permissions 模块的内部函数（需要导出）
     // 这里测试公共 API
-    
+
     let enterprise = EnterprisePolicy {
         enabled: true,
         blocked_servers: vec!["*blocked*".to_string()],
@@ -225,16 +233,16 @@ fn test_glob_matching() {
 /// 测试连接状态机
 #[tokio::test]
 async fn test_connection_state_machine() {
-    use devil_mcp::{McpBridge, BridgeState};
+    use devil_mcp::{BridgeState, McpBridge};
 
     let bridge = McpBridge::new("test-server", 100, 30000);
-    
+
     // 初始状态
     let state = bridge.get_state().await;
     assert!(matches!(state, BridgeState::Disconnected));
 
     // 启动后应该变为 Connecting
     bridge.start().await.unwrap();
-    
+
     // 未来添加完整的状态转换测试
 }

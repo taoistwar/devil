@@ -71,14 +71,18 @@ impl ToolDiscoverer {
         raw_tools: Vec<McpTool>,
         name_prefix_strategy: &str,
     ) -> Result<Vec<MappedTool>> {
-        info!("Discovering {} tools from server: {}", raw_tools.len(), server_id);
+        info!(
+            "Discovering {} tools from server: {}",
+            raw_tools.len(),
+            server_id
+        );
 
         let mut mapped_tools = Vec::with_capacity(raw_tools.len());
 
         for tool in raw_tools {
             // 清理工具名称（移除 Unicode 控制字符）
             let clean_name = clean_unicode(&tool.name);
-            
+
             if clean_name.is_empty() {
                 warn!("Tool name is empty after cleaning, skipping");
                 continue;
@@ -131,32 +135,26 @@ impl ToolDiscoverer {
     /// 获取服务器的所有工具
     pub async fn get_tools(&self, server_id: &str) -> Vec<MappedTool> {
         let tools_map = self.tools.read().await;
-        tools_map
-            .get(server_id)
-            .cloned()
-            .unwrap_or_default()
+        tools_map.get(server_id).cloned().unwrap_or_default()
     }
 
     /// 根据全局工具名查找工具
     pub async fn find_tool(&self, global_name: &str) -> Option<MappedTool> {
         let index = self.tool_index.read().await;
-        
+
         let (server_id, original_name) = index.get(global_name)?;
         let tools_map = self.tools.read().await;
         let tools = tools_map.get(server_id)?;
-        tools.iter()
+        tools
+            .iter()
             .find(|t| t.original_name == *original_name)
             .cloned()
     }
 
     /// 更新工具授权状态
-    pub async fn update_authorization(
-        &self,
-        global_name: &str,
-        is_authorized: bool,
-    ) -> Result<()> {
+    pub async fn update_authorization(&self, global_name: &str, is_authorized: bool) -> Result<()> {
         let mut tools_map = self.tools.write().await;
-        
+
         for tools in tools_map.values_mut() {
             if let Some(tool) = tools.iter_mut().find(|t| t.global_name == global_name) {
                 tool.is_authorized = is_authorized;
@@ -194,7 +192,7 @@ impl ToolDiscoverer {
     /// 获取工具总数统计
     pub async fn get_stats(&self) -> ToolStats {
         let tools_map = self.tools.read().await;
-        
+
         let total: usize = tools_map.values().map(|v| v.len()).sum();
         let authorized: usize = tools_map
             .values()
@@ -255,7 +253,7 @@ mod tests {
         assert_eq!(clean_unicode("hello\u{0000}world"), "helloworld");
         assert_eq!(clean_unicode("test\u{001F}data"), "testdata");
         assert_eq!(clean_unicode("foo\u{007F}bar"), "foobar");
-        
+
         // 保留正常字符
         assert_eq!(clean_unicode("hello-world"), "hello-world");
         assert_eq!(clean_unicode("工具_123"), "工具_123");
@@ -265,7 +263,7 @@ mod tests {
     fn test_tool_name_mapping() {
         let global = format_mcp_tool_name("myserver", "bash");
         assert_eq!(global, "mcp__myserver__bash");
-        
+
         let global = format_mcp_tool_name("git", "commit");
         assert_eq!(global, "mcp__git__commit");
     }
@@ -300,7 +298,7 @@ mod tests {
         assert_eq!(clean_unicode("hello\u{0000}world"), "helloworld");
         assert_eq!(clean_unicode("test\u{001F}data"), "testdata");
         assert_eq!(clean_unicode("foo\u{007F}bar"), "foobar");
-        
+
         // 保留正常字符
         assert_eq!(clean_unicode("hello-world"), "hello-world");
         assert_eq!(clean_unicode("工具_123"), "工具_123");
@@ -310,7 +308,7 @@ mod tests {
     fn test_tool_name_mapping() {
         let global = format_mcp_tool_name("myserver", "bash");
         assert_eq!(global, "mcp__myserver__bash");
-        
+
         let global = format_mcp_tool_name("git", "commit");
         assert_eq!(global, "mcp__git__commit");
     }
@@ -329,11 +327,26 @@ mod tests {
 
     #[test]
     fn test_parse_name_prefix_strategy() {
-        assert_eq!(parse_name_prefix_strategy("ServerName", Some("MyServer"), "id123"), "MyServer");
-        assert_eq!(parse_name_prefix_strategy("ServerName", None, "id123"), "id123");
-        assert_eq!(parse_name_prefix_strategy("ServerId", Some("MyServer"), "id123"), "id123");
-        assert_eq!(parse_name_prefix_strategy("None", Some("MyServer"), "id123"), "");
-        assert_eq!(parse_name_prefix_strategy("custom", Some("MyServer"), "id123"), "custom");
+        assert_eq!(
+            parse_name_prefix_strategy("ServerName", Some("MyServer"), "id123"),
+            "MyServer"
+        );
+        assert_eq!(
+            parse_name_prefix_strategy("ServerName", None, "id123"),
+            "id123"
+        );
+        assert_eq!(
+            parse_name_prefix_strategy("ServerId", Some("MyServer"), "id123"),
+            "id123"
+        );
+        assert_eq!(
+            parse_name_prefix_strategy("None", Some("MyServer"), "id123"),
+            ""
+        );
+        assert_eq!(
+            parse_name_prefix_strategy("custom", Some("MyServer"), "id123"),
+            "custom"
+        );
     }
 
     #[tokio::test]
@@ -353,7 +366,8 @@ mod tests {
             },
         ];
 
-        let mapped = discoverer.discover_tools("test-server", raw_tools, "ServerId")
+        let mapped = discoverer
+            .discover_tools("test-server", raw_tools, "ServerId")
             .await
             .unwrap();
 
@@ -380,28 +394,34 @@ mod tests {
     async fn test_authorization_update() {
         let discoverer = ToolDiscoverer::new();
 
-        let raw_tools = vec![
-            McpTool {
-                name: "safe_tool".to_string(),
-                description: None,
-                input_schema: serde_json::json!({"type": "object"}),
-            },
-        ];
+        let raw_tools = vec![McpTool {
+            name: "safe_tool".to_string(),
+            description: None,
+            input_schema: serde_json::json!({"type": "object"}),
+        }];
 
-        discoverer.discover_tools("server1", raw_tools, "ServerId")
+        discoverer
+            .discover_tools("server1", raw_tools, "ServerId")
             .await
             .unwrap();
 
         // 初始未授权
-        let tool = discoverer.find_tool("mcp__server1__safe_tool").await.unwrap();
+        let tool = discoverer
+            .find_tool("mcp__server1__safe_tool")
+            .await
+            .unwrap();
         assert!(!tool.is_authorized);
 
         // 更新为已授权
-        discoverer.update_authorization("mcp__server1__safe_tool", true)
+        discoverer
+            .update_authorization("mcp__server1__safe_tool", true)
             .await
             .unwrap();
 
-        let tool = discoverer.find_tool("mcp__server1__safe_tool").await.unwrap();
+        let tool = discoverer
+            .find_tool("mcp__server1__safe_tool")
+            .await
+            .unwrap();
         assert!(tool.is_authorized);
 
         // 测试获取已授权工具
@@ -413,18 +433,18 @@ mod tests {
     async fn test_clear_server_tools() {
         let discoverer = ToolDiscoverer::new();
 
-        let raw_tools = vec![
-            McpTool {
-                name: "tool1".to_string(),
-                description: None,
-                input_schema: serde_json::json!({"type": "object"}),
-            },
-        ];
+        let raw_tools = vec![McpTool {
+            name: "tool1".to_string(),
+            description: None,
+            input_schema: serde_json::json!({"type": "object"}),
+        }];
 
-        discoverer.discover_tools("server1", raw_tools.clone(), "ServerId")
+        discoverer
+            .discover_tools("server1", raw_tools.clone(), "ServerId")
             .await
             .unwrap();
-        discoverer.discover_tools("server2", raw_tools, "ServerId")
+        discoverer
+            .discover_tools("server2", raw_tools, "ServerId")
             .await
             .unwrap();
 

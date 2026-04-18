@@ -1,5 +1,5 @@
 //! 上下文窗口管理模块
-//! 
+//!
 //! 实现有效上下文窗口计算和令牌使用追踪
 
 use serde::{Deserialize, Serialize};
@@ -57,18 +57,19 @@ pub struct EffectiveWindowSize {
 
 impl EffectiveWindowSize {
     /// 计算有效上下文窗口
-    /// 
+    ///
     /// 公式：有效窗口 = 模型窗口 - 预留输出令牌
     /// 预留令牌 = min(模型最大输出令牌，20,000)
     pub fn calculate(config: &ContextWindowConfig) -> Self {
         let reserved_tokens = config.max_output_tokens.min(MAX_OUTPUT_TOKENS_FOR_SUMMARY);
-        
-        let model_window = config.env_override_window
+
+        let model_window = config
+            .env_override_window
             .map(|env_window| env_window.min(config.model_window))
             .unwrap_or(config.model_window);
-        
+
         let effective_window = model_window.saturating_sub(reserved_tokens);
-        
+
         Self {
             model_window,
             reserved_tokens,
@@ -98,9 +99,9 @@ pub struct TokenUsageState {
 
 impl TokenUsageState {
     /// 计算令牌警告状态
-    /// 
+    ///
     /// # 参数
-    /// 
+    ///
     /// * `current_usage` - 当前令牌使用量
     /// * `effective_window` - 有效窗口大小
     /// * `auto_compact_enabled` - 是否启用自动压缩
@@ -119,14 +120,14 @@ impl TokenUsageState {
         // 警告和错误阈值
         let warning_threshold = effective_window.saturating_sub(WARNING_THRESHOLD_BUFFER_TOKENS);
         let error_threshold = effective_window.saturating_sub(ERROR_THRESHOLD_BUFFER_TOKENS);
-        
+
         // 阻塞限制
         let blocking_limit = effective_window.saturating_sub(MANUAL_COMPACT_BUFFER_TOKENS);
 
         // 剩余百分比
         let percent_left = if effective_window > 0 {
-            ((effective_window.saturating_sub(current_usage) as f32) 
-                / effective_window as f32 * 100.0)
+            ((effective_window.saturating_sub(current_usage) as f32) / effective_window as f32
+                * 100.0)
                 .round() as u32
         } else {
             0
@@ -138,7 +139,7 @@ impl TokenUsageState {
             percent_left,
             is_above_warning_threshold: current_usage >= warning_threshold,
             is_above_error_threshold: current_usage >= error_threshold,
-            is_above_auto_compact_threshold: auto_compact_enabled 
+            is_above_auto_compact_threshold: auto_compact_enabled
                 && current_usage >= auto_compact_threshold,
             is_at_blocking_limit: current_usage >= blocking_limit,
         }

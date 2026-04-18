@@ -1,5 +1,5 @@
 //! 协调器模式类型定义
-//! 
+//!
 //! 定义协调器模式的核心类型和配置
 
 use serde::{Deserialize, Serialize};
@@ -43,19 +43,11 @@ pub struct WorkerAgent {
 }
 
 /// 内部编排工具（仅协调者可用，Worker 禁用）
-pub const INTERNAL_ORCHESTRATION_TOOLS: &[&str] = &[
-    "TeamCreate",
-    "TeamDelete", 
-    "SendMessage",
-    "SyntheticOutput",
-];
+pub const INTERNAL_ORCHESTRATION_TOOLS: &[&str] =
+    &["TeamCreate", "TeamDelete", "SendMessage", "SyntheticOutput"];
 
 /// 协调者可用工具（仅用于派发任务）
-pub const COORDINATOR_TOOLS: &[&str] = &[
-    "Agent",
-    "SendMessage",
-    "TaskStop",
-];
+pub const COORDINATOR_TOOLS: &[&str] = &["Agent", "SendMessage", "TaskStop"];
 
 /// Worker 默认可用工具（排除内部编排工具）
 pub const DEFAULT_WORKER_TOOLS: &[&str] = &[
@@ -73,11 +65,7 @@ pub const DEFAULT_WORKER_TOOLS: &[&str] = &[
 ];
 
 /// Simple 模式 Worker 工具（仅 Bash/Read/Edit）
-pub const SIMPLE_WORKER_TOOLS: &[&str] = &[
-    "Bash",
-    "Read",
-    "Edit",
-];
+pub const SIMPLE_WORKER_TOOLS: &[&str] = &["Bash", "Read", "Edit"];
 
 /// 任务通知格式（Worker 结果返回给协调者）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -146,12 +134,9 @@ impl TaskNotification {
             usage: None,
         }
     }
-    
+
     /// 创建失败的任务通知
-    pub fn failed(
-        task_id: impl Into<String>,
-        error: impl Into<String>,
-    ) -> Self {
+    pub fn failed(task_id: impl Into<String>, error: impl Into<String>) -> Self {
         Self {
             task_id: task_id.into(),
             status: TaskStatus::Failed,
@@ -160,7 +145,7 @@ impl TaskNotification {
             usage: None,
         }
     }
-    
+
     /// 创建被停止的任务通知
     pub fn killed(task_id: impl Into<String>) -> Self {
         Self {
@@ -171,7 +156,7 @@ impl TaskNotification {
             usage: None,
         }
     }
-    
+
     /// 设置使用情况统计
     pub fn with_usage(mut self, usage: TaskUsage) -> Self {
         self.usage = Some(usage);
@@ -202,7 +187,7 @@ impl WorkerDirective {
             subagent_type: "worker".to_string(),
         }
     }
-    
+
     /// 创建实现任务指令
     pub fn implement(description: impl Into<String>, prompt: impl Into<String>) -> Self {
         Self {
@@ -212,7 +197,7 @@ impl WorkerDirective {
             subagent_type: "worker".to_string(),
         }
     }
-    
+
     /// 创建验证任务指令
     pub fn verify(description: impl Into<String>, prompt: impl Into<String>) -> Self {
         Self {
@@ -225,7 +210,7 @@ impl WorkerDirective {
 }
 
 /// 获取 Worker 可用工具列表
-/// 
+///
 /// 根据配置返回不同的工具集
 pub fn get_worker_tools(config: &CoordinatorConfig) -> Vec<String> {
     let tools = if config.simple_mode {
@@ -233,23 +218,27 @@ pub fn get_worker_tools(config: &CoordinatorConfig) -> Vec<String> {
     } else {
         DEFAULT_WORKER_TOOLS.to_vec()
     };
-    
+
     // 过滤掉内部编排工具
-    tools.into_iter()
+    tools
+        .into_iter()
         .filter(|name| !INTERNAL_ORCHESTRATION_TOOLS.contains(name))
         .map(|s| s.to_string())
         .collect()
 }
 
 /// 构建 Worker 用户上下文字符串
-/// 
+///
 /// 用于告知协调者 Worker 可用的工具
 pub fn build_worker_tools_context(config: &CoordinatorConfig) -> String {
     let tools = get_worker_tools(config);
     let tools_str = tools.join(", ");
-    
-    let mut content = format!("Workers spawned via the Agent tool have access to these tools: {}", tools_str);
-    
+
+    let mut content = format!(
+        "Workers spawned via the Agent tool have access to these tools: {}",
+        tools_str
+    );
+
     // 添加 MCP 服务器信息
     if !config.mcp_servers.is_empty() {
         let servers = config.mcp_servers.join(", ");
@@ -258,7 +247,7 @@ pub fn build_worker_tools_context(config: &CoordinatorConfig) -> String {
             servers
         ));
     }
-    
+
     // 添加 Scratchpad 信息
     if let Some(ref scratchpad_dir) = config.scratchpad_dir {
         content.push_str(&format!(
@@ -266,25 +255,25 @@ pub fn build_worker_tools_context(config: &CoordinatorConfig) -> String {
             scratchpad_dir
         ));
     }
-    
+
     content
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_get_worker_tools_default() {
         let config = CoordinatorConfig::default();
         let tools = get_worker_tools(&config);
-        
+
         assert!(tools.contains(&"Bash".to_string()));
         assert!(tools.contains(&"Read".to_string()));
         assert!(tools.contains(&"Edit".to_string()));
         assert!(!tools.contains(&"SendMessage".to_string()));
     }
-    
+
     #[test]
     fn test_get_worker_tools_simple() {
         let config = CoordinatorConfig {
@@ -292,11 +281,11 @@ mod tests {
             ..Default::default()
         };
         let tools = get_worker_tools(&config);
-        
+
         assert_eq!(tools.len(), 3);
         assert_eq!(tools, vec!["Bash", "Read", "Edit"]);
     }
-    
+
     #[test]
     fn test_task_notification_completed() {
         let notification = TaskNotification::completed(
@@ -304,7 +293,7 @@ mod tests {
             "任务完成",
             Some("找到了 null pointer 问题".to_string()),
         );
-        
+
         assert_eq!(notification.task_id, "agent-123");
         assert_eq!(notification.status, TaskStatus::Completed);
         assert_eq!(notification.summary, "任务完成");

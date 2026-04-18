@@ -1,5 +1,5 @@
 //! 插件系统类型定义
-//! 
+//!
 //! 定义插件的核心类型、元数据和安全策略
 
 use serde::{Deserialize, Serialize};
@@ -149,24 +149,24 @@ impl PluginBlocklist {
             block_reasons: HashMap::new(),
         }
     }
-    
+
     /// 添加被阻止的插件
     pub fn block(&mut self, plugin_id: impl Into<String>, reason: impl Into<String>) {
         let plugin_id = plugin_id.into();
         self.blocked_plugins.insert(plugin_id.clone());
         self.block_reasons.insert(plugin_id, reason.into());
     }
-    
+
     /// 检查插件是否被阻止
     pub fn is_blocked(&self, plugin_id: &str) -> bool {
         self.blocked_plugins.contains(plugin_id)
     }
-    
+
     /// 获取阻止原因
     pub fn get_block_reason(&self, plugin_id: &str) -> Option<&str> {
         self.block_reasons.get(plugin_id).map(|s| s.as_str())
     }
-    
+
     /// 从列表移除
     pub fn unblock(&mut self, plugin_id: &str) {
         self.blocked_plugins.remove(plugin_id);
@@ -228,7 +228,7 @@ impl PluginConfigStorage {
     pub fn new(config_dir: PathBuf) -> Self {
         Self { config_dir }
     }
-    
+
     /// 保存插件配置
     pub fn save_config(
         &self,
@@ -236,52 +236,52 @@ impl PluginConfigStorage {
         config: &HashMap<String, serde_json::Value>,
     ) -> Result<(), String> {
         let config_file = self.config_dir.join(format!("{}.json", plugin_id));
-        
+
         let json = serde_json::to_string_pretty(config)
             .map_err(|e| format!("Failed to serialize config: {}", e))?;
-        
+
         std::fs::write(&config_file, json)
             .map_err(|e| format!("Failed to write config file: {}", e))
     }
-    
+
     /// 加载插件配置
     pub fn load_config(
         &self,
         plugin_id: &str,
     ) -> Result<HashMap<String, serde_json::Value>, String> {
         let config_file = self.config_dir.join(format!("{}.json", plugin_id));
-        
+
         if !config_file.exists() {
             return Ok(HashMap::new());
         }
-        
+
         let json = std::fs::read_to_string(&config_file)
             .map_err(|e| format!("Failed to read config file: {}", e))?;
-        
-        serde_json::from_str(&json)
-            .map_err(|e| format!("Failed to parse config: {}", e))
+
+        serde_json::from_str(&json).map_err(|e| format!("Failed to parse config: {}", e))
     }
 }
 
 /// 插件标识符工具
 pub mod plugin_identifier {
     use super::*;
-    
+
     /// 从路径提取插件 ID
     pub fn extract_plugin_id(path: &PathBuf) -> Option<String> {
         path.file_name()
             .and_then(|n| n.to_str())
             .map(|s| s.to_string())
     }
-    
+
     /// 验证插件 ID 格式
     pub fn is_valid_plugin_id(id: &str) -> bool {
         // 只允许字母数字、连字符、下划线
-        id.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        id.chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
             && !id.is_empty()
             && id.len() <= 64
     }
-    
+
     /// 规范化插件 ID
     pub fn normalize_plugin_id(id: &str) -> String {
         id.to_lowercase()
@@ -294,32 +294,34 @@ pub mod plugin_identifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_plugin_blocklist() {
         let mut blocklist = PluginBlocklist::new();
-        
+
         blocklist.block("malicious-plugin", "Security vulnerability");
-        
+
         assert!(blocklist.is_blocked("malicious-plugin"));
         assert_eq!(
             blocklist.get_block_reason("malicious-plugin"),
             Some("Security vulnerability")
         );
-        
+
         blocklist.unblock("malicious-plugin");
         assert!(!blocklist.is_blocked("malicious-plugin"));
     }
-    
+
     #[test]
     fn test_plugin_id_validation() {
         assert!(plugin_identifier::is_valid_plugin_id("my-plugin"));
         assert!(plugin_identifier::is_valid_plugin_id("my_plugin_123"));
         assert!(!plugin_identifier::is_valid_plugin_id("my plugin"));
         assert!(!plugin_identifier::is_valid_plugin_id(""));
-        assert!(!plugin_identifier::is_valid_plugin_id("a".repeat(65).as_str()));
+        assert!(!plugin_identifier::is_valid_plugin_id(
+            "a".repeat(65).as_str()
+        ));
     }
-    
+
     #[test]
     fn test_plugin_id_normalization() {
         assert_eq!(

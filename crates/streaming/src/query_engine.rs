@@ -21,7 +21,9 @@ use crate::streaming_tool_executor::TrackedTool;
 /// 消息类型
 #[derive(Debug, Clone)]
 pub enum Message {
-    User { content: String },
+    User {
+        content: String,
+    },
     Assistant {
         content: Vec<ContentBlock>,
         usage: Option<TokenUsage>,
@@ -36,7 +38,9 @@ pub enum Message {
 /// 内容块类型
 #[derive(Debug, Clone)]
 pub enum ContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     ToolUse {
         id: String,
         name: String,
@@ -110,9 +114,12 @@ pub trait QueryDeps: Send {
         messages: &[Message],
         stream: bool,
     ) -> futures::stream::BoxStream<'static, Result<StreamEvent>>;
-    
+
     /// 执行工具
-    fn execute_tool(&self, tool: &TrackedTool) -> futures::future::BoxFuture<'static, Result<String>>;
+    fn execute_tool(
+        &self,
+        tool: &TrackedTool,
+    ) -> futures::future::BoxFuture<'static, Result<String>>;
 }
 
 /// 中止控制器
@@ -380,7 +387,9 @@ mod tests {
             size: 1024,
         };
 
-        engine.update_file_cache("/test.txt".to_string(), state.clone()).await;
+        engine
+            .update_file_cache("/test.txt".to_string(), state.clone())
+            .await;
 
         let cached = engine.get_file_state("/test.txt").await;
         assert!(cached.is_some());

@@ -112,12 +112,8 @@ impl CacheOptimizer {
             let new_key = params.cache_key();
 
             if old_key != new_key {
-                warn!(
-                    "Cache params changed: {} -> {}",
-                    old_key, new_key
-                );
-                self.cache_breaks
-                    .fetch_add(1, Ordering::Relaxed);
+                warn!("Cache params changed: {} -> {}", old_key, new_key);
+                self.cache_breaks.fetch_add(1, Ordering::Relaxed);
             }
         }
 
@@ -136,9 +132,7 @@ impl CacheOptimizer {
 
         debug!(
             "Recorded usage: cache_read={} cache_create={} input={}",
-            usage.cache_read_input_tokens,
-            usage.cache_creation_input_tokens,
-            usage.input_tokens
+            usage.cache_read_input_tokens, usage.cache_creation_input_tokens, usage.input_tokens
         );
     }
 
@@ -227,9 +221,8 @@ impl CacheOptimizer {
 
         match health {
             CacheHealthStatus::Poor => {
-                suggestions.push(
-                    "缓存命中率低于 60%，请检查 system prompt 是否频繁变化".to_string(),
-                );
+                suggestions
+                    .push("缓存命中率低于 60%，请检查 system prompt 是否频繁变化".to_string());
                 suggestions.push("考虑使用缓存预热策略".to_string());
             }
             CacheHealthStatus::Normal => {

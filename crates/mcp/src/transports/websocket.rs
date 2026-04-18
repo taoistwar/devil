@@ -4,7 +4,7 @@
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use futures_util::{StreamExt, SinkExt};
+use futures_util::{SinkExt, StreamExt};
 use tokio::sync::mpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use tracing::{debug, error, info, warn};
@@ -63,7 +63,7 @@ impl WebSocketTransport {
                 match ws_receiver.next().await {
                     Some(Ok(Message::Text(text))) => {
                         debug!("Received WebSocket message: {}", text);
-                        
+
                         if read_tx.send(text).await.is_err() {
                             error!("Failed to forward WebSocket message");
                             break;
@@ -106,7 +106,10 @@ impl Transport for WebSocketTransport {
             anyhow::bail!("Transport is not alive");
         }
 
-        self.tx.send(message).await.context("Failed to send message")?;
+        self.tx
+            .send(message)
+            .await
+            .context("Failed to send message")?;
         Ok(())
     }
 
@@ -118,14 +121,16 @@ impl Transport for WebSocketTransport {
         match self.rx.recv().await {
             Some(msg) => Ok(Some(msg)),
             None => {
-                self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                self.alive
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
                 Ok(None)
             }
         }
     }
 
     async fn close(&self) -> Result<()> {
-        self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.alive
+            .store(false, std::sync::atomic::Ordering::Relaxed);
         info!("WebSocket connection closed");
         Ok(())
     }

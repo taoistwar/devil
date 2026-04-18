@@ -1,28 +1,28 @@
 //! 上下文继承机制
-//! 
+//!
 //! 实现 Fork 子代理的完整对话上下文继承
 
 use crate::message::Message;
-use crate::subagent::types::{CacheSafeParams, ToolUseContext, ThinkingConfig};
+use crate::subagent::types::{CacheSafeParams, ThinkingConfig, ToolUseContext};
 use std::collections::HashMap;
 
 /// 构建继承的消息历史
-/// 
+///
 /// Fork 子代理继承父级的完整对话历史
 pub fn build_inherited_messages(
     parent_messages: &[Message],
     current_assistant_message: Option<&Message>,
 ) -> Vec<Message> {
     let mut inherited = Vec::new();
-    
+
     for msg in parent_messages {
         inherited.push(msg.clone());
     }
-    
+
     if let Some(assistant_msg) = current_assistant_message {
         inherited.push(assistant_msg.clone());
     }
-    
+
     inherited
 }
 
@@ -34,21 +34,20 @@ pub fn build_user_message_with_placeholder(
     _fork_config: &crate::subagent::types::ForkSubagentConfig,
 ) -> Message {
     let mut content = String::new();
-    
+
     for (i, tool_use_id) in tool_use_ids.iter().enumerate() {
         if i > 0 {
             content.push('\n');
         }
         content.push_str(&format!(
             "Tool Result for {}: {}",
-            tool_use_id,
-            placeholder_result
+            tool_use_id, placeholder_result
         ));
     }
-    
+
     content.push_str("\n\n");
     content.push_str(directive);
-    
+
     Message::user_text(content)
 }
 
@@ -76,12 +75,13 @@ pub fn clone_content_replacement_state(
     ToolUseContext {
         available_tools: parent_state.available_tools.clone(),
         rendered_system_prompt: parent_state.rendered_system_prompt.clone(),
-        thinking_config: parent_state.thinking_config.as_ref().map(|tc| {
-            ThinkingConfig {
+        thinking_config: parent_state
+            .thinking_config
+            .as_ref()
+            .map(|tc| ThinkingConfig {
                 enabled: tc.enabled,
                 budget_tokens: tc.budget_tokens,
-            }
-        }),
+            }),
     }
 }
 
@@ -92,9 +92,10 @@ pub fn filter_incomplete_tool_calls(messages: &[Message]) -> Vec<Message> {
 
 /// 获取最后一条 assistant 消息
 pub fn get_last_assistant_message(messages: &[Message]) -> Option<&Message> {
-    messages.iter().rev().find(|msg| {
-        matches!(msg, Message::Assistant(_))
-    })
+    messages
+        .iter()
+        .rev()
+        .find(|msg| matches!(msg, Message::Assistant(_)))
 }
 
 /// 提取工具使用块 ID 列表

@@ -1,23 +1,20 @@
 //! 使用真实 Anthropic API 的 QueryDeps 实现
 
 use anyhow::{Context, Result};
-use futures::stream::StreamExt;
 use futures::future::FutureExt;
+use futures::stream::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
+use crate::cost_tracking::{update_usage, TokenUsage, UsageDelta};
 use crate::query_engine::{ContentBlock, Message, QueryDeps, StreamEvent};
-use crate::streaming_tool_executor::{TrackedTool, ToolResult};
-use crate::cost_tracking::{TokenUsage, UsageDelta, update_usage};
-use devil_mcp::{
-    McpConnectionManager, PermissionChecker, ToolDiscoverer, 
-    MappedTool,
-};
+use crate::streaming_tool_executor::{ToolResult, TrackedTool};
+use devil_mcp::{MappedTool, McpConnectionManager, PermissionChecker, ToolDiscoverer};
 use providers::{
-    AnthropicClient, ChatMessage as AnthropicChatMessage,
-    ContentBlock as AnthropicContentBlock, ContentBlockStart as AnthropicContentBlockStart, ToolDef,
+    AnthropicClient, ChatMessage as AnthropicChatMessage, ContentBlock as AnthropicContentBlock,
+    ContentBlockStart as AnthropicContentBlockStart, ToolDef,
 };
 
 fn convert_usage(usage: &providers::Usage) -> TokenUsage {
@@ -31,15 +28,15 @@ fn convert_usage(usage: &providers::Usage) -> TokenUsage {
 
 fn convert_content_block(block: &AnthropicContentBlock) -> ContentBlock {
     match block {
-        AnthropicContentBlock::Text { text } => {
-            ContentBlock::Text { text: text.clone() }
-        }
-        AnthropicContentBlock::ToolUse { id, name, input } => {
-            ContentBlock::ToolUse { id: id.clone(), name: name.clone(), input: input.clone() }
-        }
-        AnthropicContentBlock::ToolResult { .. } => {
-            ContentBlock::Text { text: String::new() }
-        }
+        AnthropicContentBlock::Text { text } => ContentBlock::Text { text: text.clone() },
+        AnthropicContentBlock::ToolUse { id, name, input } => ContentBlock::ToolUse {
+            id: id.clone(),
+            name: name.clone(),
+            input: input.clone(),
+        },
+        AnthropicContentBlock::ToolResult { .. } => ContentBlock::Text {
+            text: String::new(),
+        },
     }
 }
 
@@ -77,7 +74,7 @@ impl AnthropicQueryDeps {
             tool_discoverer,
             tool_name_map: Arc::new(RwLock::new(HashMap::new())),
             system_prompt: Arc::new(RwLock::new(
-                "你是一个专业的 AI 编程助手，帮助用户完成软件开发任务。".to_string()
+                "你是一个专业的 AI 编程助手，帮助用户完成软件开发任务。".to_string(),
             )),
         }
     }
@@ -107,14 +104,16 @@ impl AnthropicQueryDeps {
                 let global_name = tool.global_name.clone();
                 let original_name = tool.original_name.clone();
 
-                self.tool_name_map.write().await.insert(
-                    original_name.clone(),
-                    global_name.clone(),
-                );
+                self.tool_name_map
+                    .write()
+                    .await
+                    .insert(original_name.clone(), global_name.clone());
 
                 match self.permission_checker.check_tool(&global_name).await {
                     devil_mcp::PermissionResult::Allowed => {
-                        self.tool_discoverer.update_authorization(&global_name, true).await?;
+                        self.tool_discoverer
+                            .update_authorization(&global_name, true)
+                            .await?;
                         all_tools.push(tool);
                     }
                     _ => {}
@@ -127,10 +126,7 @@ impl AnthropicQueryDeps {
     }
 
     /// 转换 Message 为 Anthropic format
-    async fn convert_messages(
-        &self,
-        messages: &[Message],
-    ) -> Vec<AnthropicChatMessage> {
+    async fn convert_messages(&self, messages: &[Message]) -> Vec<AnthropicChatMessage> {
         let mut anthropic_messages = Vec::new();
 
         for msg in messages {
@@ -197,7 +193,8 @@ impl AnthropicQueryDeps {
         arguments: serde_json::Value,
     ) -> Result<String> {
         let tool_map = self.tool_name_map.read().await;
-        let global_name = tool_map.get(tool_name)
+        let global_name = tool_map
+            .get(tool_name)
             .with_context(|| format!("Tool not found: {}", tool_name))?;
 
         match self.permission_checker.check_tool(global_name).await {
@@ -233,13 +230,9 @@ impl AnthropicQueryDeps {
     }
 }
 
-fn convert_content_block_anthropic(
-    block: &ContentBlock,
-) -> AnthropicContentBlock {
+fn convert_content_block_anthropic(block: &ContentBlock) -> AnthropicContentBlock {
     match block {
-        ContentBlock::Text { text } => AnthropicContentBlock::Text {
-            text: text.clone(),
-        },
+        ContentBlock::Text { text } => AnthropicContentBlock::Text { text: text.clone() },
         ContentBlock::ToolUse { id, name, input } => AnthropicContentBlock::ToolUse {
             id: id.clone(),
             name: name.clone(),
@@ -257,10 +250,11 @@ impl QueryDeps for AnthropicQueryDeps {
         let client = self.client.clone();
         let system_prompt = self.system_prompt.clone();
         let messages = messages.to_vec();
-        
+
         // 转换为 Anthropic 格式
-        let anthropic_messages = messages.iter().map(|msg| {
-            match msg {
+        let anthropic_messages = messages
+            .iter()
+            .map(|msg| match msg {
                 Message::User { content } => AnthropicChatMessage {
                     role: "user".to_string(),
                     content: vec![AnthropicContentBlock::Text {
@@ -277,18 +271,20 @@ impl QueryDeps for AnthropicQueryDeps {
                         content: anthropic_content,
                     }
                 }
-                Message::ToolResult { tool_use_id, content, is_error } => {
-                    AnthropicChatMessage {
-                        role: "user".to_string(),
-                        content: vec![AnthropicContentBlock::ToolResult {
-                            tool_use_id: tool_use_id.clone(),
-                            content: content.clone(),
-                            is_error: if *is_error { Some(true) } else { None },
-                        }],
-                    }
-                }
-            }
-        }).collect();
+                Message::ToolResult {
+                    tool_use_id,
+                    content,
+                    is_error,
+                } => AnthropicChatMessage {
+                    role: "user".to_string(),
+                    content: vec![AnthropicContentBlock::ToolResult {
+                        tool_use_id: tool_use_id.clone(),
+                        content: content.clone(),
+                        is_error: if *is_error { Some(true) } else { None },
+                    }],
+                },
+            })
+            .collect();
 
         use futures::stream;
 
@@ -297,81 +293,85 @@ impl QueryDeps for AnthropicQueryDeps {
             let system = system_prompt.read().await.clone();
             let tools = None; // 工具已经在 messages 中的 tool_use 中体现
 
-            match client.chat_stream(anthropic_messages, Some(system), tools).await {
-                Ok(stream) => {
-                    stream
-                        .map(|result| {
-                            result.map(|event| match event {
-                                providers::StreamEvent::MessageStart { message } => {
-                                    StreamEvent::MessageStart {
-                                        id: message.id,
-                                    }
-                                }
-                                providers::StreamEvent::ContentBlockStart { index, content_block } => {
-                                    StreamEvent::ContentBlockDelta {
-                                        block_type: crate::query_engine::BlockType::Text,
-                                        delta: crate::query_engine::ContentDelta::TextDelta {
-                                            text: match content_block {
-                                                AnthropicContentBlockStart::Text { text } => text,
-                                                AnthropicContentBlockStart::ToolUse { .. } => String::new(),
+            match client
+                .chat_stream(anthropic_messages, Some(system), tools)
+                .await
+            {
+                Ok(stream) => stream
+                    .map(|result| {
+                        result.map(|event| match event {
+                            providers::StreamEvent::MessageStart { message } => {
+                                StreamEvent::MessageStart { id: message.id }
+                            }
+                            providers::StreamEvent::ContentBlockStart {
+                                index,
+                                content_block,
+                            } => StreamEvent::ContentBlockDelta {
+                                block_type: crate::query_engine::BlockType::Text,
+                                delta: crate::query_engine::ContentDelta::TextDelta {
+                                    text: match content_block {
+                                        AnthropicContentBlockStart::Text { text } => text,
+                                        AnthropicContentBlockStart::ToolUse { .. } => String::new(),
+                                    },
+                                },
+                            },
+                            providers::StreamEvent::ContentBlockDelta { index, delta } => {
+                                match delta {
+                                    providers::ContentDelta::TextDelta { text } => {
+                                        StreamEvent::ContentBlockDelta {
+                                            block_type: crate::query_engine::BlockType::Text,
+                                            delta: crate::query_engine::ContentDelta::TextDelta {
+                                                text,
                                             },
-                                        },
-                                    }
-                                }
-                                providers::StreamEvent::ContentBlockDelta { index, delta } => {
-                                    match delta {
-                                        providers::ContentDelta::TextDelta { text } => {
-                                            StreamEvent::ContentBlockDelta {
-                                                block_type: crate::query_engine::BlockType::Text,
-                                                delta: crate::query_engine::ContentDelta::TextDelta { text },
-                                            }
                                         }
-                                        providers::ContentDelta::InputJsonDelta { partial_json } => {
-                                            StreamEvent::ContentBlockDelta {
-                                                block_type: crate::query_engine::BlockType::ToolUse,
-                                                delta: crate::query_engine::ContentDelta::InputDelta {
-                                                    partial_json,
-                                                },
-                                            }
+                                    }
+                                    providers::ContentDelta::InputJsonDelta { partial_json } => {
+                                        StreamEvent::ContentBlockDelta {
+                                            block_type: crate::query_engine::BlockType::ToolUse,
+                                            delta: crate::query_engine::ContentDelta::InputDelta {
+                                                partial_json,
+                                            },
                                         }
                                     }
                                 }
-                                providers::StreamEvent::MessageDelta { delta, usage } => {
-                                    let usage_delta = UsageDelta {
-                                        input_tokens: Some(usage.input_tokens),
-                                        output_tokens: Some(usage.output_tokens),
-                                        cache_creation_input_tokens: Some(usage.cache_creation_input_tokens),
-                                        cache_read_input_tokens: Some(usage.cache_read_input_tokens),
-                                    };
-                                    StreamEvent::MessageDelta {
-                                        usage: usage_delta,
-                                        stop_reason: delta.stop_reason.map(|s| match s.as_str() {
-                                            "end_turn" => crate::query_engine::StopReason::EndTurn,
-                                            "tool_use" => crate::query_engine::StopReason::ToolUse,
-                                            "max_tokens" => crate::query_engine::StopReason::MaxTokens,
-                                            _ => crate::query_engine::StopReason::EndTurn,
-                                        }),
-                                    }
+                            }
+                            providers::StreamEvent::MessageDelta { delta, usage } => {
+                                let usage_delta = UsageDelta {
+                                    input_tokens: Some(usage.input_tokens),
+                                    output_tokens: Some(usage.output_tokens),
+                                    cache_creation_input_tokens: Some(
+                                        usage.cache_creation_input_tokens,
+                                    ),
+                                    cache_read_input_tokens: Some(usage.cache_read_input_tokens),
+                                };
+                                StreamEvent::MessageDelta {
+                                    usage: usage_delta,
+                                    stop_reason: delta.stop_reason.map(|s| match s.as_str() {
+                                        "end_turn" => crate::query_engine::StopReason::EndTurn,
+                                        "tool_use" => crate::query_engine::StopReason::ToolUse,
+                                        "max_tokens" => crate::query_engine::StopReason::MaxTokens,
+                                        _ => crate::query_engine::StopReason::EndTurn,
+                                    }),
                                 }
-                                providers::StreamEvent::ContentBlockStop { index } => {
-                                    StreamEvent::MessageStop
-                                }
-                                providers::StreamEvent::MessageStop => {
-                                    StreamEvent::MessageStop
-                                }
-                                providers::StreamEvent::Ping => {
-                                    StreamEvent::Progress { message: "ping".to_string() }
-                                }
-                            })
+                            }
+                            providers::StreamEvent::ContentBlockStop { index } => {
+                                StreamEvent::MessageStop
+                            }
+                            providers::StreamEvent::MessageStop => StreamEvent::MessageStop,
+                            providers::StreamEvent::Ping => StreamEvent::Progress {
+                                message: "ping".to_string(),
+                            },
                         })
-                        .boxed()
-                }
+                    })
+                    .boxed(),
                 Err(e) => {
                     error!("Anthropic API error: {}", e);
                     stream::empty().boxed()
                 }
             }
-        }.flatten_stream().boxed()
+        }
+        .flatten_stream()
+        .boxed()
     }
 
     fn execute_tool(
@@ -382,9 +382,7 @@ impl QueryDeps for AnthropicQueryDeps {
         let tool_name = tool.name.clone();
         let arguments = tool.input.clone();
 
-        async move {
-            this.execute_mcp_tool(&tool_name, arguments).await
-        }.boxed()
+        async move { this.execute_mcp_tool(&tool_name, arguments).await }.boxed()
     }
 }
 

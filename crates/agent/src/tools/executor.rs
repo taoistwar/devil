@@ -1,5 +1,5 @@
 //! 流式工具执行器模块
-//! 
+//!
 //! 基于 Claude Code 的 StreamingToolExecutor 实现，包含：
 //! - 四阶段状态机 (queued -> executing -> completed -> yielded)
 //! - 顺序保证：结果 yield 保持请求顺序
@@ -11,12 +11,12 @@
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{RwLock, Mutex, watch};
+use tokio::sync::{watch, Mutex, RwLock};
 use tokio::task::JoinHandle;
 use tracing::{debug, error, info, warn};
 
-use crate::tools::tool::{ToolContext, ToolUseBlock, InterruptBehavior};
-use crate::tools::partition::{ToolUseCallInfo, ToolCallBatch, ConcurrentPartitioner};
+use crate::tools::partition::{ConcurrentPartitioner, ToolCallBatch, ToolUseCallInfo};
+use crate::tools::tool::{InterruptBehavior, ToolContext, ToolUseBlock};
 
 /// 工具执行状态（四阶段状态机）
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,7 +97,7 @@ pub enum ErrorPropagationEvent {
 }
 
 /// 流式工具执行器
-/// 
+///
 /// 关键设计决策：
 /// 1. **顺序保证**：即使工具可以并行完成，结果 yield 仍保持请求顺序
 /// 2. **错误传播**：BashTool 失败会取消所有并行兄弟工具
@@ -207,7 +207,7 @@ impl StreamingToolExecutor {
     pub fn new(config: ExecutorConfig) -> Self {
         let (error_tx, _) = watch::channel(None);
         let (result_tx, _) = tokio::sync::mpsc::channel(100);
-        
+
         Self {
             tools: Arc::new(RwLock::new(Vec::new())),
             config,
@@ -242,14 +242,14 @@ impl StreamingToolExecutor {
     /// 检查并启动可执行的工具（queued -> executing）
     pub async fn try_start_executions(&self, ctx: Arc<ToolContext>) {
         let mut state = self.state.lock().await;
-        
+
         // 如果已有错误，不再启动新工具
         if state.has_error {
             return;
         }
 
         let mut tools = self.tools.write().await;
-        
+
         for tool in tools.iter_mut() {
             if tool.state != ToolExecutionState::Queued {
                 continue;
@@ -257,16 +257,16 @@ impl StreamingToolExecutor {
 
             // 检查并发条件
             let can_start = self.can_start_execution(&state, tool.concurrency_safe);
-            
+
             if can_start {
                 // 标记为 executing
                 tool.state = ToolExecutionState::Executing;
                 state.executing_tool_ids.push(tool.block.id.clone());
-                
+
                 // 创建取消通道
                 let (cancel_tx, cancel_rx) = watch::channel(false);
                 tool.cancel_tx = Some(Arc::new(cancel_tx));
-                
+
                 // 启动异步执行
                 let tool_id = tool.block.id.clone();
                 let tool_name = tool.block.name.clone();
@@ -274,25 +274,25 @@ impl StreamingToolExecutor {
                 let tools_clone = self.tools.clone();
                 let state_clone = self.state.clone();
                 let error_channel_clone = self.error_channel.clone();
-                
+
                 let ctx_clone = ctx.clone();
-                
+
                 let handle = tokio::spawn(async move {
                     debug!("Starting execution of tool: {}", tool_name);
-                    
+
                     // 监听取消信号
                     let mut cancel_receiver = cancel_rx;
-                    
+
                     // TODO: 实际执行工具
                     // tokio::select! {
                     //     result = execute_tool(...) => { ... }
                     //     _ = cancel_receiver.changed() => { ... }
                     // }
-                    
+
                     // 模拟执行完成
                     let _ = ctx_clone;
                 });
-                
+
                 tool.task_handle = Some(handle);
             }
         }
@@ -321,7 +321,7 @@ impl StreamingToolExecutor {
 
         // 从执行列表中移除
         state.executing_tool_ids.retain(|id| id != tool_id);
-        
+
         // 找到工具并更新状态
         for tool in tools.iter_mut() {
             if tool.block.id == tool_id {
@@ -335,14 +335,18 @@ impl StreamingToolExecutor {
 
         // 检查错误传播
         if !result.success && result.is_bash_tool && self.config.enable_bash_error_propagation {
-            self.propagate_bash_failure(tool_id, result.error.unwrap_or_default()).await;
+            self.propagate_bash_failure(tool_id, result.error.unwrap_or_default())
+                .await;
         }
     }
 
     /// 传播 Bash 失败错误（取消所有并行 Bash 工具）
     async fn propagate_bash_failure(&self, failed_tool_id: &str, error: String) {
-        warn!("Bash tool {} failed, cancelling parallel Bash tools", failed_tool_id);
-        
+        warn!(
+            "Bash tool {} failed, cancelling parallel Bash tools",
+            failed_tool_id
+        );
+
         let mut state = self.state.lock().await;
         let mut tools = self.tools.write().await;
 
@@ -354,9 +358,9 @@ impl StreamingToolExecutor {
 
         // 取消所有并行的 Bash 工具
         for tool in tools.iter_mut() {
-            if tool.block.id != failed_tool_id 
+            if tool.block.id != failed_tool_id
                 && tool.state == ToolExecutionState::Executing
-                && tool.block.name == "bash" 
+                && tool.block.name == "bash"
             {
                 if let Some(ref cancel_tx) = tool.cancel_tx {
                     let _ = cancel_tx.send(true);
@@ -404,9 +408,11 @@ impl StreamingToolExecutor {
         if self.config.enable_bash_error_propagation {
             let is_bash = {
                 let tools_read = self.tools.read().await;
-                tools_read.iter().any(|t| t.block.id == tool_id && t.block.name == "bash")
+                tools_read
+                    .iter()
+                    .any(|t| t.block.id == tool_id && t.block.name == "bash")
             };
-            
+
             if is_bash {
                 self.propagate_bash_failure(tool_id, error).await;
             }
@@ -414,7 +420,7 @@ impl StreamingToolExecutor {
     }
 
     /// 获取下一个可以产出的结果（completed -> yielded）
-    /// 
+    ///
     /// 顺序保证：结果的 yield 保持与请求相同的顺序
     /// 遇到未完成的非安全工具就停止
     pub async fn get_next_yieldable_result(&self) -> Option<ToolExecutionResult> {
@@ -431,10 +437,7 @@ impl StreamingToolExecutor {
             // 如果工具还未完成，且是并发不安全的，停止
             // 这是顺序约束的关键：遇到未完成的非安全工具就停止
             if tool.state != ToolExecutionState::Completed && !tool.concurrency_safe {
-                debug!(
-                    "Stopped at incomplete unsafe tool: {}",
-                    tool.block.id
-                );
+                debug!("Stopped at incomplete unsafe tool: {}", tool.block.id);
                 return None;
             }
 
@@ -453,7 +456,7 @@ impl StreamingToolExecutor {
     pub async fn mark_yielded(&self, tool_id: &str) {
         let mut state = self.state.lock().await;
         state.yielded_tool_ids.push(tool_id.to_string());
-        
+
         let mut tools = self.tools.write().await;
         for tool in tools.iter_mut() {
             if tool.block.id == tool_id {
@@ -481,14 +484,16 @@ impl StreamingToolExecutor {
     pub async fn discard_pending(&self) {
         let mut tools = self.tools.write().await;
         let mut discarded_count = 0;
-        
+
         for tool in tools.iter_mut() {
-            if tool.state == ToolExecutionState::Queued || tool.state == ToolExecutionState::Executing {
+            if tool.state == ToolExecutionState::Queued
+                || tool.state == ToolExecutionState::Executing
+            {
                 // 发送取消信号
                 if let Some(ref cancel_tx) = tool.cancel_tx {
                     let _ = cancel_tx.send(true);
                 }
-                
+
                 tool.state = ToolExecutionState::Discarded;
                 tool.result = Some(ToolExecutionResult {
                     tool_use_id: tool.block.id.clone(),
@@ -505,14 +510,17 @@ impl StreamingToolExecutor {
         state.has_error = true;
         state.error_event = Some(ErrorPropagationEvent::UserInterrupted);
 
-        info!("Discarded {} pending tools due to streaming fallback", discarded_count);
+        info!(
+            "Discarded {} pending tools due to streaming fallback",
+            discarded_count
+        );
     }
 
     /// 用户中断所有工具
     pub async fn user_interrupt(&self) {
         let mut state = self.state.lock().await;
         state.user_interrupted = true;
-        
+
         // 取消所有工具
         {
             let tools = self.tools.read().await;
@@ -582,7 +590,7 @@ pub struct ExecutorStatus {
 }
 
 /// 传统批量执行器
-/// 
+///
 /// 在模型响应完全结束后批量执行所有工具
 /// 作为流式执行的后备方案
 pub struct BatchToolExecutor {
@@ -609,9 +617,9 @@ impl BatchToolExecutor {
     ) -> Vec<ToolExecutionResult> {
         // 执行并发分区
         let batches = self.partitioner.partition(calls);
-        
+
         let mut results = Vec::new();
-        
+
         // 按批次执行
         for batch in batches {
             if self.check_error_state().await {
@@ -628,7 +636,7 @@ impl BatchToolExecutor {
                 results.extend(batch_results);
             }
         }
-        
+
         results
     }
 
@@ -645,7 +653,7 @@ impl BatchToolExecutor {
         _ctx: &ToolContext,
     ) -> Vec<ToolExecutionResult> {
         let mut results = Vec::new();
-        
+
         for call in batch.calls {
             // TODO: 实际执行
             results.push(ToolExecutionResult {
@@ -656,7 +664,7 @@ impl BatchToolExecutor {
                 is_bash_tool: call.name == "bash",
             });
         }
-        
+
         results
     }
 
@@ -667,7 +675,7 @@ impl BatchToolExecutor {
         _ctx: &ToolContext,
     ) -> Vec<ToolExecutionResult> {
         let mut results = Vec::new();
-        
+
         for call in batch.calls {
             if self.check_error_state().await {
                 break;
@@ -682,7 +690,7 @@ impl BatchToolExecutor {
                 is_bash_tool: call.name == "bash",
             });
         }
-        
+
         results
     }
 }
@@ -702,16 +710,26 @@ mod tests {
     #[tokio::test]
     async fn test_enqueue_tools() {
         let executor = StreamingToolExecutor::with_defaults();
-        
-        executor.enqueue(ToolUseCallInfo::new(
-            ToolUseBlock::new("1", "read", serde_json::json!({"path": "a.ts"})),
-            true,
-        ), InterruptBehavior::Block).await;
 
-        executor.enqueue(ToolUseCallInfo::new(
-            ToolUseBlock::new("2", "bash", serde_json::json!({"command": "ls"})),
-            false,
-        ), InterruptBehavior::Block).await;
+        executor
+            .enqueue(
+                ToolUseCallInfo::new(
+                    ToolUseBlock::new("1", "read", serde_json::json!({"path": "a.ts"})),
+                    true,
+                ),
+                InterruptBehavior::Block,
+            )
+            .await;
+
+        executor
+            .enqueue(
+                ToolUseCallInfo::new(
+                    ToolUseBlock::new("2", "bash", serde_json::json!({"command": "ls"})),
+                    false,
+                ),
+                InterruptBehavior::Block,
+            )
+            .await;
 
         let status = executor.get_status().await;
         assert_eq!(status.total, 2);
@@ -721,21 +739,31 @@ mod tests {
     #[tokio::test]
     async fn test_state_transitions() {
         let executor = StreamingToolExecutor::with_defaults();
-        
+
         // Enqueue a tool
-        executor.enqueue(ToolUseCallInfo::new(
-            ToolUseBlock::new("1", "read", serde_json::json!({"path": "a.ts"})),
-            true,
-        ), InterruptBehavior::Block).await;
+        executor
+            .enqueue(
+                ToolUseCallInfo::new(
+                    ToolUseBlock::new("1", "read", serde_json::json!({"path": "a.ts"})),
+                    true,
+                ),
+                InterruptBehavior::Block,
+            )
+            .await;
 
         // Mark as completed
-        executor.mark_completed("1", ToolExecutionResult {
-            tool_use_id: "1".to_string(),
-            success: true,
-            output: "content".to_string(),
-            error: None,
-            is_bash_tool: false,
-        }).await;
+        executor
+            .mark_completed(
+                "1",
+                ToolExecutionResult {
+                    tool_use_id: "1".to_string(),
+                    success: true,
+                    output: "content".to_string(),
+                    error: None,
+                    is_bash_tool: false,
+                },
+            )
+            .await;
 
         // Get yieldable result
         let result = executor.get_next_yieldable_result().await;
@@ -752,11 +780,16 @@ mod tests {
     #[tokio::test]
     async fn test_discard_pending() {
         let executor = StreamingToolExecutor::with_defaults();
-        
-        executor.enqueue(ToolUseCallInfo::new(
-            ToolUseBlock::new("1", "read", serde_json::json!({"path": "a.ts"})),
-            true,
-        ), InterruptBehavior::Block).await;
+
+        executor
+            .enqueue(
+                ToolUseCallInfo::new(
+                    ToolUseBlock::new("1", "read", serde_json::json!({"path": "a.ts"})),
+                    true,
+                ),
+                InterruptBehavior::Block,
+            )
+            .await;
 
         executor.discard_pending().await;
 
@@ -767,21 +800,33 @@ mod tests {
     #[tokio::test]
     async fn test_error_propagation() {
         let executor = StreamingToolExecutor::with_defaults();
-        
+
         // Enqueue a Bash tool
-        executor.enqueue(ToolUseCallInfo::new(
-            ToolUseBlock::new("1", "bash", serde_json::json!({"command": "failing"})),
-            false,
-        ), InterruptBehavior::Block).await;
+        executor
+            .enqueue(
+                ToolUseCallInfo::new(
+                    ToolUseBlock::new("1", "bash", serde_json::json!({"command": "failing"})),
+                    false,
+                ),
+                InterruptBehavior::Block,
+            )
+            .await;
 
         // Enqueue a parallel safe tool
-        executor.enqueue(ToolUseCallInfo::new(
-            ToolUseBlock::new("2", "read", serde_json::json!({"path": "a.ts"})),
-            true,
-        ), InterruptBehavior::Block).await;
+        executor
+            .enqueue(
+                ToolUseCallInfo::new(
+                    ToolUseBlock::new("2", "read", serde_json::json!({"path": "a.ts"})),
+                    true,
+                ),
+                InterruptBehavior::Block,
+            )
+            .await;
 
         // Mark Bash tool as failed
-        executor.mark_failed("1", "Command failed".to_string()).await;
+        executor
+            .mark_failed("1", "Command failed".to_string())
+            .await;
 
         let status = executor.get_status().await;
         assert!(status.has_error);
@@ -795,4 +840,3 @@ mod tests {
         assert_eq!(config.progress_threshold_ms, 2000);
     }
 }
-

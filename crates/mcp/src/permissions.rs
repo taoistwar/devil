@@ -110,11 +110,7 @@ pub enum PermissionResult {
 
 impl PermissionChecker {
     /// 创建新的权限检查器
-    pub fn new(
-        enterprise: EnterprisePolicy,
-        ide: IdeWhitelist,
-        user: UserPermissions,
-    ) -> Self {
+    pub fn new(enterprise: EnterprisePolicy, ide: IdeWhitelist, user: UserPermissions) -> Self {
         Self {
             enterprise_policy: Arc::new(RwLock::new(enterprise)),
             ide_whitelist: Arc::new(RwLock::new(ide)),
@@ -130,13 +126,19 @@ impl PermissionChecker {
         // Layer 1: 企业策略
         {
             let policy = self.enterprise_policy.read().await;
-            
+
             if !policy.enabled {
-                return PermissionResult::Denied("MCP is disabled by enterprise policy".to_string());
+                return PermissionResult::Denied(
+                    "MCP is disabled by enterprise policy".to_string(),
+                );
             }
 
             // 黑名单优先
-            if policy.blocked_servers.iter().any(|s| match_glob(s, server_id)) {
+            if policy
+                .blocked_servers
+                .iter()
+                .any(|s| match_glob(s, server_id))
+            {
                 return PermissionResult::Denied(format!(
                     "Server {} is blocked by enterprise policy",
                     server_id
@@ -145,7 +147,10 @@ impl PermissionChecker {
 
             // 白名单检查
             if !policy.allowed_servers.is_empty()
-                && !policy.allowed_servers.iter().any(|s| match_glob(s, server_id))
+                && !policy
+                    .allowed_servers
+                    .iter()
+                    .any(|s| match_glob(s, server_id))
             {
                 return PermissionResult::Denied(format!(
                     "Server {} is not in enterprise allowed list",
@@ -157,9 +162,12 @@ impl PermissionChecker {
         // Layer 2: IDE 白名单
         {
             let whitelist = self.ide_whitelist.read().await;
-            
+
             if !whitelist.allowed_servers.is_empty()
-                && !whitelist.allowed_servers.iter().any(|s| match_glob(s, server_id))
+                && !whitelist
+                    .allowed_servers
+                    .iter()
+                    .any(|s| match_glob(s, server_id))
             {
                 return PermissionResult::Denied(format!(
                     "Server {} is not in IDE whitelist",
@@ -171,9 +179,13 @@ impl PermissionChecker {
         // Layer 3: 用户权限
         {
             let user = self.user_permissions.read().await;
-            
+
             // 用户明确禁用
-            if user.disabled_servers.iter().any(|s| match_glob(s, server_id)) {
+            if user
+                .disabled_servers
+                .iter()
+                .any(|s| match_glob(s, server_id))
+            {
                 return PermissionResult::Denied(format!(
                     "Server {} is disabled by user",
                     server_id
@@ -182,7 +194,10 @@ impl PermissionChecker {
 
             // 如果用户配置了启用列表，检查是否在列表中
             if !user.enabled_servers.is_empty()
-                && !user.enabled_servers.iter().any(|s| match_glob(s, server_id))
+                && !user
+                    .enabled_servers
+                    .iter()
+                    .any(|s| match_glob(s, server_id))
             {
                 return PermissionResult::NeedsConfirmation;
             }
@@ -206,9 +221,13 @@ impl PermissionChecker {
         // Layer 1: 企业策略
         {
             let policy = self.enterprise_policy.read().await;
-            
+
             // 黑名单优先
-            if policy.blocked_tools.iter().any(|p| match_glob(p, tool_global_name)) {
+            if policy
+                .blocked_tools
+                .iter()
+                .any(|p| match_glob(p, tool_global_name))
+            {
                 return PermissionResult::Denied(format!(
                     "Tool {} is blocked by enterprise policy",
                     tool_global_name
@@ -217,7 +236,10 @@ impl PermissionChecker {
 
             // 白名单检查
             if !policy.allowed_tools.is_empty()
-                && !policy.allowed_tools.iter().any(|p| match_glob(p, tool_global_name))
+                && !policy
+                    .allowed_tools
+                    .iter()
+                    .any(|p| match_glob(p, tool_global_name))
             {
                 return PermissionResult::Denied(format!(
                     "Tool {} is not in enterprise allowed list",
@@ -229,9 +251,12 @@ impl PermissionChecker {
         // Layer 2: IDE 白名单
         {
             let whitelist = self.ide_whitelist.read().await;
-            
+
             if !whitelist.allowed_tools.is_empty()
-                && !whitelist.allowed_tools.iter().any(|p| match_glob(p, tool_global_name))
+                && !whitelist
+                    .allowed_tools
+                    .iter()
+                    .any(|p| match_glob(p, tool_global_name))
             {
                 return PermissionResult::Denied(format!(
                     "Tool {} is not in IDE whitelist",
@@ -243,9 +268,13 @@ impl PermissionChecker {
         // Layer 3: 用户权限
         {
             let user = self.user_permissions.read().await;
-            
+
             // 用户明确禁止
-            if user.blocked_tools.iter().any(|p| match_glob(p, tool_global_name)) {
+            if user
+                .blocked_tools
+                .iter()
+                .any(|p| match_glob(p, tool_global_name))
+            {
                 return PermissionResult::Denied(format!(
                     "Tool {} is blocked by user",
                     tool_global_name
@@ -254,7 +283,10 @@ impl PermissionChecker {
 
             // 如果用户配置了授权列表，检查是否在列表中
             if !user.authorized_tools.is_empty()
-                && !user.authorized_tools.iter().any(|p| match_glob(p, tool_global_name))
+                && !user
+                    .authorized_tools
+                    .iter()
+                    .any(|p| match_glob(p, tool_global_name))
             {
                 return PermissionResult::NeedsConfirmation;
             }
@@ -325,16 +357,16 @@ fn match_glob(pattern: &str, text: &str) -> bool {
                 if pattern_chars.peek().is_none() {
                     return true;
                 }
-                
+
                 let next_pattern: String = pattern_chars.clone().collect();
-                
+
                 // 尝试所有可能的匹配位置
                 while let Some(_) = text_chars.next() {
                     if match_glob(&next_pattern, &text_chars.clone().collect::<String>()) {
                         return true;
                     }
                 }
-                
+
                 return match_glob(&next_pattern, "");
             }
             '?' => {
@@ -342,12 +374,10 @@ fn match_glob(pattern: &str, text: &str) -> bool {
                     return false;
                 }
             }
-            _ => {
-                match text_chars.next() {
-                    Some(t) if t == p => continue,
-                    _ => return false,
-                }
-            }
+            _ => match text_chars.next() {
+                Some(t) if t == p => continue,
+                _ => return false,
+            },
         }
     }
 
@@ -438,20 +468,23 @@ mod tests {
             allowed_tools: vec![],
         };
 
-        let checker = PermissionChecker::new(
-            EnterprisePolicy::default(),
-            ide,
-            UserPermissions::default(),
-        );
+        let checker =
+            PermissionChecker::new(EnterprisePolicy::default(), ide, UserPermissions::default());
 
         // 在白名单中的服务器
         let result = checker.check_server("allowed-server").await;
-        assert!(matches!(result, PermissionResult::Allowed | PermissionResult::NeedsConfirmation));
+        assert!(matches!(
+            result,
+            PermissionResult::Allowed | PermissionResult::NeedsConfirmation
+        ));
 
         // 不在白名单中的服务器（空列表表示全部允许）
         let result = checker.check_server("other-server").await;
         // 由于 IDE 白名单为空时表示全部允许，所以应该通过
-        assert!(matches!(result, PermissionResult::Allowed | PermissionResult::NeedsConfirmation));
+        assert!(matches!(
+            result,
+            PermissionResult::Allowed | PermissionResult::NeedsConfirmation
+        ));
     }
 
     #[tokio::test]
@@ -463,11 +496,8 @@ mod tests {
             blocked_tools: vec![],
         };
 
-        let checker = PermissionChecker::new(
-            EnterprisePolicy::default(),
-            IdeWhitelist::default(),
-            user,
-        );
+        let checker =
+            PermissionChecker::new(EnterprisePolicy::default(), IdeWhitelist::default(), user);
 
         // 用户禁用的服务器
         let result = checker.check_server("disabled-server").await;
@@ -475,7 +505,10 @@ mod tests {
 
         // 用户启用的服务器
         let result = checker.check_server("user-server").await;
-        assert!(matches!(result, PermissionResult::Allowed | PermissionResult::NeedsConfirmation));
+        assert!(matches!(
+            result,
+            PermissionResult::Allowed | PermissionResult::NeedsConfirmation
+        ));
     }
 
     #[tokio::test]
@@ -501,7 +534,10 @@ mod tests {
 
         // 普通工具
         let result = checker.check_tool("mcp__server__safe_tool").await;
-        assert!(matches!(result, PermissionResult::Allowed | PermissionResult::NeedsConfirmation));
+        assert!(matches!(
+            result,
+            PermissionResult::Allowed | PermissionResult::NeedsConfirmation
+        ));
     }
 
     #[tokio::test]
@@ -560,7 +596,7 @@ mod tests {
     #[tokio::test]
     async fn test_four_layer_enforcement() {
         // 测试四层权限同时生效
-        
+
         // Layer 1: 企业策略允许但阻止特定服务器
         let enterprise = EnterprisePolicy {
             enabled: true,
@@ -597,6 +633,9 @@ mod tests {
 
         // 通过所有层
         let result = checker.check_server("trusted-server").await;
-        assert!(matches!(result, PermissionResult::Allowed | PermissionResult::NeedsConfirmation));
+        assert!(matches!(
+            result,
+            PermissionResult::Allowed | PermissionResult::NeedsConfirmation
+        ));
     }
 }

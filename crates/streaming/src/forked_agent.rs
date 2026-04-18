@@ -163,11 +163,7 @@ impl ForkedAgent {
     }
 
     /// 获取缓存命中率
-    pub fn calculate_cache_hit_rate(
-        cache_read: u32,
-        input: u32,
-        cache_creation: u32,
-    ) -> f64 {
+    pub fn calculate_cache_hit_rate(cache_read: u32, input: u32, cache_creation: u32) -> f64 {
         let total = cache_read + input + cache_creation;
         if total == 0 {
             0.0
@@ -212,9 +208,7 @@ pub fn build_cache_safe_params(
 }
 
 /// 克隆 content_replacement_state 以保证字节级一致性
-pub fn clone_replacement_state(
-    state: &ContentReplacementState,
-) -> ContentReplacementState {
+pub fn clone_replacement_state(state: &ContentReplacementState) -> ContentReplacementState {
     ContentReplacementState {
         tool_use_replacements: state.tool_use_replacements.clone(),
         processed_message_ids: state.processed_message_ids.clone(),
@@ -252,7 +246,9 @@ mod tests {
     #[test]
     fn test_clone_replacement_state() {
         let mut state = ContentReplacementState::default();
-        state.tool_use_replacements.insert("id1".to_string(), "val1".to_string());
+        state
+            .tool_use_replacements
+            .insert("id1".to_string(), "val1".to_string());
         state.processed_message_ids.insert("msg1".to_string());
 
         let cloned = clone_replacement_state(&state);

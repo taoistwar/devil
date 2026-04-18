@@ -1,5 +1,5 @@
 //! 钩子响应协议
-//! 
+//!
 //! 定义钩子执行的 JSON 响应格式
 
 use serde::{Deserialize, Serialize};
@@ -11,39 +11,39 @@ pub struct HookResponse {
     /// 是否继续执行（默认 true）
     #[serde(default = "default_true")]
     pub continue_flag: bool,
-    
+
     /// 抑制输出（默认 false）
     #[serde(default)]
     pub suppress_output: bool,
-    
+
     /// 停止原因（当 continue=false 时）
     #[serde(default)]
     pub stop_reason: Option<String>,
-    
+
     /// 全局决策（approve/block）
     #[serde(default)]
     pub decision: Option<HookDecision>,
-    
+
     /// 决策原因
     #[serde(default)]
     pub reason: Option<String>,
-    
+
     /// 注入到上下文的系统消息
     #[serde(default)]
     pub system_message: Option<String>,
-    
+
     /// 钩子特定输出（按事件类型不同而异）
     #[serde(default)]
     pub hook_specific_output: Option<HookSpecificOutput>,
-    
+
     /// 标准输出（用于日志）
     #[serde(skip)]
     pub stdout: Option<String>,
-    
+
     /// 标准错误
     #[serde(skip)]
     pub stderr: Option<String>,
-    
+
     /// 退出码（用于 asyncRewake 模式）
     #[serde(skip)]
     pub exit_code: Option<i32>,
@@ -66,7 +66,7 @@ pub struct HookSpecificOutput {
     /// 钩子事件名称
     #[serde(default)]
     pub hook_event_name: Option<String>,
-    
+
     /// ========== PreToolUse 专有字段 ==========
     /// 权限决策
     #[serde(default)]
@@ -80,22 +80,22 @@ pub struct HookSpecificOutput {
     /// 额外上下文
     #[serde(default)]
     pub additional_context: Option<String>,
-    
+
     /// ========== PostToolUse 专有字段 ==========
     /// 修改后的 MCP 工具输出
     #[serde(default)]
     pub updated_mcp_tool_output: Option<serde_json::Value>,
-    
+
     /// ========== PermissionRequest 专有字段 ==========
     /// 权限决策（allow/deny）
     #[serde(default)]
     pub decision: Option<PermissionAction>,
-    
+
     /// ========== PermissionDenied 专有字段 ==========
     /// 是否重试
     #[serde(default)]
     pub retry: bool,
-    
+
     /// ========== Elicitation 专有字段 ==========
     /// 动作
     #[serde(default)]
@@ -103,7 +103,7 @@ pub struct HookSpecificOutput {
     /// 内容
     #[serde(default)]
     pub content: Option<String>,
-    
+
     /// ========== SessionStart/CwdChanged/FileChanged 专有字段 ==========
     /// 初始用户消息
     #[serde(default)]
@@ -111,7 +111,7 @@ pub struct HookSpecificOutput {
     /// 文件监控路径
     #[serde(default)]
     pub watch_paths: Option<Vec<String>>,
-    
+
     /// ========== WorktreeCreate 专有字段 ==========
     /// Worktree 路径
     #[serde(default)]
@@ -174,7 +174,7 @@ impl HookResponse {
             exit_code: None,
         }
     }
-    
+
     /// 创建阻止执行的响应
     pub fn block(reason: impl Into<String>) -> Self {
         Self {
@@ -184,36 +184,38 @@ impl HookResponse {
             ..Self::ok()
         }
     }
-    
+
     /// 添加额外上下文
     pub fn with_context(mut self, context: impl Into<String>) -> Self {
-        self.hook_specific_output.get_or_insert_with(Default::default).additional_context = Some(context.into());
+        self.hook_specific_output
+            .get_or_insert_with(Default::default)
+            .additional_context = Some(context.into());
         self
     }
-    
+
     /// 设置权限决策
     pub fn with_permission_decision(
         mut self,
         decision: PermissionDecision,
         reason: impl Into<String>,
     ) -> Self {
-        self.hook_specific_output.get_or_insert_with(Default::default).permission_decision =
-            Some(decision);
-        self.hook_specific_output.get_or_insert_with(Default::default).permission_decision_reason =
-            Some(reason.into());
+        self.hook_specific_output
+            .get_or_insert_with(Default::default)
+            .permission_decision = Some(decision);
+        self.hook_specific_output
+            .get_or_insert_with(Default::default)
+            .permission_decision_reason = Some(reason.into());
         self
     }
-    
+
     /// 设置修改后的输入
-    pub fn with_updated_input(
-        mut self,
-        updated_input: HashMap<String, serde_json::Value>,
-    ) -> Self {
-        self.hook_specific_output.get_or_insert_with(Default::default).updated_input =
-            Some(updated_input);
+    pub fn with_updated_input(mut self, updated_input: HashMap<String, serde_json::Value>) -> Self {
+        self.hook_specific_output
+            .get_or_insert_with(Default::default)
+            .updated_input = Some(updated_input);
         self
     }
-    
+
     /// 判断是否应该阻止执行
     pub fn should_block(&self) -> bool {
         !self.continue_flag || matches!(self.decision, Some(HookDecision::Block))

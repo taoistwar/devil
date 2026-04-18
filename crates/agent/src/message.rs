@@ -1,5 +1,5 @@
 //! 消息类型模块
-//! 
+//!
 //! 定义 Agent 对话中使用的消息类型，包括：
 //! - UserMessage: 用户输入和工具执行结果
 //! - AssistantMessage: 助手回复，可包含工具调用
@@ -15,7 +15,7 @@ pub enum ContentBlock {
     /// 文本内容
     #[serde(rename = "text")]
     Text { text: String },
-    
+
     /// 工具调用块
     #[serde(rename = "tool_use")]
     ToolUse {
@@ -23,7 +23,7 @@ pub enum ContentBlock {
         name: String,
         input: serde_json::Value,
     },
-    
+
     /// 工具执行结果
     #[serde(rename = "tool_result")]
     ToolResult {
@@ -31,7 +31,7 @@ pub enum ContentBlock {
         content: String,
         is_error: bool,
     },
-    
+
     /// Thinking 块（模型的思考过程）
     #[serde(rename = "thinking")]
     Thinking { text: String },
@@ -52,7 +52,7 @@ impl ContentBlock {
 pub trait BaseMessage {
     /// 获取消息角色
     fn role(&self) -> MessageRole;
-    
+
     /// 获取消息内容
     fn content(&self) -> &[ContentBlock];
 }

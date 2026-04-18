@@ -1,12 +1,12 @@
 //! 子代理类型定义
-//! 
+//!
 //! 定义子代理的类型、配置和参数
 
+use crate::message::Message;
+use crate::tools::Tool;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::message::Message;
-use crate::tools::Tool;
 
 /// 子代理类型
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

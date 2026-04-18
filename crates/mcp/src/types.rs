@@ -1,5 +1,5 @@
 //! MCP 类型定义
-//! 
+//!
 //! 定义 MCP 服务器配置、连接状态、工具映射等核心类型
 
 use serde::{Deserialize, Serialize};
@@ -11,27 +11,27 @@ use std::time::Instant;
 pub struct McpServerConfig {
     /// 服务器名称
     pub name: String,
-    
+
     /// 传输类型
     #[serde(rename = "type")]
     pub r#type: String,
-    
+
     /// 是否禁用
     #[serde(default)]
     pub disabled: bool,
-    
+
     /// stdio 专用字段（扁平化）
     #[serde(flatten)]
     pub stdio_config: Option<StdioConfig>,
-    
+
     /// 远程服务器专用字段（扁平化）
     #[serde(flatten)]
     pub remote_config: Option<RemoteConfig>,
-    
+
     /// SDK 专用字段（扁平化）
     #[serde(flatten)]
     pub sdk_config: Option<SdkConfig>,
-    
+
     /// 配置来源作用域（跳过序列化）
     #[serde(skip)]
     pub scope: ConfigScope,
@@ -241,10 +241,7 @@ pub enum McpConnectionState {
         cleanup: Box<dyn FnOnce() + Send>,
     },
     /// 连接失败，记录原因
-    Failed {
-        reason: String,
-        retryable: bool,
-    },
+    Failed { reason: String, retryable: bool },
     /// 需要认证
     NeedsAuth,
     /// 等待重连（指数退避）
@@ -281,13 +278,13 @@ pub struct McpLoadResult {
 pub enum McpLoadError {
     #[error("插件元数据缺失或无效：{0}")]
     InvalidMetadata(String),
-    
+
     #[error("插件加载失败：{0}")]
     LoadFailed(String),
-    
+
     #[error("安全检查失败：{0}")]
     SecurityCheckFailed(String),
-    
+
     #[error("版本不兼容：{0}")]
     VersionMismatch(String),
 }
@@ -304,14 +301,14 @@ impl McpConnectionState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_config_scope_serialization() {
         let scope = ConfigScope::Local;
         let json = serde_json::to_string(&scope).unwrap();
         assert_eq!(json, "\"local\"");
     }
-    
+
     #[test]
     fn test_tool_hints_mapping() {
         let mcp_hints = McpToolHints {
@@ -319,13 +316,13 @@ mod tests {
             destructive: false,
             open_world: true,
         };
-        
+
         let hints = ToolHints {
             read_only: mcp_hints.read_only,
             destructive: mcp_hints.destructive,
             open_world: mcp_hints.open_world,
         };
-        
+
         assert!(hints.read_only);
         assert!(!hints.destructive);
         assert!(hints.open_world);

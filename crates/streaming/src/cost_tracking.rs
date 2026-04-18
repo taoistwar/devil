@@ -43,10 +43,10 @@ impl TokenUsage {
     pub fn estimate_cost(&self, model: &str) -> f64 {
         // 简化的定价模型
         let (input_price, output_price) = match model {
-            "claude-3-opus" => (0.000_015, 0.000_075),  // $15/$75 per 1M
+            "claude-3-opus" => (0.000_015, 0.000_075), // $15/$75 per 1M
             "claude-3-sonnet" => (0.000_003, 0.000_015), // $3/$15 per 1M
             "claude-3-haiku" => (0.000_00025, 0.000_00125), // $0.25/$1.25 per 1M
-            _ => (0.000_003, 0.000_015), // 默认 Sonnet 价格
+            _ => (0.000_003, 0.000_015),               // 默认 Sonnet 价格
         };
 
         // 缓存读取价格降低 90%
@@ -93,7 +93,10 @@ pub fn update_usage(current: &mut TokenUsage, delta: UsageDelta) {
     if let Some(val) = delta.output_tokens {
         if val > 0 {
             current.output_tokens = current.output_tokens.saturating_add(val);
-            debug!("Updated output_tokens: +{} -> {}", val, current.output_tokens);
+            debug!(
+                "Updated output_tokens: +{} -> {}",
+                val, current.output_tokens
+            );
         }
     }
 
@@ -110,8 +113,7 @@ pub fn update_usage(current: &mut TokenUsage, delta: UsageDelta) {
 
     if let Some(val) = delta.cache_read_input_tokens {
         if val > 0 {
-            current.cache_read_input_tokens =
-                current.cache_read_input_tokens.saturating_add(val);
+            current.cache_read_input_tokens = current.cache_read_input_tokens.saturating_add(val);
             debug!(
                 "Updated cache_read_input_tokens: +{} -> {}",
                 val, current.cache_read_input_tokens

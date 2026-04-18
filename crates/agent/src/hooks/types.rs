@@ -1,9 +1,9 @@
 //! 钩子类型定义
-//! 
+//!
 //! 定义 6 种钩子类型及其配置 Schema
 
-use crate::hooks::response::HookResponse;
 use crate::hooks::events::HookEvent;
+use crate::hooks::response::HookResponse;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -168,7 +168,9 @@ impl Clone for CallbackHook {
 
 impl std::fmt::Debug for CallbackHook {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("CallbackHook").field("callback", &"<fn>").finish()
+        f.debug_struct("CallbackHook")
+            .field("callback", &"<fn>")
+            .finish()
     }
 }
 

@@ -1,5 +1,5 @@
 //! 权限上下文模块
-//! 
+//!
 //! 实现权限检查所需的上下文信息：
 //! - PermissionMode: 五种权限模式
 //! - PermissionRule: 规则抽象
@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// 权限模式
-/// 
+///
 /// 定义了从严格到宽松的五种权限模式谱系
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -53,7 +53,7 @@ impl PermissionMode {
     }
 
     /// 判断此模式是否允许 bypass
-    /// 
+    ///
     /// plan 模式在切换前如果是 bypass 模式，则 bypass 标志仍然可用
     pub fn allows_bypass(&self, bypass_available: bool) -> bool {
         matches!(self, Self::BypassPermissions) || (matches!(self, Self::Plan) && bypass_available)
@@ -61,7 +61,7 @@ impl PermissionMode {
 }
 
 /// 权限规则来源
-/// 
+///
 /// 七种规则来源按优先级排序（从高到低）：
 /// 1. session - 会话级（最高优先级）
 /// 2. command - 命令级
@@ -129,7 +129,7 @@ pub enum PermissionAction {
 }
 
 /// 权限规则
-/// 
+///
 /// 将来源、行为和目标统一为一个结构化对象
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PermissionRule {
@@ -175,7 +175,7 @@ impl PermissionRule {
     }
 
     /// 判断是否匹配给定的工具名
-    /// 
+    ///
     /// 支持三种匹配模式：
     /// 1. 精确匹配：规则不含括号
     /// 2. 工具 + 精确命令：Bash(npm test)
@@ -204,7 +204,7 @@ impl PermissionRule {
     }
 
     /// 解析规则目标
-    /// 
+    ///
     /// 返回 (工具名，内容) 元组
     fn parse_rule_target(target: &str) -> (&str, Option<&str>) {
         // 检查是否包含括号
@@ -221,7 +221,7 @@ impl PermissionRule {
     }
 
     /// 判断命令是否匹配规则内容
-    /// 
+    ///
     /// 支持三种匹配模式：
     /// 1. 精确匹配：内容完全相同
     /// 2. 前缀匹配：content 以 :* 结尾
@@ -243,7 +243,7 @@ impl PermissionRule {
     }
 
     /// 通配符匹配
-    /// 
+    ///
     /// 将通配符 `*` 转换为正则表达式
     /// 支持转义 `\*` 和 `\\`
     /// 当模式以 ` *`（空格加通配符）结尾时，尾部空格和参数变为可选
@@ -298,7 +298,7 @@ impl PermissionRule {
     /// 简单的通配符匹配实现
     fn simple_wildcard_match(pattern: &str, text: &str) -> bool {
         let pattern_parts: Vec<&str> = pattern.split('*').collect();
-        
+
         if pattern_parts.len() == 1 {
             return pattern == text;
         }
@@ -306,7 +306,7 @@ impl PermissionRule {
         let mut text_pos = 0;
         for (i, part) in pattern_parts.iter().enumerate() {
             let part = part.trim_start_matches('\\');
-            
+
             if i == 0 {
                 // 第一部分必须匹配开头
                 if !text.starts_with(part) {
@@ -333,7 +333,7 @@ impl PermissionRule {
 }
 
 /// 权限决策
-/// 
+///
 /// 权限决策有三个来源：hook、user、classifier
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "behavior", rename_all = "lowercase")]
@@ -402,12 +402,18 @@ impl PermissionDecision {
 
     /// 判断是否为永久决策
     pub fn is_permanent(&self) -> bool {
-        matches!(self, Self::Allow { permanent: true, .. })
+        matches!(
+            self,
+            Self::Allow {
+                permanent: true,
+                ..
+            }
+        )
     }
 }
 
 /// 权限上下文
-/// 
+///
 /// 携带权限检查所需的所有上下文信息
 /// 所有字段均为 readonly（不可变），确保并发安全
 #[derive(Debug, Clone, Default)]
@@ -489,7 +495,7 @@ impl ToolPermissionContext {
     }
 
     /// 获取所有规则的优先级排序列表
-    /// 
+    ///
     /// 按优先级从高到低排序，用于规则匹配
     pub fn get_rules_by_priority(&self, action: PermissionAction) -> Vec<&PermissionRule> {
         let rules = match action {
@@ -546,7 +552,7 @@ impl ToolPermissionContext {
 }
 
 /// 权限更新操作
-/// 
+///
 /// 支持六种操作 × 五种配置源 = 30 种可能的更新
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -628,7 +634,7 @@ pub struct ApplyUpdateResult {
 }
 
 /// 应用单个权限更新到上下文
-/// 
+///
 /// 返回更新后的新上下文（不可变更新模式）
 pub fn apply_permission_update(
     context: &ToolPermissionContext,
@@ -672,12 +678,16 @@ pub fn apply_permission_update(
             }
             has_persistable_update = source.is_persistable();
         }
-        PermissionUpdate::SetMode { mode, set_bypass_available } => {
+        PermissionUpdate::SetMode {
+            mode,
+            set_bypass_available,
+        } => {
             // 保存旧的 bypass 状态
             let old_bypass = new_context.bypass_available;
             new_context.mode = *mode;
             if *set_bypass_available {
-                new_context.bypass_available = old_bypass || matches!(mode, PermissionMode::BypassPermissions);
+                new_context.bypass_available =
+                    old_bypass || matches!(mode, PermissionMode::BypassPermissions);
             }
         }
         PermissionUpdate::AddWorkDir { dir } => {
@@ -763,16 +773,16 @@ mod tests {
     #[test]
     fn test_permission_context() {
         let mut ctx = ToolPermissionContext::with_defaults();
-        
+
         // 添加规则
         ctx.add_allow_rule(RuleSource::UserSettings, "Read");
         ctx.add_deny_rule(RuleSource::ProjectSettings, "Bash(rm -rf *)");
-        
+
         // 获取优先级排序的规则
         let deny_rules = ctx.get_rules_by_priority(PermissionAction::Deny);
         assert_eq!(deny_rules.len(), 1);
         assert_eq!(deny_rules[0].source, RuleSource::ProjectSettings);
-        
+
         // 测试安全工具
         assert!(ctx.is_safe_tool("Read"));
         assert!(!ctx.is_safe_tool("Write"));
@@ -781,20 +791,24 @@ mod tests {
     #[test]
     fn test_permission_update() {
         let ctx = ToolPermissionContext::with_defaults();
-        
+
         // 创建更新
         let update = PermissionUpdate::add_rules(
             RuleSource::UserSettings,
             vec![PermissionRule::allow(RuleSource::UserSettings, "Glob")],
         );
-        
+
         // 应用更新
         let result = apply_permission_update(&ctx, &update);
-        
+
         // 验证结果
         assert!(result.has_persistable_update);
-        assert!(result.new_context.allow_rules.get(&RuleSource::UserSettings).is_some());
-        
+        assert!(result
+            .new_context
+            .allow_rules
+            .get(&RuleSource::UserSettings)
+            .is_some());
+
         // 原始上下文应该保持不变（不可变性）
         assert!(ctx.allow_rules.get(&RuleSource::UserSettings).is_none());
     }
@@ -803,15 +817,32 @@ mod tests {
     fn test_wildcard_match() {
         // 简单通配符匹配
         assert!(PermissionRule::simple_wildcard_match("git *", "git status"));
-        assert!(PermissionRule::simple_wildcard_match("git *", "git commit -m test"));
-        assert!(!PermissionRule::simple_wildcard_match("git *", "svn status"));
-        
+        assert!(PermissionRule::simple_wildcard_match(
+            "git *",
+            "git commit -m test"
+        ));
+        assert!(!PermissionRule::simple_wildcard_match(
+            "git *",
+            "svn status"
+        ));
+
         // 多段通配符
-        assert!(PermissionRule::simple_wildcard_match("* /etc/*", "cat /etc/passwd"));
-        assert!(PermissionRule::simple_wildcard_match("* /etc/*", "echo hello > /etc/hosts"));
-        
+        assert!(PermissionRule::simple_wildcard_match(
+            "* /etc/*",
+            "cat /etc/passwd"
+        ));
+        assert!(PermissionRule::simple_wildcard_match(
+            "* /etc/*",
+            "echo hello > /etc/hosts"
+        ));
+
         // 精确匹配
-        assert!(PermissionRule::simple_wildcard_match("npm test", "npm test"));
-        assert!(!PermissionRule::simple_wildcard_match("npm test", "npm run test"));
+        assert!(PermissionRule::simple_wildcard_match(
+            "npm test", "npm test"
+        ));
+        assert!(!PermissionRule::simple_wildcard_match(
+            "npm test",
+            "npm run test"
+        ));
     }
 }

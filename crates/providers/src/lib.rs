@@ -4,7 +4,10 @@
 
 pub mod anthropic;
 
-pub use anthropic::{AnthropicClient, ChatMessage, ContentBlock, ContentBlockStart, ToolDef, StreamEvent, Usage, ContentDelta};
+pub use anthropic::{
+    AnthropicClient, ChatMessage, ContentBlock, ContentBlockStart, ContentDelta, StreamEvent,
+    ToolDef, Usage,
+};
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -286,7 +289,7 @@ mod tests {
     #[tokio::test]
     async fn test_provider_registry() {
         let mut registry = ProviderRegistry::new();
-        
+
         let llm_config = LlmProviderConfig {
             name: "test-llm".to_string(),
             api_key: "test-key".to_string(),
@@ -294,7 +297,7 @@ mod tests {
             model: "gpt-4".to_string(),
         };
         let llm_provider = LlmProvider::new(llm_config).unwrap();
-        
+
         assert!(registry.register(Box::new(llm_provider)).is_ok());
         assert!(registry.get("test-llm").is_some());
     }

@@ -46,7 +46,10 @@ impl SdkTransport {
 
     /// 初始化 SDK
     async fn initialize_sdk(&self, config: &str) -> Result<()> {
-        debug!("Initializing {} SDK with config: {}", self.sdk_language, config);
+        debug!(
+            "Initializing {} SDK with config: {}",
+            self.sdk_language, config
+        );
 
         // 根据语言调用不同的 SDK
         match self.sdk_language.as_str() {
@@ -55,7 +58,10 @@ impl SdkTransport {
             "node" | "typescript" => self.init_node_sdk(config).await,
             "bun" => self.init_bun_sdk(config).await,
             _ => {
-                warn!("Unknown SDK language: {}, falling back to Rust", self.sdk_language);
+                warn!(
+                    "Unknown SDK language: {}, falling back to Rust",
+                    self.sdk_language
+                );
                 self.init_rust_sdk(config).await
             }
         }
@@ -97,9 +103,9 @@ impl SdkTransport {
     pub async fn send_to_sdk(&self, message: &str) -> Result<String> {
         // TODO: 根据语言调用对应的 SDK API
         // 这里是简化的存根实现
-        
+
         debug!("Sending to {} SDK: {}", self.sdk_language, message);
-        
+
         // 模拟响应（实际应由 SDK 返回）
         Ok(r#"{"jsonrpc":"2.0","result":{},"id":1}"#.to_string())
     }
@@ -118,7 +124,7 @@ impl Transport for SdkTransport {
         // 将响应发送到接收通道
         let tx = self.tx.clone();
         let alive = self.alive.clone();
-        
+
         tokio::spawn(async move {
             if alive.load(std::sync::atomic::Ordering::Relaxed) {
                 tx.send(response).await.ok();
@@ -136,14 +142,16 @@ impl Transport for SdkTransport {
         match self.rx.recv().await {
             Some(msg) => Ok(Some(msg)),
             None => {
-                self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                self.alive
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
                 Ok(None)
             }
         }
     }
 
     async fn close(&self) -> Result<()> {
-        self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.alive
+            .store(false, std::sync::atomic::Ordering::Relaxed);
         info!("{} SDK transport closed", self.sdk_language);
         Ok(())
     }

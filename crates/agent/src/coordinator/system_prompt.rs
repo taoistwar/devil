@@ -1,12 +1,12 @@
 //! 协调器系统提示
-//! 
+//!
 //! 生成协调者的系统提示词
 
-use crate::coordinator::types::CoordinatorConfig;
 use crate::coordinator::mode_detection::is_coordinator_mode;
+use crate::coordinator::types::CoordinatorConfig;
 
 /// 获取协调器系统提示词
-/// 
+///
 /// 包含以下章节：
 /// 1. Your Role - 协调者职责定义
 /// 2. Your Tools - Agent/SendMessage/TaskStop 使用说明
@@ -20,8 +20,9 @@ pub fn get_coordinator_system_prompt(config: &CoordinatorConfig) -> String {
     } else {
         "Workers have access to standard tools, MCP tools from configured MCP servers, and project skills via the Skill tool. Delegate skill invocations (e.g. /commit, /verify) to workers."
     };
-    
-    format!(r#"You are Claude Code, an AI assistant that orchestrates software engineering tasks across multiple workers.
+
+    format!(
+        r#"You are Claude Code, an AI assistant that orchestrates software engineering tasks across multiple workers.
 
 ## 1. Your Role
 
@@ -205,12 +206,12 @@ fn get_worker_capabilities(config: &CoordinatorConfig) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_system_prompt_generation() {
         let config = CoordinatorConfig::default();
         let prompt = get_coordinator_system_prompt(&config);
-        
+
         assert!(prompt.contains("You are a **coordinator**"));
         assert!(prompt.contains("## 1. Your Role"));
         assert!(prompt.contains("## 2. Your Tools"));

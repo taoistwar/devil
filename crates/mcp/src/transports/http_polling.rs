@@ -64,7 +64,7 @@ impl HttpPollingTransport {
 
                 // 轮询新消息
                 let url = format!("{}/poll", base_url.trim_end_matches('/'));
-                
+
                 match client.get(&url).send().await {
                     Ok(resp) => {
                         if resp.status().is_success() {
@@ -72,7 +72,7 @@ impl HttpPollingTransport {
                                 Ok(body) => {
                                     if !body.is_empty() && body != "null" {
                                         debug!("Polled message: {}", body);
-                                        
+
                                         if rx_for_poll.send(body).await.is_err() {
                                             error!("Failed to send polled message to channel");
                                             break;
@@ -113,7 +113,8 @@ impl Transport for HttpPollingTransport {
 
         debug!("Sending HTTP POST: {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Content-Type", "application/json")
             .body(message)
@@ -139,14 +140,16 @@ impl Transport for HttpPollingTransport {
         match self.rx.recv().await {
             Some(msg) => Ok(Some(msg)),
             None => {
-                self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                self.alive
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
                 Ok(None)
             }
         }
     }
 
     async fn close(&self) -> Result<()> {
-        self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.alive
+            .store(false, std::sync::atomic::Ordering::Relaxed);
         info!("HTTP polling connection closed");
         Ok(())
     }

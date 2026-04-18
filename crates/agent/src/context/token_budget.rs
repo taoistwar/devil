@@ -1,5 +1,5 @@
 //! Token 预算追踪模块
-//! 
+//!
 //! 实现压缩后的令牌预算控制和预警系统
 
 use serde::{Deserialize, Serialize};
@@ -58,13 +58,13 @@ pub struct FileTokenBudget {
 }
 
 /// 令牌预算追踪器
-/// 
+///
 /// # 反模式警告
-/// 
+///
 /// 常见的错误是在压缩后立即重新加载所有之前读取的文件。
 /// 这样做会迅速耗尽令牌预算，导致在几轮对话后再次触发压缩，
 /// 形成"压缩 - 膨胀 - 再压缩"的恶性循环。
-/// 
+///
 /// 正确做法是只重新加载当前任务需要的文件。
 pub struct TokenBudgetTracker {
     config: TokenBudgetConfig,
@@ -93,9 +93,9 @@ impl TokenBudgetTracker {
     }
 
     /// 尝试添加文件到恢复列表
-    /// 
+    ///
     /// # 返回
-    /// 
+    ///
     /// - `Ok(true)` - 文件已添加
     /// - `Ok(false)` - 文件超出预算，未添加
     /// - `Err(String)` - 错误信息
@@ -113,8 +113,7 @@ impl TokenBudgetTracker {
         if estimated_tokens > self.config.per_file_budget {
             return Err(format!(
                 "File exceeds per-file budget: {} > {}",
-                estimated_tokens,
-                self.config.per_file_budget
+                estimated_tokens, self.config.per_file_budget
             ));
         }
 
@@ -145,9 +144,7 @@ impl TokenBudgetTracker {
         if estimated_tokens > self.config.per_skill_budget {
             return Err(format!(
                 "Skill '{}' exceeds per-skill budget: {} > {}",
-                skill_name,
-                estimated_tokens,
-                self.config.per_skill_budget
+                skill_name, estimated_tokens, self.config.per_skill_budget
             ));
         }
 
@@ -238,7 +235,7 @@ impl TokenBudgetStats {
 }
 
 /// 压缩后令牌计数
-/// 
+///
 /// `truePostCompactTokenCount` 是对压缩后上下文实际大小的估算
 /// 它用于判断压缩是否会立即在下一轮触发再次压缩
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -307,12 +304,12 @@ mod tests {
     #[test]
     fn test_try_restore_file_within_budget() {
         let mut tracker = TokenBudgetTracker::default();
-        
+
         // 添加一个 3000 令牌的文件
         let result = tracker.try_restore_file("test.rs", 3000);
         assert!(result.is_ok());
         assert!(result.unwrap());
-        
+
         let stats = tracker.get_usage_stats();
         assert_eq!(stats.current_usage, 3000);
         assert_eq!(stats.restored_files_count, 1);
@@ -321,11 +318,11 @@ mod tests {
     #[test]
     fn test_try_restore_file_exceeds_budget() {
         let mut tracker = TokenBudgetTracker::default();
-        
+
         // 添加一个超出预算的文件（6000 > 5000）
         let result = tracker.try_restore_file("large.rs", 6000);
         assert!(result.is_err());
-        
+
         // 添加刚好在预算内的文件
         let result = tracker.try_restore_file("test.rs", 5000);
         assert!(result.is_ok());
@@ -334,14 +331,14 @@ mod tests {
     #[test]
     fn test_try_restore_multiple_files() {
         let mut tracker = TokenBudgetTracker::default();
-        
+
         // 添加 5 个文件
         for i in 0..5 {
             let result = tracker.try_restore_file(format!("file{}.rs", i), 1000);
             assert!(result.is_ok());
             assert!(result.unwrap());
         }
-        
+
         // 第 6 个文件应该被拒绝（超过最大数量）
         let result = tracker.try_restore_file("file6.rs", 1000);
         assert!(result.is_ok());
@@ -351,15 +348,15 @@ mod tests {
     #[test]
     fn test_skill_budget() {
         let mut tracker = TokenBudgetTracker::default();
-        
+
         // 使用一个技能
         let result = tracker.try_use_skill("test_skill", 4000);
         assert!(result.is_ok());
         assert!(result.unwrap());
-        
+
         let stats = tracker.get_usage_stats();
         assert_eq!(stats.skills_usage, 4000);
-        
+
         // 超出技能预算
         let result = tracker.try_use_skill("large_skill", 6000);
         assert!(result.is_err());
@@ -368,18 +365,18 @@ mod tests {
     #[test]
     fn test_budget_stats_health() {
         let mut tracker = TokenBudgetTracker::default();
-        
+
         // 健康状态
         tracker.try_restore_file("small.rs", 10000);
         let stats = tracker.get_usage_stats();
         assert!(stats.is_healthy());
-        
+
         // 警告状态
         tracker.reset();
         tracker.try_restore_file("medium.rs", 30000);
         let stats = tracker.get_usage_stats();
         assert!(stats.is_warning());
-        
+
         // 危险状态
         tracker.reset();
         tracker.try_restore_file("large.rs", 45000);
@@ -390,7 +387,7 @@ mod tests {
     #[test]
     fn test_true_post_compact_tokens() {
         let count = TruePostCompactTokenCount::calculate(100, 10000, 2000, 500);
-        
+
         assert_eq!(count.total, 12600);
         assert!(!count.would_trigger_auto_compact(200000));
         assert!(count.would_trigger_auto_compact(10000));
@@ -399,7 +396,7 @@ mod tests {
     #[test]
     fn test_simple_token_estimator() {
         let estimator = SimpleTokenEstimator;
-        
+
         // 100 字符 ≈ 25 令牌
         let tokens = estimator.estimate_tokens(&"a".repeat(100));
         assert!(tokens >= 24 && tokens <= 26);

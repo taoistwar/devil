@@ -2,8 +2,8 @@
 //!
 //! 用于去重，自动保持最多 N 个最近的 UUID
 
-use std::collections::VecDeque;
 use std::collections::HashSet;
+use std::collections::VecDeque;
 
 /// 有界 UUID 集合
 pub struct BoundedUuidSet {
@@ -93,19 +93,19 @@ mod tests {
     #[test]
     fn test_bounded_insert() {
         let mut set = BoundedUuidSet::new(3);
-        
+
         set.insert("a".to_string());
         set.insert("b".to_string());
         set.insert("c".to_string());
-        
+
         assert!(set.contains("a"));
         assert!(set.contains("b"));
         assert!(set.contains("c"));
         assert_eq!(set.len(), 3);
-        
+
         // 添加第 4 个，应该移除 "a"
         set.insert("d".to_string());
-        
+
         assert!(!set.contains("a"));
         assert!(set.contains("b"));
         assert!(set.contains("c"));
@@ -116,10 +116,10 @@ mod tests {
     #[test]
     fn test_duplicate_insert() {
         let mut set = BoundedUuidSet::new(3);
-        
+
         set.insert("a".to_string());
         set.insert("a".to_string()); // 重复插入
-        
+
         assert_eq!(set.len(), 1);
         assert!(set.contains("a"));
     }
@@ -127,10 +127,10 @@ mod tests {
     #[test]
     fn test_remove() {
         let mut set = BoundedUuidSet::new(3);
-        
+
         set.insert("a".to_string());
         set.insert("b".to_string());
-        
+
         assert!(set.remove("a"));
         assert!(!set.contains("a"));
         assert!(set.contains("b"));

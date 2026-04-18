@@ -1,5 +1,5 @@
 //! 工具核心定义模块
-//! 
+//!
 //! 基于 Claude Code 架构定义 Tool 五要素协议：
 //! 1. 名称与别名 - 唯一标识符 + 可选别名
 //! 2. Schema - 运行时验证 + API 通信
@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// 工具执行上下文
-/// 
+///
 /// 包含工具执行所需的环境信息
 #[derive(Debug, Clone, Default)]
 pub struct ToolContext {
@@ -58,7 +58,7 @@ pub struct ToolExecutionRecord {
 }
 
 /// 中断行为
-/// 
+///
 /// 定义用户提交新消息时工具的行为
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -107,25 +107,33 @@ pub struct PermissionResult {
 impl PermissionResult {
     pub fn allow() -> Self {
         Self {
-            behavior: PermissionBehavior::Allow { updated_input: None },
+            behavior: PermissionBehavior::Allow {
+                updated_input: None,
+            },
         }
     }
 
     pub fn allow_with_input(updated_input: serde_json::Value) -> Self {
         Self {
-            behavior: PermissionBehavior::Allow { updated_input: Some(updated_input) },
+            behavior: PermissionBehavior::Allow {
+                updated_input: Some(updated_input),
+            },
         }
     }
 
     pub fn deny(reason: impl Into<String>) -> Self {
         Self {
-            behavior: PermissionBehavior::Deny { reason: reason.into() },
+            behavior: PermissionBehavior::Deny {
+                reason: reason.into(),
+            },
         }
     }
 
     pub fn ask(prompt: impl Into<String>) -> Self {
         Self {
-            behavior: PermissionBehavior::Ask { prompt: prompt.into() },
+            behavior: PermissionBehavior::Ask {
+                prompt: prompt.into(),
+            },
         }
     }
 }
@@ -232,7 +240,7 @@ impl<O> ToolResult<O> {
 }
 
 /// 上下文修改器
-/// 
+///
 /// 允许工具在执行后修改上下文（如更新文件缓存）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextModifier {
@@ -286,7 +294,7 @@ pub struct SearchOrReadResult {
 }
 
 /// Tool 五要素协议 Trait
-/// 
+///
 /// 每个工具必须实现的完整接口
 /// - Input: 使用 schema 定义的结构化输入
 /// - Output: 工具输出类型
@@ -362,7 +370,7 @@ pub trait Tool: Send + Sync {
     // ===== 要素四：运行时属性 =====
 
     /// 工具是否启用
-    /// 
+    ///
     /// 用于功能开关控制，支持编译期死代码消除
     fn is_enabled(&self) -> bool {
         true
@@ -374,21 +382,21 @@ pub trait Tool: Send + Sync {
     }
 
     /// 判断工具是否支持并发执行
-    /// 
+    ///
     /// fail-closed 原则：默认为 false，工具必须显式声明自己安全
     fn is_concurrency_safe(&self) -> bool {
         false
     }
 
     /// 判断工具是否为破坏性操作
-    /// 
+    ///
     /// 仅当工具执行不可逆操作时返回 true（删除、覆盖、发送）
     fn is_destructive(&self, _input: &Self::Input) -> bool {
         false
     }
 
     /// 判断此工具是否为搜索或读取操作
-    /// 
+    ///
     /// 用于 UI 折叠展示
     fn is_search_or_read_command(&self, _input: &Self::Input) -> SearchOrReadResult {
         SearchOrReadResult::default()
@@ -400,7 +408,7 @@ pub trait Tool: Send + Sync {
     }
 
     /// 获取最大结果大小（字符数）
-    /// 
+    ///
     /// 超过此值时结果将被持久化到文件
     fn max_result_size_chars(&self) -> usize {
         100_000 // 默认 100KB
@@ -417,14 +425,14 @@ pub trait Tool: Send + Sync {
     }
 
     /// 中断行为
-    /// 
+    ///
     /// 定义用户提交新消息时工具的行为
     fn interrupt_behavior(&self) -> InterruptBehavior {
         InterruptBehavior::Block
     }
 
     /// 是否为透明包装器
-    /// 
+    ///
     /// 透明包装器（如 REPL）将所有渲染委托给进度处理器
     fn is_transparent_wrapper(&self) -> bool {
         false
@@ -443,7 +451,7 @@ pub trait Tool: Send + Sync {
     // ===== 要素五：执行逻辑 =====
 
     /// 核心执行方法
-    /// 
+    ///
     /// 接收解析后的输入参数、工具执行上下文、进度回调
     /// 返回结果携带输出数据和可选的上下文修改器
     async fn execute(
@@ -461,7 +469,7 @@ pub trait Tool: Send + Sync {
     }
 
     /// 获取活动描述（用于 spinner 显示）
-    /// 
+    ///
     /// 示例："Reading src/foo.ts", "Running bun test"
     fn get_activity_description(&self, _input: &Self::Input) -> Option<String> {
         None
@@ -481,7 +489,10 @@ pub trait Tool: Send + Sync {
                 "Operation completed successfully".to_string()
             }
         } else {
-            format!("Operation failed: {}", result.error.as_deref().unwrap_or("unknown error"))
+            format!(
+                "Operation failed: {}",
+                result.error.as_deref().unwrap_or("unknown error")
+            )
         }
     }
 
@@ -510,7 +521,7 @@ pub trait Tool: Send + Sync {
 }
 
 /// 工具权限级别
-/// 
+///
 /// 分层权限检查的第二层
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -557,11 +568,7 @@ pub struct ToolUseBlock {
 }
 
 impl ToolUseBlock {
-    pub fn new(
-        id: impl Into<String>,
-        name: impl Into<String>,
-        input: serde_json::Value,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, name: impl Into<String>, input: serde_json::Value) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -580,7 +587,7 @@ pub struct ToolUseBlockWithProgress {
 }
 
 /// 延迟 Schema 评估器
-/// 
+///
 /// 用于延迟评估工具 schema，避免不必要的计算
 pub struct LazySchema<T> {
     schema_fn: Arc<dyn Fn() -> T + Send + Sync>,
@@ -701,7 +708,9 @@ mod tests {
         let ctx = ToolContext::default();
         let input = serde_json::json!({ "message": "Hello" });
 
-        let result = tool.execute(input, &ctx, None::<fn(ToolProgress<String>)>, None).await;
+        let result = tool
+            .execute(input, &ctx, None::<fn(ToolProgress<String>)>, None)
+            .await;
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_success);

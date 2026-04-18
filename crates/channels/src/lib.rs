@@ -1,11 +1,11 @@
 //! Channels crate - 提供消息通道和通信机制
-//! 
+//!
 //! 本 crate 负责提供不同组件之间的消息传递功能
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, error};
+use tracing::debug;
 
 /// 消息类型枚举
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,7 +15,10 @@ pub enum Message {
     /// 命令消息
     Command { name: String, args: Vec<String> },
     /// 事件消息
-    Event { event_type: String, data: serde_json::Value },
+    Event {
+        event_type: String,
+        data: serde_json::Value,
+    },
 }
 
 /// 通道管理器
@@ -31,7 +34,7 @@ impl ChannelManager {
     pub fn new(buffer_size: usize) -> Self {
         let (broadcast_tx, _) = broadcast::channel(buffer_size);
         let (mpsc_tx, _) = mpsc::channel(buffer_size);
-        
+
         Self {
             broadcast_tx,
             mpsc_tx,

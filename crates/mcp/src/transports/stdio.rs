@@ -55,7 +55,7 @@ impl StdioTransport {
                 let line_trimmed = line.trim();
                 debug!("MCP server stderr: {}", line_trimmed);
                 line.clear();
-                
+
                 if !alive_clone.load(std::sync::atomic::Ordering::Relaxed) {
                     break;
                 }
@@ -73,7 +73,7 @@ impl StdioTransport {
 
                 let mut full_msg = msg.clone();
                 full_msg.push('\n');
-                
+
                 if let Err(e) = stdin_writer.write_all(full_msg.as_bytes()).await {
                     error!("Failed to write to MCP server stdin: {}", e);
                     alive_write.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -90,7 +90,7 @@ impl StdioTransport {
 
         // 读取循环：从子进程 stdout 读取消息（由外部管理处理）
         let stdout_reader = stdout; // 在 recv 方法中处理
-        
+
         let pid = child.id().context("Failed to get child PID")?;
 
         Ok(Self {
@@ -114,7 +114,8 @@ impl StdioTransport {
         match reader.read_line(&mut line).await {
             Ok(0) => {
                 // EOF，进程结束
-                self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                self.alive
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
                 Ok(None)
             }
             Ok(_) => {
@@ -124,7 +125,8 @@ impl StdioTransport {
             }
             Err(e) => {
                 error!("Failed to read from MCP server stdout: {}", e);
-                self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                self.alive
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
                 Err(e.into())
             }
         }
@@ -138,7 +140,10 @@ impl Transport for StdioTransport {
             anyhow::bail!("Transport is not alive");
         }
 
-        self.tx.send(message).await.context("Failed to send message")?;
+        self.tx
+            .send(message)
+            .await
+            .context("Failed to send message")?;
         Ok(())
     }
 
@@ -147,13 +152,14 @@ impl Transport for StdioTransport {
     }
 
     async fn close(&self) -> Result<()> {
-        self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
-        
+        self.alive
+            .store(false, std::sync::atomic::Ordering::Relaxed);
+
         #[cfg(unix)]
         {
             use nix::sys::signal::{kill, Signal};
             use nix::unistd::Pid;
-            
+
             kill(Pid::from_raw(self.pid as i32), Signal::SIGTERM).ok();
         }
 
@@ -169,6 +175,7 @@ impl Transport for StdioTransport {
 
 impl Drop for StdioTransport {
     fn drop(&mut self) {
-        self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.alive
+            .store(false, std::sync::atomic::Ordering::Relaxed);
     }
 }

@@ -58,10 +58,7 @@ impl ParallelPrefetcher {
         #[cfg(target_os = "macos")]
         let child = {
             let cmd = Command::new("plutil")
-                .args(&[
-                    "-p",
-                    "/Library/Managed Preferences/com.example.devil.plist",
-                ])
+                .args(&["-p", "/Library/Managed Preferences/com.example.devil.plist"])
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .spawn();
@@ -79,12 +76,7 @@ impl ParallelPrefetcher {
         #[cfg(target_os = "windows")]
         let child = {
             let cmd = Command::new("reg")
-                .args(&[
-                    "query",
-                    "HKLM\\SOFTWARE\\Policies\\Devil",
-                    "/v",
-                    "Config",
-                ])
+                .args(&["query", "HKLM\\SOFTWARE\\Policies\\Devil", "/v", "Config"])
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
                 .spawn();
@@ -102,10 +94,7 @@ impl ParallelPrefetcher {
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         let child: Option<tokio::process::Child> = None;
 
-        MdmPrefetchHandle {
-            child,
-            start_time,
-        }
+        MdmPrefetchHandle { child, start_time }
     }
 
     /// 启动 Keychain 凭证预取
@@ -120,12 +109,7 @@ impl ParallelPrefetcher {
             #[cfg(target_os = "macos")]
             {
                 let output = Command::new("security")
-                    .args(&[
-                        "find-generic-password",
-                        "-s",
-                        "devil-oauth",
-                        "-w",
-                    ])
+                    .args(&["find-generic-password", "-s", "devil-oauth", "-w"])
                     .output()
                     .await;
 
@@ -133,9 +117,7 @@ impl ParallelPrefetcher {
                     Ok(o) if o.status.success() => {
                         Ok(String::from_utf8_lossy(&o.stdout).trim().to_string())
                     }
-                    Ok(o) => {
-                        Err(anyhow::anyhow!("Keychain read failed: {:?}", o))
-                    }
+                    Ok(o) => Err(anyhow::anyhow!("Keychain read failed: {:?}", o)),
                     Err(e) => Err(anyhow::anyhow!("security command failed: {}", e)),
                 }
             }
@@ -143,8 +125,7 @@ impl ParallelPrefetcher {
             // 其他平台：从环境变量读取
             #[cfg(not(target_os = "macos"))]
             {
-                std::env::var("DEVIL_OAUTH_TOKEN")
-                    .context("No OAuth token found")
+                std::env::var("DEVIL_OAUTH_TOKEN").context("No OAuth token found")
             }
         }));
 
@@ -154,12 +135,7 @@ impl ParallelPrefetcher {
             #[cfg(target_os = "macos")]
             {
                 let output = Command::new("security")
-                    .args(&[
-                        "find-generic-password",
-                        "-s",
-                        "devil-api-key",
-                        "-w",
-                    ])
+                    .args(&["find-generic-password", "-s", "devil-api-key", "-w"])
                     .output()
                     .await;
 
@@ -191,11 +167,8 @@ impl ParallelPrefetcher {
         let elapsed = handle.start_time.elapsed();
 
         if let Some(_child) = handle.child {
-            match tokio::time::timeout(
-                std::time::Duration::from_secs(2),
-                _child.wait_with_output(),
-            )
-            .await
+            match tokio::time::timeout(std::time::Duration::from_secs(2), _child.wait_with_output())
+                .await
             {
                 Ok(Ok(output)) if output.status.success() => {
                     let json_str = String::from_utf8_lossy(&output.stdout);

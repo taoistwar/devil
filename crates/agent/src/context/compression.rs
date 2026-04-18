@@ -1,5 +1,5 @@
 //! 四级压缩策略实现
-//! 
+//!
 //! 从低成本到高成本依次递进：
 //! 1. Snip - 标记清除
 //! 2. MicroCompact - 时间触发
@@ -79,20 +79,20 @@ pub struct SnipResult {
 }
 
 /// Level 1: Snip（裁剪）实现
-/// 
+///
 /// 最轻量的压缩手段，不调用 LLM
 /// 直接将旧的工具结果内容替换为标记文本
 pub struct SnipCompression;
 
 impl SnipCompression {
     /// 执行 Snip 压缩
-    /// 
+    ///
     /// # 参数
-    /// 
+    ///
     /// * `config` - Snip 配置
-    /// 
+    ///
     /// # 返回
-    /// 
+    ///
     /// Snip 结果
     pub fn execute(config: &SnipConfig) -> SnipResult {
         // 实际实现会遍历消息，将工具结果替换为 SNIP_MARKER_TEXT
@@ -147,7 +147,7 @@ pub struct MicroCompactEvaluation {
 }
 
 /// Level 2: MicroCompact（微压缩）实现
-/// 
+///
 /// 基于时间触发的大规模工具结果清理
 /// 当服务端缓存过期时，主动清除旧的工具结果
 pub struct MicroCompactCompression {
@@ -169,9 +169,9 @@ impl MicroCompactCompression {
     }
 
     /// 评估是否应该触发微压缩
-    /// 
+    ///
     /// # 为什么与缓存过期有关？
-    /// 
+    ///
     /// Claude 的 API 支持提示缓存（Prompt Caching）——如果连续请求的前缀相同，
     /// 缓存命中的部分可以大幅降低成本和延迟。但随着时间推移，缓存会过期。
     /// 当缓存过期时，无论如何都需要重新发送完整内容。此时保留旧的工具结果只是徒增负载。
@@ -185,8 +185,8 @@ impl MicroCompactCompression {
         };
 
         let elapsed = last_time.elapsed();
-        let should_trigger = self.config.enabled 
-            && elapsed >= Duration::from_secs(self.config.time_threshold_secs);
+        let should_trigger =
+            self.config.enabled && elapsed >= Duration::from_secs(self.config.time_threshold_secs);
 
         MicroCompactEvaluation {
             should_trigger,
@@ -207,14 +207,11 @@ impl MicroCompactCompression {
     }
 
     /// 执行微压缩
-    /// 
+    ///
     /// 保留最近 N 个可压缩工具结果，清除其余的
-    pub fn execute(
-        &self,
-        tool_results: &[String],
-    ) -> (Vec<String>, u32) {
+    pub fn execute(&self, tool_results: &[String]) -> (Vec<String>, u32) {
         let keep_count = self.config.keep_recent as usize;
-        
+
         if tool_results.len() <= keep_count {
             return (tool_results.to_vec(), 0);
         }
@@ -222,20 +219,20 @@ impl MicroCompactCompression {
         // 保留最近的 N 个，清除前面的
         let clear_count = tool_results.len() - keep_count;
         let mut result = Vec::with_capacity(tool_results.len());
-        
+
         // 清除旧的内容
         for _ in 0..clear_count {
             result.push(SNIP_MARKER_TEXT.to_string());
         }
-        
+
         // 保留最近的内容
         result.extend_from_slice(&tool_results[clear_count..]);
-        
+
         (result, clear_count as u32)
     }
 
     /// 基于缓存编辑的无损优化
-    /// 
+    ///
     /// 通过 API 层面的 cache_edits 机制删除工具结果而不破坏缓存前缀
     pub fn supports_cache_edits() -> bool {
         // 实际实现取决于 API 支持
@@ -298,7 +295,7 @@ impl Default for CollapseTradeoff {
 }
 
 /// Level 3: Collapse（折叠）实现
-/// 
+///
 /// 上下文重构级压缩
 /// 在设计哲学上与 AutoCompact 不同："在空间压力出现之前就主动重构"
 pub struct CollapseCompression {
@@ -326,7 +323,7 @@ impl CollapseCompression {
     }
 
     /// Collapse 模式会抑制自动压缩的触发
-    /// 
+    ///
     /// 因为两者在 93% 的临界点会产生竞争
     /// Collapse 作为更精细的上下文管理系统，拥有更高的优先级
     pub fn suppresses_auto_compact(&self) -> bool {
@@ -350,7 +347,7 @@ pub struct CompactPrompts;
 
 impl CompactPrompts {
     /// BASE_COMPACT_PROMPT - 全量对话摘要
-    /// 
+    ///
     /// 场景：从对话开始到当前的所有消息
     /// 适用：常规自动压缩
     pub const BASE: &'static str = r#"Please summarize this conversation. Provide your response in the following format:
@@ -391,7 +388,7 @@ impl CompactPrompts {
 IMPORTANT: Do NOT use any tools (Read, Bash, etc.). Only respond with text."#;
 
     /// PARTIAL_COMPACT_PROMPT - 部分对话摘要（from 方向）
-    /// 
+    ///
     /// 场景：仅摘要从指定消息开始到当前的消息
     /// 适用：对话前半段已被压缩过
     pub const PARTIAL: &'static str = r#"Please summarize the conversation from the marked point to the present.
@@ -400,7 +397,7 @@ Follow the same format as the base compact prompt.
 IMPORTANT: Do NOT use any tools. Only respond with text."#;
 
     /// PARTIAL_COMPACT_UP_TO_PROMPT - 部分对话摘要（up_to 方向）
-    /// 
+    ///
     /// 场景：摘要从对话开始到指定消息的内容
     /// 适用：保留最近完整消息
     pub const PARTIAL_UP_TO: &'static str = r#"Please summarize the conversation from the beginning up to the marked point.
@@ -431,13 +428,13 @@ impl TwoStageOutput {
     pub fn parse_from_llm_output(output: &str) -> Self {
         // 提取 <analysis> 块
         let analysis = Self::extract_tagged_block(output, "analysis");
-        
+
         // 提取 <summary> 块
-        let summary = Self::extract_tagged_block(output, "summary")
-            .unwrap_or_else(|| output.to_string());
-        
+        let summary =
+            Self::extract_tagged_block(output, "summary").unwrap_or_else(|| output.to_string());
+
         let extraction_success = !summary.is_empty();
-        
+
         TwoStageOutput {
             analysis,
             summary,
@@ -449,7 +446,7 @@ impl TwoStageOutput {
     fn extract_tagged_block(text: &str, tag: &str) -> Option<String> {
         let open_tag = format!("<{}>", tag);
         let close_tag = format!("</{}>", tag);
-        
+
         if let Some(start) = text.find(&open_tag) {
             if let Some(end) = text.find(&close_tag) {
                 if start < end {
@@ -459,7 +456,7 @@ impl TwoStageOutput {
                 }
             }
         }
-        
+
         None
     }
 
@@ -501,15 +498,15 @@ mod tests {
     #[test]
     fn test_micro_compact_evaluation() {
         let mut compression = MicroCompactCompression::new(MicroCompactConfig::default());
-        
+
         // 初始状态
         let eval = compression.evaluate();
         assert!(!eval.should_trigger);
-        
+
         // 设置很久以前的时间
         let old_time = Instant::now() - Duration::from_secs(7200); // 2 小时前
         compression.update_last_assistant_time(old_time);
-        
+
         // 现在应该触发
         let eval = compression.evaluate();
         assert!(eval.should_trigger);
@@ -518,13 +515,13 @@ mod tests {
     #[test]
     fn test_collapse_trigger() {
         let compression = CollapseCompression::new(CollapseConfig::default());
-        
+
         // 85% 不应触发
         assert!(!compression.should_trigger(0.85));
-        
+
         // 90% 应触发
         assert!(compression.should_trigger(0.90));
-        
+
         // 95% 应阻止 spawn
         assert!(compression.should_block_spawn(0.95));
     }
@@ -548,11 +545,11 @@ This is the actual summary that should be kept.
 </summary>"#;
 
         let parsed = TwoStageOutput::parse_from_llm_output(llm_output);
-        
+
         assert!(parsed.analysis.is_some());
         assert!(parsed.summary.contains("## Goals"));
         assert!(parsed.extraction_success);
-        
+
         let finalized = parsed.finalize();
         assert!(!finalized.contains("analysis"));
         assert!(finalized.contains("## Goals"));
@@ -561,9 +558,9 @@ This is the actual summary that should be kept.
     #[test]
     fn test_two_stage_output_missing_analysis() {
         let llm_output = r"<summary>Only summary provided</summary>";
-        
+
         let parsed = TwoStageOutput::parse_from_llm_output(llm_output);
-        
+
         assert!(parsed.analysis.is_none());
         assert_eq!(parsed.summary, "Only summary provided");
     }

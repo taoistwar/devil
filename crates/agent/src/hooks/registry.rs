@@ -1,21 +1,21 @@
 //! 钩子注册表
-//! 
+//!
 //! 管理钩子的收集、优先级排序和去重
 
 use crate::hooks::events::HookEvent;
-use crate::hooks::types::HookType;
 use crate::hooks::matcher::HookMatcher;
+use crate::hooks::types::HookType;
 use std::collections::HashMap;
 
 /// 钩子来源优先级（从高到低）
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HookPriority {
-    UserSettings = 0,        // 用户设置（最高）
-    ProjectSettings = 1,     // 项目设置
-    LocalSettings = 2,       // 本地设置
-    PluginHook = 3,          // 插件钩子
-    BuiltinHook = 4,         // 内置钩子
-    SessionHook = 5,         // 会话钩子（最低）
+    UserSettings = 0,    // 用户设置（最高）
+    ProjectSettings = 1, // 项目设置
+    LocalSettings = 2,   // 本地设置
+    PluginHook = 3,      // 插件钩子
+    BuiltinHook = 4,     // 内置钩子
+    SessionHook = 5,     // 会话钩子（最低）
 }
 
 /// 注册的钩子
@@ -45,7 +45,7 @@ pub enum HookSourceType {
     UserSettings,
     ProjectSettings,
     LocalSettings,
-    Plugin(String),  // 插件根路径
+    Plugin(String), // 插件根路径
     Builtin,
     Session,
 }
@@ -66,7 +66,7 @@ impl HookRegistry {
             callback_hooks: HashMap::new(),
         }
     }
-    
+
     /// 注册钩子
     pub fn register(&mut self, hook: RegisteredHook) {
         let event_name = "all".to_string(); // 默认适用于所有事件
@@ -75,7 +75,7 @@ impl HookRegistry {
             .or_insert_with(Vec::new)
             .push(hook);
     }
-    
+
     /// 注册回调钩子
     pub fn register_callback(&mut self, event_name: impl Into<String>, hook: RegisteredHook) {
         self.callback_hooks
@@ -83,11 +83,11 @@ impl HookRegistry {
             .or_insert_with(Vec::new)
             .push(hook);
     }
-    
+
     /// 获取匹配事件的所有钩子（按优先级排序）
     pub fn get_matching_hooks(&self, event: &HookEvent) -> Vec<&RegisteredHook> {
         let mut matching = Vec::new();
-        
+
         // 获取所有可能匹配的钩子
         for (event_pattern, hooks) in &self.hooks {
             let matcher = HookMatcher::new(event_pattern);
@@ -97,20 +97,20 @@ impl HookRegistry {
                 }
             }
         }
-        
+
         // 获取特定事件的回调钩子
         if let Some(hooks) = self.callback_hooks.get(event.name()) {
             for hook in hooks {
                 matching.push(hook);
             }
         }
-        
+
         // 按优先级排序
         matching.sort_by_key(|h| h.priority);
-        
+
         matching
     }
-    
+
     /// 清除一次性钩子
     pub fn remove_once_hooks(&mut self) {
         for hooks in self.hooks.values_mut() {
@@ -129,12 +129,12 @@ impl HookRegistry {
             });
         }
     }
-    
+
     /// 获取所有注册的钩子数量
     pub fn len(&self) -> usize {
         self.hooks.values().map(|v| v.len()).sum()
     }
-    
+
     /// 检查是否为空
     pub fn is_empty(&self) -> bool {
         self.hooks.values().all(|v| v.is_empty())
@@ -173,14 +173,14 @@ impl HookConfigSnapshot {
 mod tests {
     use super::*;
     use crate::hooks::types::CommandHook;
-    
+
     #[test]
     fn test_registry_create() {
         let registry = HookRegistry::new();
         assert!(registry.is_empty());
         assert_eq!(registry.len(), 0);
     }
-    
+
     #[test]
     fn test_register_hook() {
         let mut registry = HookRegistry::new();
@@ -197,23 +197,23 @@ mod tests {
             matcher: None,
             priority: HookPriority::UserSettings,
         };
-        
+
         registry.register(hook);
         assert!(!registry.is_empty());
         assert_eq!(registry.len(), 1);
     }
-    
+
     #[test]
     fn test_priority_ordering() {
         let mut registry = HookRegistry::new();
-        
+
         // 注册不同优先级的钩子
         let sources = vec![
             HookPriority::BuiltinHook,
             HookPriority::UserSettings,
             HookPriority::PluginHook,
         ];
-        
+
         for (i, priority) in sources.into_iter().enumerate() {
             let hook = RegisteredHook {
                 hook: HookType::Command(CommandHook {
@@ -230,24 +230,24 @@ mod tests {
             };
             registry.register(hook);
         }
-        
+
         // 获取钩子并验证优先级顺序
         let event = HookEvent::UserPromptSubmit {
             message: "test".to_string(),
         };
         let hooks = registry.get_matching_hooks(&event);
-        
+
         assert_eq!(hooks.len(), 3);
         // 验证按优先级排序（UserSettings 最高）
         assert_eq!(hooks[0].priority, HookPriority::UserSettings);
         assert_eq!(hooks[1].priority, HookPriority::PluginHook);
         assert_eq!(hooks[2].priority, HookPriority::BuiltinHook);
     }
-    
+
     #[test]
     fn test_remove_once_hooks() {
         let mut registry = HookRegistry::new();
-        
+
         // 注册一次性钩子
         let once_hook = RegisteredHook {
             hook: HookType::Command(CommandHook {
@@ -262,7 +262,7 @@ mod tests {
             matcher: None,
             priority: HookPriority::UserSettings,
         };
-        
+
         // 注册非一次性钩子
         let persist_hook = RegisteredHook {
             hook: HookType::Command(CommandHook {
@@ -277,19 +277,19 @@ mod tests {
             matcher: None,
             priority: HookPriority::UserSettings,
         };
-        
+
         registry.register(once_hook);
         registry.register(persist_hook);
         assert_eq!(registry.len(), 2);
-        
+
         registry.remove_once_hooks();
         assert_eq!(registry.len(), 1);
     }
-    
+
     #[test]
     fn test_callback_hooks() {
         let mut registry = HookRegistry::new();
-        
+
         let hook = RegisteredHook {
             hook: HookType::Command(CommandHook {
                 command: vec!["echo callback".to_string()],
@@ -303,14 +303,14 @@ mod tests {
             matcher: None,
             priority: HookPriority::BuiltinHook,
         };
-        
+
         registry.register_callback("pre_tool_use", hook);
-        
+
         let event = HookEvent::PreToolUse {
             tool_name: "Bash".to_string(),
             tool_input: std::collections::HashMap::new(),
         };
-        
+
         let hooks = registry.get_matching_hooks(&event);
         assert!(!hooks.is_empty());
     }

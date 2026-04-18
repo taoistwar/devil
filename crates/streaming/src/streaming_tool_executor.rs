@@ -18,11 +18,11 @@ use uuid::Uuid;
 /// 工具状态
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolState {
-    Queued,      // 排队等待
-    Executing,   // 执行中
-    Completed,   // 已完成
-    Yielded,     // 已输出
-    Cancelled,   // 已取消
+    Queued,    // 排队等待
+    Executing, // 执行中
+    Completed, // 已完成
+    Yielded,   // 已输出
+    Cancelled, // 已取消
 }
 
 /// 追踪的待执行工具
@@ -242,9 +242,7 @@ impl StreamingToolExecutor {
     }
 
     /// 获取已完成的结果（按序输出）
-    pub async fn get_completed_results(
-        &self,
-    ) -> impl Stream<Item = ToolResult> + Send {
+    pub async fn get_completed_results(&self) -> impl Stream<Item = ToolResult> + Send {
         use futures::stream;
 
         let guard = self.tools.read().await;
@@ -312,8 +310,16 @@ pub fn is_tool_concurrency_safe(tool_name: &str) -> bool {
 
     // 写入工具 - 非并发安全
     let unsafe_tools = [
-        "bash", "shell", "exec", "edit", "write", "notebookedit",
-        "delete", "remove", "create", "run",
+        "bash",
+        "shell",
+        "exec",
+        "edit",
+        "write",
+        "notebookedit",
+        "delete",
+        "remove",
+        "create",
+        "run",
     ];
 
     if unsafe_tools.iter().any(|&t| name.contains(t)) {

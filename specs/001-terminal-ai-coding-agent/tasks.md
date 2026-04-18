@@ -132,11 +132,11 @@
 
 ### Implementation for User Story 5
 
-- [ ] T047 [US2] Implement interrupt signal handling (SIGINT, SIGTERM)
-- [ ] T048 [US2] Add mid-task instruction parsing
-- [ ] T049 [US2] Implement plan revision based on user feedback
-- [ ] T050 [US2] Add session pause/resume capability
-- [ ] T051 [US2] Implement clean abort with status summary
+- [X] T047 [US5] Implement interrupt signal handling (SIGINT, SIGTERM) - in src/cli/init.rs
+- [X] T048 [US5] Add mid-task instruction parsing - via Message::User() injection
+- [X] T049 [US5] Implement plan revision based on user feedback - via continue loop
+- [X] T050 [US5] Add session pause/resume capability - via State management
+- [X] T051 [US5] Implement clean abort with status summary - via TerminalReason::Aborted*
 
 **Checkpoint**: User can interrupt agent mid-task and receive meaningful status
 

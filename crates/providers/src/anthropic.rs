@@ -33,7 +33,9 @@ pub struct ChatMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlock {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     ToolUse {
         id: String,
         name: String,
@@ -136,7 +138,9 @@ pub struct MessageStart {
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentBlockStart {
-    Text { text: String },
+    Text {
+        text: String,
+    },
     ToolUse {
         id: String,
         name: String,
@@ -169,7 +173,7 @@ impl AnthropicClient {
     /// 创建新的客户端
     pub fn new(api_key: String, model: Option<String>) -> Self {
         let model = model.unwrap_or_else(|| "claude-sonnet-4-20250514".to_string());
-        
+
         Self {
             client: Client::builder()
                 .timeout(std::time::Duration::from_secs(120))
@@ -290,13 +294,13 @@ impl AnthropicClient {
 
         // 处理 SSE 流
         let stream = response.bytes_stream();
-        
+
         Ok(stream
             .filter_map(|chunk| async move {
                 match chunk {
                     Ok(bytes) => {
                         let chunk_str = String::from_utf8_lossy(&bytes);
-                        
+
                         // 按行分割
                         let mut events = Vec::new();
                         for line in chunk_str.lines() {
@@ -304,7 +308,7 @@ impl AnthropicClient {
                                 events.push(event);
                             }
                         }
-                        
+
                         // 解析为 StreamEvent
                         let mut result: Option<Result<StreamEvent>> = None;
                         for event in events {
@@ -317,7 +321,7 @@ impl AnthropicClient {
                                     if data == "{}" {
                                         continue;
                                     }
-                                    
+
                                     match serde_json::from_str::<StreamEvent>(&data) {
                                         Ok(event) => result = Some(Ok(event)),
                                         Err(e) => {
@@ -327,7 +331,7 @@ impl AnthropicClient {
                                 }
                             }
                         }
-                        
+
                         result
                     }
                     Err(e) => {
@@ -336,15 +340,13 @@ impl AnthropicClient {
                     }
                 }
             })
-            .filter_map(|result| async move {
-                result.ok().map(Ok)
-            }))
+            .filter_map(|result| async move { result.ok().map(Ok) }))
     }
 
     /// 解析 SSE 行
     fn parse_sse_line(line: &str) -> Option<SseEvent> {
         let line = line.trim();
-        
+
         // 跳过空行和注释
         if line.is_empty() || line.starts_with(":") {
             return None;

@@ -25,11 +25,7 @@ impl MessageRouter {
     }
 
     /// 注册请求
-    pub async fn register_request(
-        &self,
-        id: &str,
-        response_tx: mpsc::Sender<BridgeMessage>,
-    ) {
+    pub async fn register_request(&self, id: &str, response_tx: mpsc::Sender<BridgeMessage>) {
         let mut requests = self.pending_requests.write().await;
         requests.insert(id.to_string(), response_tx);
         debug!("Registered pending request: {}", id);
@@ -40,7 +36,7 @@ impl MessageRouter {
         if let BridgeMessage::Response { ref id, .. } = message {
             if let Some(id_str) = id.as_str() {
                 let mut requests = self.pending_requests.write().await;
-                
+
                 if let Some(tx) = requests.remove(id_str) {
                     debug!("Routing response to request: {}", id_str);
                     return tx.send(message).await.is_ok();
@@ -50,23 +46,21 @@ impl MessageRouter {
                 }
             }
         }
-        
+
         false
     }
 
     /// 路由通知
     pub async fn route_notification(&self, message: BridgeMessage) {
         let subscribers = self.notification_subscribers.read().await;
-        
+
         for subscriber in subscribers.iter() {
             subscriber.send(message.clone()).await.ok();
         }
     }
 
     /// 订阅通知
-    pub async fn subscribe_notifications(
-        &self,
-    ) -> mpsc::Receiver<BridgeMessage> {
+    pub async fn subscribe_notifications(&self) -> mpsc::Receiver<BridgeMessage> {
         let (tx, rx) = mpsc::channel(100);
         let mut subscribers = self.notification_subscribers.write().await;
         subscribers.push(tx);
@@ -77,10 +71,10 @@ impl MessageRouter {
     pub async fn clear(&self) {
         let mut requests = self.pending_requests.write().await;
         requests.clear();
-        
+
         let mut subscribers = self.notification_subscribers.write().await;
         subscribers.clear();
-        
+
         debug!("MessageRouter cleared");
     }
 }

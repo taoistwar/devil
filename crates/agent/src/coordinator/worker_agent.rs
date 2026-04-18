@@ -1,14 +1,14 @@
 //! Worker Agent 定义
-//! 
+//!
 //! 定义协调器模式下的 Worker Agent
 
-use crate::coordinator::types::{WorkerAgent, INTERNAL_ORCHESTRATION_TOOLS, get_worker_tools};
 use crate::coordinator::types::CoordinatorConfig;
+use crate::coordinator::types::{get_worker_tools, WorkerAgent, INTERNAL_ORCHESTRATION_TOOLS};
 
 /// 创建 Worker Agent 定义
 pub fn create_worker_agent(config: &CoordinatorConfig) -> WorkerAgent {
     let tools = get_worker_tools(config);
-    
+
     WorkerAgent {
         agent_type: "worker".to_string(),
         when_to_use: "Worker agent for coordinator mode. Executes research, implementation, and verification tasks autonomously with the full standard tool set.".to_string(),
@@ -18,7 +18,7 @@ pub fn create_worker_agent(config: &CoordinatorConfig) -> WorkerAgent {
 }
 
 /// 获取 Worker 系统提示词
-/// 
+///
 /// Worker 的系统提示词告知其职责和行为准则
 pub fn get_worker_system_prompt() -> &'static str {
     r#"You are a worker agent spawned by a coordinator. Your job is to complete the task described in the prompt thoroughly and report back with a concise summary of what you did and what you found.
@@ -42,7 +42,7 @@ Your response will be delivered to the coordinator as a <task-notification>. Inc
 }
 
 /// 检查工具是否对 Worker 可用
-/// 
+///
 /// 过滤掉内部编排工具（TeamCreate, TeamDelete, SendMessage, SyntheticOutput）
 pub fn is_worker_tool_available(tool_name: &str) -> bool {
     !INTERNAL_ORCHESTRATION_TOOLS.contains(&tool_name)
@@ -56,24 +56,24 @@ pub fn get_forbidden_worker_tools() -> Vec<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_worker_agent_creation() {
         let config = CoordinatorConfig::default();
         let agent = create_worker_agent(&config);
-        
+
         assert_eq!(agent.agent_type, "worker");
         assert!(!agent.tools.is_empty());
         assert!(agent.system_prompt.contains("worker agent"));
     }
-    
+
     #[test]
     fn test_worker_tool_availability() {
         // Worker 可用的工具
         assert!(is_worker_tool_available("Bash"));
         assert!(is_worker_tool_available("Read"));
         assert!(is_worker_tool_available("Edit"));
-        
+
         // Worker 禁用的工具
         assert!(!is_worker_tool_available("SendMessage"));
         assert!(!is_worker_tool_available("TeamCreate"));

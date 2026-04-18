@@ -10,28 +10,25 @@
 //! - McpIntegration: MCP 集成模块（第 12 章）
 //! - AnthropicDeps: Anthropic API 集成
 
+pub mod anthropic_deps;
+pub mod cache_optimizer;
+pub mod cost_tracking;
+pub mod forked_agent;
+pub mod mcp_integration;
+pub mod prefetch;
 pub mod query_engine;
 pub mod streaming_tool_executor;
-pub mod forked_agent;
-pub mod prefetch;
-pub mod cost_tracking;
-pub mod cache_optimizer;
-pub mod mcp_integration;
-pub mod anthropic_deps;
 
-pub use query_engine::{QueryEngine, QueryDeps, StreamEvent};
-pub use streaming_tool_executor::{StreamingToolExecutor, TrackedTool, ToolState};
-pub use forked_agent::{ForkedAgent, ForkContext, ForkedAgentResult, CacheSafeParams};
-pub use prefetch::ParallelPrefetcher;
-pub use cost_tracking::{TokenUsage, UsageDelta, CostTracker};
-pub use cache_optimizer::{CacheOptimizer, CacheMetrics};
-pub use mcp_integration::{
-    McpQueryDeps,
-    McpToolConverter,
-    McpStreamingIntegration,
-    create_mcp_query_engine,
-};
 pub use anthropic_deps::AnthropicQueryDeps;
+pub use cache_optimizer::{CacheMetrics, CacheOptimizer};
+pub use cost_tracking::{CostTracker, TokenUsage, UsageDelta};
+pub use forked_agent::{CacheSafeParams, ForkContext, ForkedAgent, ForkedAgentResult};
+pub use mcp_integration::{
+    create_mcp_query_engine, McpQueryDeps, McpStreamingIntegration, McpToolConverter,
+};
+pub use prefetch::ParallelPrefetcher;
+pub use query_engine::{QueryDeps, QueryEngine, StreamEvent};
+pub use streaming_tool_executor::{StreamingToolExecutor, ToolState, TrackedTool};
 
 /// 流式处理版本
 pub const STREAMING_VERSION: &str = env!("CARGO_PKG_VERSION");

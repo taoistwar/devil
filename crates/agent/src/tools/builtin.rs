@@ -1,5 +1,5 @@
 //! 内建工具模块
-//! 
+//!
 //! 实现 Claude Code 的核心内建工具：
 //! - BashTool: 命令执行的瑞士军刀
 //! - FileReadTool: 读取文件内容
@@ -12,17 +12,16 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolResult, ToolPermissionLevel,
-    InputValidationResult, ContextModifier,
-    InterruptBehavior,
-};
 use crate::permissions::bash_analyzer::BashSemanticAnalyzer;
+use crate::tools::tool::{
+    ContextModifier, InputValidationResult, InterruptBehavior, Tool, ToolContext,
+    ToolPermissionLevel, ToolResult,
+};
 
 /// buildTool 工厂函数
-/// 
+///
 /// 创建工具的标准工厂函数，自动填充安全默认值
-/// 
+///
 /// 遵循 "fail-closed" 原则：
 /// 安全性相关的方法（如并发安全判断、只读判断）默认为 false
 /// 工具必须显式声明自己安全才能享受并发等优化
@@ -189,7 +188,9 @@ where
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
     ) -> Result<ToolResult<Self::Output>> {
         let output = (self.execute_fn)(input, ctx)?;
         Ok(ToolResult::success(format!("{}-1", self.name), output))
@@ -221,7 +222,7 @@ pub struct BashOutput {
 }
 
 /// BashTool：命令执行的瑞士军刀
-/// 
+///
 /// 最复杂的工具，集成多层安全防护：
 /// - 错误传播：Bash 失败会取消所有并行的 Bash 工具
 /// - 中断行为：可自定义用户中断时的行为
@@ -301,22 +302,26 @@ impl Tool for BashTool {
         // 检查危险命令
         if analysis.is_dangerous {
             return crate::tools::tool::PermissionResult::deny(
-                analysis.danger_reason.unwrap_or_else(|| "Dangerous command detected".to_string())
+                analysis
+                    .danger_reason
+                    .unwrap_or_else(|| "Dangerous command detected".to_string()),
             );
         }
 
         // 检查是否访问敏感路径
         if analysis.accesses_sensitive_path {
-            return crate::tools::tool::PermissionResult::ask(
-                format!("Command accesses sensitive paths: {}", input.command)
-            );
+            return crate::tools::tool::PermissionResult::ask(format!(
+                "Command accesses sensitive paths: {}",
+                input.command
+            ));
         }
 
         // 检查是否为破坏性操作
         if analysis.is_destructive {
-            return crate::tools::tool::PermissionResult::ask(
-                format!("Destructive operation detected: {}", input.command)
-            );
+            return crate::tools::tool::PermissionResult::ask(format!(
+                "Destructive operation detected: {}",
+                input.command
+            ));
         }
 
         // 默认允许
@@ -347,7 +352,10 @@ impl Tool for BashTool {
         analysis.is_destructive
     }
 
-    fn is_search_or_read_command(&self, input: &Self::Input) -> crate::tools::tool::SearchOrReadResult {
+    fn is_search_or_read_command(
+        &self,
+        input: &Self::Input,
+    ) -> crate::tools::tool::SearchOrReadResult {
         let analysis = BashSemanticAnalyzer::analyze_command(&input.command);
         crate::tools::tool::SearchOrReadResult {
             is_search: analysis.is_search,
@@ -369,12 +377,14 @@ impl Tool for BashTool {
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
     ) -> Result<ToolResult<Self::Output>> {
         use std::io::Read;
         use std::process::{Command, Stdio};
-        use tokio::process::Command as AsyncCommand;
         use tokio::io::AsyncReadExt;
+        use tokio::process::Command as AsyncCommand;
 
         let timeout_ms = self.timeout_ms(&input).unwrap_or(300000);
         let max_output_lines = 10000;
@@ -405,7 +415,10 @@ impl Tool for BashTool {
             // 后台任务，不等待结果
             let output = BashOutput {
                 exit_code: 0,
-                stdout: format!("Background task started with PID: {}", child.id().unwrap_or(0)),
+                stdout: format!(
+                    "Background task started with PID: {}",
+                    child.id().unwrap_or(0)
+                ),
                 stderr: String::new(),
             };
             output
@@ -430,8 +443,11 @@ impl Tool for BashTool {
                     let stdout_lines: Vec<&str> = stdout.lines().take(max_output_lines).collect();
                     let truncated = stdout.lines().count() > max_output_lines;
                     let stdout = if truncated {
-                        format!("{}\n... (output truncated, {} total lines)",
-                            stdout_lines.join("\n"), stdout.lines().count())
+                        format!(
+                            "{}\n... (output truncated, {} total lines)",
+                            stdout_lines.join("\n"),
+                            stdout.lines().count()
+                        )
                     } else {
                         stdout.to_string()
                     };
@@ -442,13 +458,11 @@ impl Tool for BashTool {
                         stderr: stderr.to_string(),
                     }
                 }
-                Err(e) => {
-                    BashOutput {
-                        exit_code: -1,
-                        stdout: String::new(),
-                        stderr: format!("Failed to execute command: {}", e),
-                    }
-                }
+                Err(e) => BashOutput {
+                    exit_code: -1,
+                    stdout: String::new(),
+                    stderr: format!("Failed to execute command: {}", e),
+                },
             }
         };
 
@@ -479,7 +493,7 @@ pub struct FileReadOutput {
 }
 
 /// FileReadTool：读取文件内容
-/// 
+///
 /// 维护文件状态缓存，避免重复读取
 pub struct FileReadTool;
 
@@ -537,7 +551,9 @@ impl Tool for FileReadTool {
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
     ) -> Result<ToolResult<Self::Output>> {
         use std::fs;
         use std::io::{BufRead, BufReader};
@@ -574,8 +590,11 @@ impl Tool for FileReadTool {
 
             let truncated = count > max_lines;
             let content = if truncated {
-                format!("{}\n... (truncated, {} total lines)",
-                    lines.join("\n"), count)
+                format!(
+                    "{}\n... (truncated, {} total lines)",
+                    lines.join("\n"),
+                    count
+                )
             } else {
                 lines.join("\n")
             };
@@ -609,8 +628,8 @@ impl Tool for FileReadTool {
         };
 
         // 返回带有上下文修改器的结果，更新文件缓存
-        Ok(ToolResult::success("read-1", output).with_context_modifier(
-            ContextModifier {
+        Ok(
+            ToolResult::success("read-1", output).with_context_modifier(ContextModifier {
                 file_updates: vec![crate::tools::tool::FileState {
                     path: input.path.clone(),
                     has_been_read: true,
@@ -618,8 +637,8 @@ impl Tool for FileReadTool {
                     content_hash: Some(content_hash),
                 }],
                 metadata: std::collections::HashMap::new(),
-            }
-        ))
+            }),
+        )
     }
 }
 
@@ -648,7 +667,7 @@ pub struct FileEditOutput {
 }
 
 /// FileEditTool：精确编辑文件
-/// 
+///
 /// 使用 old_string -> new_string 的精确替换模式
 /// 而非行号范围，确保编辑操作在文件变化时仍然正确
 pub struct FileEditTool;
@@ -717,7 +736,9 @@ impl Tool for FileEditTool {
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
     ) -> Result<ToolResult<Self::Output>> {
         use std::fs;
         use std::path::Path;
@@ -757,9 +778,8 @@ impl Tool for FileEditTool {
 
         // 创建备份
         let backup_path = format!("{}.backup", input.path);
-        fs::copy(&input.path, &backup_path).map_err(|e| {
-            anyhow::anyhow!("Failed to create backup: {}", e)
-        })?;
+        fs::copy(&input.path, &backup_path)
+            .map_err(|e| anyhow::anyhow!("Failed to create backup: {}", e))?;
 
         // 执行替换
         let new_content = format!(
@@ -828,7 +848,7 @@ pub struct FileWriteOutput {
 }
 
 /// FileWriteTool：创建或完全覆写文件
-/// 
+///
 /// 最"重"的文件操作，权限检查最为严格
 pub struct FileWriteTool;
 
@@ -885,7 +905,9 @@ impl Tool for FileWriteTool {
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
     ) -> Result<ToolResult<Self::Output>> {
         use std::fs;
         use std::io::Write;
@@ -961,7 +983,7 @@ pub struct GlobOutput {
 }
 
 /// GlobTool：使用文件名模式匹配查找文件
-/// 
+///
 /// 底层使用 fast-glob 库（JavaScript）或 glob（Rust）
 pub struct GlobTool;
 
@@ -1020,7 +1042,9 @@ impl Tool for GlobTool {
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
     ) -> Result<ToolResult<Self::Output>> {
         use glob::Pattern;
 
@@ -1039,7 +1063,10 @@ impl Tool for GlobTool {
                 Pattern::new("**/.git/**").ok(),
                 Pattern::new("**/node_modules/**").ok(),
                 Pattern::new("**/target/**").ok(),
-            ].into_iter().flatten().collect()
+            ]
+            .into_iter()
+            .flatten()
+            .collect()
         };
 
         // 使用 glob crate 执行模式匹配
@@ -1063,10 +1090,7 @@ impl Tool for GlobTool {
             }
         }
 
-        let output = GlobOutput {
-            paths,
-            has_more,
-        };
+        let output = GlobOutput { paths, has_more };
 
         Ok(ToolResult::success("glob-1", output))
     }
@@ -1110,7 +1134,7 @@ pub struct GrepMatch {
 }
 
 /// GrepTool：使用正则表达式搜索文件内容
-/// 
+///
 /// 底层使用 ripgrep（rust）实现
 pub struct GrepTool;
 
@@ -1177,7 +1201,9 @@ impl Tool for GrepTool {
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
     ) -> Result<ToolResult<Self::Output>> {
         use regex::Regex;
         use walkdir::WalkDir;
@@ -1202,13 +1228,10 @@ impl Tool for GrepTool {
         let file_type_filter: Option<&str> = input.file_type.as_deref();
 
         // 忽略模式
-        let ignore_patterns: Vec<Regex> = input.ignore
+        let ignore_patterns: Vec<Regex> = input
+            .ignore
             .as_ref()
-            .map(|ignores| {
-                ignores.iter()
-                    .filter_map(|p| Regex::new(p).ok())
-                    .collect()
-            })
+            .map(|ignores| ignores.iter().filter_map(|p| Regex::new(p).ok()).collect())
             .unwrap_or_default();
 
         let mut matches = Vec::new();
@@ -1252,10 +1275,13 @@ impl Tool for GrepTool {
                     if re.is_match(line) {
                         if matches.len() >= max_matches {
                             let total = matches.len();
-                            return Ok(ToolResult::success("grep-1", GrepOutput {
-                                matches,
-                                total_matches: total,
-                            }));
+                            return Ok(ToolResult::success(
+                                "grep-1",
+                                GrepOutput {
+                                    matches,
+                                    total_matches: total,
+                                },
+                            ));
                         }
                         matches.push(GrepMatch {
                             path: path_str.clone(),
@@ -1268,10 +1294,13 @@ impl Tool for GrepTool {
         }
 
         let total = matches.len();
-        Ok(ToolResult::success("grep-1", GrepOutput {
-            matches,
-            total_matches: total,
-        }))
+        Ok(ToolResult::success(
+            "grep-1",
+            GrepOutput {
+                matches,
+                total_matches: total,
+            },
+        ))
     }
 }
 
@@ -1290,9 +1319,7 @@ mod tests {
             }))
             .read_only()
             .concurrency_safe()
-            .execute(|input: serde_json::Value, _ctx: &ToolContext| {
-                Ok("result".to_string())
-            })
+            .execute(|input: serde_json::Value, _ctx: &ToolContext| Ok("result".to_string()))
             .build();
 
         assert_eq!(tool.name(), "test");
@@ -1303,7 +1330,7 @@ mod tests {
     #[test]
     fn test_bash_tool_validation() {
         let tool = BashTool::new(false);
-        
+
         // 空命令应该无效
         let result = tool.validate_input_permissions(&BashInput {
             command: "".to_string(),
@@ -1311,13 +1338,16 @@ mod tests {
             background: None,
         });
         assert!(!result.is_valid);
-        
+
         // 危险命令应该没有权限
-        assert!(!tool.has_permission(&BashInput {
-            command: "rm -rf /".to_string(),
-            cwd: None,
-            background: None,
-        }, &ToolContext::default()));
+        assert!(!tool.has_permission(
+            &BashInput {
+                command: "rm -rf /".to_string(),
+                cwd: None,
+                background: None,
+            },
+            &ToolContext::default()
+        ));
     }
 
     #[test]
@@ -1325,11 +1355,11 @@ mod tests {
         let read_tool = FileReadTool::default();
         assert!(read_tool.is_read_only());
         assert!(read_tool.is_concurrency_safe());
-        
+
         let edit_tool = FileEditTool::default();
         assert!(!edit_tool.is_read_only());
         assert!(!edit_tool.is_concurrency_safe());
-        
+
         let write_tool = FileWriteTool::default();
         assert!(!write_tool.is_read_only());
         assert!(!write_tool.is_concurrency_safe());
@@ -1340,7 +1370,7 @@ mod tests {
         let glob_tool = GlobTool::default();
         assert!(glob_tool.is_read_only());
         assert!(glob_tool.is_concurrency_safe());
-        
+
         let grep_tool = GrepTool::default();
         assert!(grep_tool.is_read_only());
         assert!(grep_tool.is_concurrency_safe());

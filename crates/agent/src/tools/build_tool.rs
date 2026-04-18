@@ -1,5 +1,5 @@
 //! buildTool 工厂函数模块
-//! 
+//!
 //! 基于 Claude Code 的 buildTool 实现，提供：
 //! - 安全默认值（fail-closed）
 //! - 类型级合并（部分字段可选）
@@ -11,19 +11,19 @@ use std::marker::PhantomData;
 use std::pin::Pin;
 
 use crate::tools::tool::{
-    Tool, ToolContext, ToolResult, ToolPermissionLevel,
-    InputValidationResult, PermissionResult, ContextModifier,
-    ToolProgress, ToolProgressData, InterruptBehavior, SearchOrReadResult,
+    ContextModifier, InputValidationResult, InterruptBehavior, PermissionResult,
+    SearchOrReadResult, Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolProgressData,
+    ToolResult,
 };
 
 /// buildTool 工厂函数
-/// 
+///
 /// 创建工具的标准工厂函数，自动填充安全默认值
-/// 
+///
 /// 遵循 "fail-closed" 原则：
 /// 安全性相关的方法（如并发安全判断、只读判断）默认为 false
 /// 工具必须显式声明自己安全才能享受并发等优化
-/// 
+///
 /// # 默认值
 /// - `is_enabled` → `true`
 /// - `is_concurrency_safe` → `false` (assume not safe)
@@ -37,7 +37,7 @@ pub struct ToolBuilder<I, O, P = String> {
     name: String,
     description: String,
     input_schema: serde_json::Value,
-    
+
     // 可选字段（有默认值）
     aliases: Vec<String>,
     permission_level: ToolPermissionLevel,
@@ -50,11 +50,20 @@ pub struct ToolBuilder<I, O, P = String> {
     should_defer: bool,
     interrupt_behavior: InterruptBehavior,
     transparent_wrapper: bool,
-    
+
     // 执行函数
-    execute_fn: Option<Box<dyn Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) 
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>>>,
-    
+    execute_fn: Option<
+        Box<
+            dyn Fn(
+                I,
+                &ToolContext,
+                Option<tokio::sync::watch::Receiver<bool>>,
+            ) -> std::pin::Pin<
+                Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>,
+            >,
+        >,
+    >,
+
     // 虚拟类型参数
     _phantom: PhantomData<(I, O, P)>,
 }
@@ -172,8 +181,10 @@ where
     /// 设置执行函数
     pub fn execute<F, Fut>(mut self, f: F) -> Self
     where
-        F: Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) -> Fut 
-           + Send + Sync + 'static,
+        F: Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) -> Fut
+            + Send
+            + Sync
+            + 'static,
         Fut: std::future::Future<Output = anyhow::Result<O>> + Send + 'static,
     {
         self.execute_fn = Some(Box::new(move |input, ctx, cancel| {
@@ -188,21 +199,27 @@ where
         F: Fn(I, &ToolContext) -> Fut + Send + Sync + 'static,
         Fut: std::future::Future<Output = anyhow::Result<O>> + Send + 'static,
     {
-        self.execute_fn = Some(Box::new(move |input, ctx, _| {
-            Box::pin(f(input, ctx))
-        }));
+        self.execute_fn = Some(Box::new(move |input, ctx, _| Box::pin(f(input, ctx))));
         self
     }
 
     /// 构建工具
     pub fn build(self) -> BuiltTool<I, O, P> {
-        type NoExecuteFn<I, O> = dyn Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) -> Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>;
+        type NoExecuteFn<I, O> = dyn Fn(
+            I,
+            &ToolContext,
+            Option<tokio::sync::watch::Receiver<bool>>,
+        ) -> Pin<
+            Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>,
+        >;
         let execute_fn = self.execute_fn.unwrap_or_else(|| {
-            let f: fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) -> Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>> = |_, _, _| {
-                Box::pin(async {
-                    anyhow::bail!("No execute function provided")
-                })
-            };
+            let f: fn(
+                I,
+                &ToolContext,
+                Option<tokio::sync::watch::Receiver<bool>>,
+            )
+                -> Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>> =
+                |_, _, _| Box::pin(async { anyhow::bail!("No execute function provided") });
             Box::new(f) as Box<NoExecuteFn<I, O>>
         });
         BuiltTool {
@@ -242,22 +259,30 @@ pub struct BuiltTool<I, O, P = String> {
     should_defer: bool,
     interrupt_behavior: InterruptBehavior,
     transparent_wrapper: bool,
-    execute_fn: Box<dyn Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) 
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>>,
+    execute_fn: Box<
+        dyn Fn(
+            I,
+            &ToolContext,
+            Option<tokio::sync::watch::Receiver<bool>>,
+        )
+            -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>,
+    >,
     _phantom: PhantomData<(I, O, P)>,
 }
 
-unsafe impl<I, O, P> Send for BuiltTool<I, O, P> 
+unsafe impl<I, O, P> Send for BuiltTool<I, O, P>
 where
     I: Send + Sync,
     O: Send + Sync,
-{}
+{
+}
 
-unsafe impl<I, O, P> Sync for BuiltTool<I, O, P> 
+unsafe impl<I, O, P> Sync for BuiltTool<I, O, P>
 where
     I: Send + Sync,
     O: Send + Sync,
-{}
+{
+}
 
 #[async_trait::async_trait]
 impl<I, O, P> Tool for BuiltTool<I, O, P>
@@ -279,7 +304,11 @@ where
     }
 
     fn aliases(&self) -> &[&str] {
-        self.aliases.iter().map(|s| s.as_str()).collect::<Vec<_>>().leak()
+        self.aliases
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .leak()
     }
 
     fn user_facing_name(&self, _input: Option<&Self::Input>) -> String {
@@ -368,7 +397,7 @@ pub fn generate_preview(content: &str, preview_size: usize) -> String {
     if content.len() <= preview_size {
         return content.to_string();
     }
-    
+
     let chars: Vec<char> = content.chars().take(preview_size).collect();
     format!("{}... [truncated]", chars.iter().collect::<String>())
 }
@@ -415,9 +444,7 @@ mod tests {
             .read_only()
             .concurrency_safe()
             .interrupt_behavior(InterruptBehavior::Cancel)
-            .execute_simple(|input: serde_json::Value, _ctx: &ToolContext| async move {
-                Ok(input)
-            })
+            .execute_simple(|input: serde_json::Value, _ctx: &ToolContext| async move { Ok(input) })
             .build();
 
         assert_eq!(tool.name(), "test");
@@ -437,20 +464,23 @@ mod tests {
         assert!(!tool.is_concurrency_safe(&serde_json::Value::Null));
         assert!(!tool.is_read_only(&serde_json::Value::Null));
         assert!(!tool.is_destructive(&serde_json::Value::Null));
-        assert_eq!(tool.permission_level(), ToolPermissionLevel::RequiresConfirmation);
+        assert_eq!(
+            tool.permission_level(),
+            ToolPermissionLevel::RequiresConfirmation
+        );
     }
 
     #[test]
     fn test_tool_result_persist() {
         let temp_dir = std::env::temp_dir().to_string_lossy().to_string();
         let tool_results_dir = ensure_tool_results_dir(&temp_dir).unwrap();
-        
+
         let content = "Hello, World!";
         let (file_path, size) = persist_tool_result(&tool_results_dir, "test-1", content).unwrap();
-        
+
         assert!(file_path.contains("test-1.json"));
         assert_eq!(size, content.len());
-        
+
         // 清理
         let _ = std::fs::remove_file(&file_path);
     }
@@ -460,7 +490,7 @@ mod tests {
         let content = "Hello, World!";
         let preview = generate_preview(content, 100);
         assert_eq!(preview, content);
-        
+
         let content = "A".repeat(200);
         let preview = generate_preview(&content, 50);
         assert!(preview.ends_with("... [truncated]"));
@@ -469,13 +499,9 @@ mod tests {
 
     #[test]
     fn test_build_large_tool_result_message() {
-        let message = build_large_tool_result_message(
-            "read",
-            "Preview content",
-            "/path/to/file.json",
-            10000,
-        );
-        
+        let message =
+            build_large_tool_result_message("read", "Preview content", "/path/to/file.json", 10000);
+
         assert!(message.contains("[read]"));
         assert!(message.contains("10000 bytes"));
         assert!(message.contains("/path/to/file.json"));

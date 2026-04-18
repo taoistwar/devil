@@ -60,9 +60,9 @@ impl StreamableHttpTransport {
     async fn initialize(&self) -> Result<()> {
         // 发送 OPTIONS 请求探测服务器能力
         let url = format!("{}/capabilities", self.base_url.trim_end_matches('/'));
-        
+
         debug!("Probing MCP capabilities: {}", url);
-        
+
         match self.client.get(&url).send().await {
             Ok(resp) => {
                 if resp.status().is_success() {
@@ -82,7 +82,7 @@ impl StreamableHttpTransport {
     /// 处理 SSE 流
     async fn handle_sse_stream(&self, session_id: &str) -> Result<()> {
         let url = format!("{}/sse/{}", self.base_url.trim_end_matches('/'), session_id);
-        
+
         debug!("Starting SSE stream: {}", url);
 
         loop {
@@ -91,12 +91,13 @@ impl StreamableHttpTransport {
             }
 
             let request = self.client.get(&url);
-            
+
             match request.send().await {
                 Ok(resp) => {
                     if !resp.status().is_success() {
                         error!("SSE stream failed with status: {}", resp.status());
-                        self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                        self.alive
+                            .store(false, std::sync::atomic::Ordering::Relaxed);
                         break;
                     }
 
@@ -110,7 +111,7 @@ impl StreamableHttpTransport {
                     };
 
                     let chunk_str = String::from_utf8_lossy(&bytes);
-                    
+
                     // 简化的 SSE 解析（实际应使用标准库）
                     let mut event_data = String::new();
                     for line in chunk_str.lines() {
@@ -119,13 +120,13 @@ impl StreamableHttpTransport {
                         } else if line.is_empty() && !event_data.is_empty() {
                             // 空行表示事件结束
                             debug!("Received SSE event: {}", event_data);
-                            
+
                             // 发送到接收通道
                             if self.tx.send(event_data.clone()).await.is_err() {
                                 error!("Failed to send SSE event to channel");
                                 break;
                             }
-                            
+
                             event_data.clear();
                         }
                     }
@@ -150,14 +151,19 @@ impl Transport for StreamableHttpTransport {
 
         // 构建 POST 请求 URL
         let url = if let Some(session_id) = self.session_id.lock().unwrap().as_ref() {
-            format!("{}/message/{}", self.base_url.trim_end_matches('/'), session_id)
+            format!(
+                "{}/message/{}",
+                self.base_url.trim_end_matches('/'),
+                session_id
+            )
         } else {
             self.base_url.clone()
         };
 
         debug!("Sending HTTP POST: {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Content-Type", "application/json")
             .body(message)
@@ -168,10 +174,10 @@ impl Transport for StreamableHttpTransport {
         // 处理响应
         if let Some(session_id) = response.headers().get("Mcp-Session-Id") {
             let new_session_id = session_id.to_str().unwrap_or_default().to_string();
-            
+
             if self.session_id.lock().unwrap().as_ref() != Some(&new_session_id) {
                 debug!("New session ID: {}", new_session_id);
-                
+
                 // 启动 SSE 流处理（在新的 spawn 中）
                 let transport_clone = self.clone_transport();
                 let session_for_spawn = new_session_id.clone();
@@ -180,7 +186,7 @@ impl Transport for StreamableHttpTransport {
                         error!("SSE stream handler failed: {}", e);
                     }
                 });
-                
+
                 *self.session_id.lock().unwrap() = Some(new_session_id);
             }
         }
@@ -204,31 +210,33 @@ impl Transport for StreamableHttpTransport {
         match self.rx.recv().await {
             Some(msg) => Ok(Some(msg)),
             None => {
-                self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+                self.alive
+                    .store(false, std::sync::atomic::Ordering::Relaxed);
                 Ok(None)
             }
         }
     }
 
     async fn close(&self) -> Result<()> {
-        self.alive.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.alive
+            .store(false, std::sync::atomic::Ordering::Relaxed);
 
         // 发送 DELETE 请求关闭会话
         let url_to_close = {
             if let Some(session_id) = self.session_id.lock().unwrap().as_ref() {
-                Some(format!("{}/message/{}", self.base_url.trim_end_matches('/'), session_id))
+                Some(format!(
+                    "{}/message/{}",
+                    self.base_url.trim_end_matches('/'),
+                    session_id
+                ))
             } else {
                 None
             }
         };
-        
+
         if let Some(url) = url_to_close {
             debug!("Closing SSE session: {}", url);
-            self.client
-                .delete(&url)
-                .send()
-                .await
-                .ok();
+            self.client.delete(&url).send().await.ok();
         }
 
         info!("Streamable HTTP connection closed");

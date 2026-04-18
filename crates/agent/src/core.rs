@@ -1,5 +1,5 @@
 //! Agent 核心模块
-//! 
+//!
 //! 实现 Agent 的核心逻辑，包括：
 //! - Agent 结构体
 //! - AgentLoop 异步生成器
@@ -12,15 +12,23 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 use crate::config::AgentConfig;
-use crate::message::{Message, AssistantMessage, SystemMessage, SystemMessageLevel, ToolUseSummaryMessage, ContentBlock};
-use crate::state::{State, Terminal, TerminalReason, Continue, ContinueReason};
-use crate::deps::{QueryDeps, ProductionDeps, ModelCallParams};
-use crate::tools::{ToolRegistry, ToolContext};
-use crate::tools::partition::{ConcurrentPartitioner, ToolUseCallInfo};
-use crate::tools::executor::{StreamingToolExecutor, BatchToolExecutor, ExecutorConfig, ToolExecutionResult};
 use crate::context::{ContextManager, ContextPipelineResult};
-use crate::subagent::{SubagentExecutor, SubagentRegistry, SubagentParams, SubagentType, SubagentResult, SubagentDefinition};
-use crate::subagent::types::{ForkSubagentConfig, CacheSafeParams, ToolUseContext, ThinkingConfig};
+use crate::deps::{ModelCallParams, ProductionDeps, QueryDeps};
+use crate::message::{
+    AssistantMessage, ContentBlock, Message, SystemMessage, SystemMessageLevel,
+    ToolUseSummaryMessage,
+};
+use crate::state::{Continue, ContinueReason, State, Terminal, TerminalReason};
+use crate::subagent::types::{CacheSafeParams, ForkSubagentConfig, ThinkingConfig, ToolUseContext};
+use crate::subagent::{
+    SubagentDefinition, SubagentExecutor, SubagentParams, SubagentRegistry, SubagentResult,
+    SubagentType,
+};
+use crate::tools::executor::{
+    BatchToolExecutor, ExecutorConfig, StreamingToolExecutor, ToolExecutionResult,
+};
+use crate::tools::partition::{ConcurrentPartitioner, ToolUseCallInfo};
+use crate::tools::{ToolContext, ToolRegistry};
 
 /// Agent 状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -36,7 +44,7 @@ pub enum AgentStatus {
 }
 
 /// 核心 Agent 结构
-/// 
+///
 /// 整合 channels、memory、plugins 提供完整的 Agent 实现
 pub struct Agent {
     /// 配置
@@ -59,9 +67,8 @@ impl Agent {
     /// 创建新的 Agent 实例
     pub fn new(config: AgentConfig) -> Result<Self> {
         let registry = SubagentRegistry::new();
-        let executor = SubagentExecutor::new()
-            .with_fork_config(ForkSubagentConfig::default());
-        
+        let executor = SubagentExecutor::new().with_fork_config(ForkSubagentConfig::default());
+
         Ok(Self {
             config,
             status: Arc::new(RwLock::new(AgentStatus::Initializing)),
@@ -76,9 +83,8 @@ impl Agent {
     /// 使用自定义依赖创建 Agent（用于测试）
     pub fn with_deps(config: AgentConfig, deps: Arc<dyn QueryDeps>) -> Self {
         let registry = SubagentRegistry::new();
-        let executor = SubagentExecutor::new()
-            .with_fork_config(ForkSubagentConfig::default());
-        
+        let executor = SubagentExecutor::new().with_fork_config(ForkSubagentConfig::default());
+
         Self {
             config,
             status: Arc::new(RwLock::new(AgentStatus::Initializing)),
@@ -159,7 +165,10 @@ impl Agent {
     /// 执行子代理
     pub async fn execute_subagent(&self, params: SubagentParams) -> Result<SubagentResult> {
         let executor = self.subagent_executor.read().await;
-        executor.execute(params).await.map_err(|e| anyhow::anyhow!("{}", e))
+        executor
+            .execute(params)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))
     }
 
     /// 创建对话循环
@@ -191,7 +200,7 @@ pub struct RunResult {
 }
 
 /// Agent 对话循环
-/// 
+///
 /// 基于异步生成器模式实现，支持：
 /// - 流式输出
 /// - 可取消性
@@ -225,9 +234,8 @@ impl AgentLoop {
         tool_registry: Arc<RwLock<ToolRegistry>>,
     ) -> Self {
         let registry = SubagentRegistry::new();
-        let executor = SubagentExecutor::new()
-            .with_fork_config(ForkSubagentConfig::default());
-        
+        let executor = SubagentExecutor::new().with_fork_config(ForkSubagentConfig::default());
+
         Self {
             config,
             state: State::initial(initial_messages),
@@ -249,12 +257,11 @@ impl AgentLoop {
         fork_enabled: bool,
     ) -> Self {
         let registry = SubagentRegistry::new();
-        let executor = SubagentExecutor::new()
-            .with_fork_config(ForkSubagentConfig {
-                enabled: fork_enabled,
-                ..Default::default()
-            });
-        
+        let executor = SubagentExecutor::new().with_fork_config(ForkSubagentConfig {
+            enabled: fork_enabled,
+            ..Default::default()
+        });
+
         Self {
             config,
             state: State::initial(initial_messages),
@@ -278,7 +285,7 @@ impl AgentLoop {
     }
 
     /// 运行对话循环
-    /// 
+    ///
     /// 这是对话循环的主入口，执行完整的 `while(true)` 循环
     pub async fn run(&mut self) -> Result<RunResult> {
         info!("Starting agent loop for {}", self.config.name);
@@ -301,22 +308,34 @@ impl AgentLoop {
             // 从状态对象解构当前迭代所需的变量
             let current_turn = self.state.turn_count;
             let messages = self.state.messages.clone();
-            
-            debug!("Starting turn {} with {} messages", current_turn, messages.len());
+
+            debug!(
+                "Starting turn {} with {} messages",
+                current_turn,
+                messages.len()
+            );
 
             // ===== 阶段二：上下文预处理 =====
             // 执行七步压缩管线
-            let pipeline_result = self.context_manager.process_full_pipeline(
-                messages,
-                &self.config.system_prompt,
-                self.config.max_context_tokens,
-            ).await?;
+            let pipeline_result = self
+                .context_manager
+                .process_full_pipeline(
+                    messages,
+                    &self.config.system_prompt,
+                    self.config.max_context_tokens,
+                )
+                .await?;
 
             let (processed_messages, system_prompt, token_count) = match pipeline_result {
-                ContextPipelineResult::Success { messages, system_prompt, token_count } => {
-                    (messages, system_prompt, token_count)
-                }
-                ContextPipelineResult::TokenLimitExceeded { current_tokens, max_tokens } => {
+                ContextPipelineResult::Success {
+                    messages,
+                    system_prompt,
+                    token_count,
+                } => (messages, system_prompt, token_count),
+                ContextPipelineResult::TokenLimitExceeded {
+                    current_tokens,
+                    max_tokens,
+                } => {
                     return Ok(RunResult {
                         terminal: Terminal::with_message(
                             TerminalReason::BlockingLimit,
@@ -335,7 +354,7 @@ impl AgentLoop {
             let call_result = {
                 // 检查暂停状态
                 // TODO: 需要在外部检查状态，这里简化处理
-                
+
                 let params = ModelCallParams {
                     system_prompt,
                     messages: processed_messages,
@@ -361,19 +380,18 @@ impl AgentLoop {
 
             debug!(
                 "Model response received: {} input tokens, {} output tokens",
-                call_result.input_tokens,
-                call_result.output_tokens,
+                call_result.input_tokens, call_result.output_tokens,
             );
 
             // 将助手消息添加到历史
-            self.state.messages.push(Message::Assistant(
-                call_result.assistant_message.clone()
-            ));
+            self.state
+                .messages
+                .push(Message::Assistant(call_result.assistant_message.clone()));
 
             // ===== 阶段四：工具调用检测与执行 =====
             // 检查是否有工具调用
             let tool_use_blocks = call_result.assistant_message.tool_use_blocks();
-            
+
             if tool_use_blocks.is_empty() {
                 // 没有工具调用，进入终止路径
                 info!("No tool calls detected, completing turn");
@@ -400,11 +418,17 @@ impl AgentLoop {
             if has_agent_tool {
                 // 执行子代理逻辑
                 info!("Detected agent tool call, spawning subagent");
-                
-                match self.execute_subagent_tool(&call_result.assistant_message).await {
+
+                match self
+                    .execute_subagent_tool(&call_result.assistant_message)
+                    .await
+                {
                     Ok(subagent_result) => {
-                        info!("Subagent completed with {} messages", subagent_result.messages.len());
-                        
+                        info!(
+                            "Subagent completed with {} messages",
+                            subagent_result.messages.len()
+                        );
+
                         // 将子代理结果添加到消息历史
                         for msg in subagent_result.messages {
                             self.state.messages.push(msg);
@@ -426,10 +450,9 @@ impl AgentLoop {
 
             // ===== 阶段五：工具结果回填与下一轮 =====
             // 构造新的状态对象，continue 到下一轮
-            self.state = self.state.next(
-                ContinueReason::NextTurn,
-                self.state.messages.clone(),
-            );
+            self.state = self
+                .state
+                .next(ContinueReason::NextTurn, self.state.messages.clone());
 
             info!("Continuing to next turn");
         }
@@ -454,19 +477,19 @@ impl AgentLoop {
     ) -> Result<SubagentResult> {
         use crate::subagent::types::CacheSafeParams;
         use std::collections::HashMap;
-        
+
         // 获取子代理参数（从工具输入解析）
         // TODO: 实际需要从 tool_use_blocks 中解析 Agent 工具的输入
         // 这里简化处理
-        
+
         let registry = self.subagent_registry.read().await;
         let fork_enabled = registry.get_fork_config().enabled;
         drop(registry);
-        
+
         let executor = self.subagent_executor.read().await;
         let is_fork_enabled = executor.is_fork_enabled();
         drop(executor);
-        
+
         // 构建子代理参数
         let params = SubagentParams {
             prompt_messages: self.state.messages.clone(),
@@ -495,12 +518,15 @@ impl AgentLoop {
             worktree_path: None,
             parent_cwd: None,
         };
-        
+
         // 执行子代理
         let executor = self.subagent_executor.read().await;
-        let result = executor.execute(params).await.map_err(|e| anyhow::anyhow!("{}", e))?;
+        let result = executor
+            .execute(params)
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
         drop(executor);
-        
+
         Ok(result)
     }
 }
@@ -515,12 +541,12 @@ mod tests {
     async fn test_agent_creation() {
         let config = AgentConfig::default();
         let agent = Agent::new(config).unwrap();
-        
+
         assert_eq!(agent.get_status().await, AgentStatus::Initializing);
-        
+
         agent.initialize().await.unwrap();
         assert_eq!(agent.get_status().await, AgentStatus::Running);
-        
+
         agent.shutdown().await.unwrap();
         assert_eq!(agent.get_status().await, AgentStatus::Stopped);
     }
@@ -530,7 +556,7 @@ mod tests {
         let config = AgentConfig::default();
         let test_deps = Arc::new(TestDeps::empty());
         let agent = Agent::with_deps(config, test_deps);
-        
+
         assert!(agent.initialize().await.is_ok());
     }
 
@@ -538,16 +564,16 @@ mod tests {
     async fn test_agent_lifecycle() {
         let config = AgentConfig::default();
         let agent = Agent::new(config).unwrap();
-        
+
         agent.initialize().await.unwrap();
         assert_eq!(agent.get_status().await, AgentStatus::Running);
-        
+
         agent.pause().await;
         assert_eq!(agent.get_status().await, AgentStatus::Paused);
-        
+
         agent.resume().await;
         assert_eq!(agent.get_status().await, AgentStatus::Running);
-        
+
         agent.shutdown().await.unwrap();
         assert_eq!(agent.get_status().await, AgentStatus::Stopped);
     }

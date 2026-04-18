@@ -1,5 +1,5 @@
 //! 递归防护
-//! 
+//!
 //! 防止 Fork 子代理递归嵌套
 
 use crate::message::Message;
@@ -41,24 +41,22 @@ pub fn check_recursion_guard(
     config: &ForkSubagentConfig,
 ) -> RecursionGuardResult {
     if is_fork_query_source(query_source) {
-        return RecursionGuardResult::Deny(
-            "禁止嵌套 Fork：当前已在 Fork 子代理内部".to_string()
-        );
+        return RecursionGuardResult::Deny("禁止嵌套 Fork：当前已在 Fork 子代理内部".to_string());
     }
-    
+
     if is_in_fork_child(messages, config) {
         return RecursionGuardResult::Deny(
-            "禁止嵌套 Fork：检测到 Fork 模板标签，已在 Fork 子代理内部".to_string()
+            "禁止嵌套 Fork：检测到 Fork 模板标签，已在 Fork 子代理内部".to_string(),
         );
     }
-    
+
     RecursionGuardResult::Allow
 }
 
 /// 构建 Fork 子代理指令消息
 pub fn build_child_message(directive: &str, config: &ForkSubagentConfig) -> String {
     format!(
-r#"<{}>
+        r#"<{}>
 STOP. READ THIS FIRST.
 
 You are a forked worker process. You are NOT the main agent.
@@ -84,10 +82,7 @@ Output format (plain text labels, not markdown headers):
 </{}>
 
 {}{}"#,
-        config.boilerplate_tag,
-        config.boilerplate_tag,
-        config.directive_prefix,
-        directive
+        config.boilerplate_tag, config.boilerplate_tag, config.directive_prefix, directive
     )
 }
 
@@ -100,8 +95,7 @@ pub fn build_worktree_notice(parent_cwd: &str, worktree_cwd: &str) -> String {
          parent's working directory; translate them to your worktree root. Re-read files before \
          editing if the parent may have modified them since they appear in the context. \
          Your changes stay in this worktree and will not affect the parent's files.",
-        parent_cwd,
-        worktree_cwd
+        parent_cwd, worktree_cwd
     )
 }
 
@@ -113,15 +107,11 @@ mod tests {
         assert!(!super::is_fork_query_source(Some("agent:builtin:general")));
         assert!(!super::is_fork_query_source(None));
     }
-    
+
     #[test]
     fn test_recursion_guard_allow() {
         let config = ForkSubagentConfig::default();
-        let result = super::check_recursion_guard(
-            Some("agent:builtin:general"),
-            &[],
-            &config,
-        );
+        let result = super::check_recursion_guard(Some("agent:builtin:general"), &[], &config);
         assert_eq!(result, super::RecursionGuardResult::Allow);
     }
 }

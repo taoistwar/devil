@@ -25,19 +25,13 @@ pub enum ControlRequest {
     },
     /// 设置模型
     #[serde(rename = "set_model")]
-    SetModel {
-        model_id: String,
-    },
+    SetModel { model_id: String },
     /// 中断当前操作
     #[serde(rename = "interrupt")]
-    Interrupt {
-        reason: Option<String>,
-    },
+    Interrupt { reason: Option<String> },
     /// 取消指定请求
     #[serde(rename = "cancel")]
-    Cancel {
-        request_id: String,
-    },
+    Cancel { request_id: String },
     /// Ping 心跳
     #[serde(rename = "ping")]
     Ping,
@@ -64,24 +58,15 @@ pub enum ControlResponse {
         server_info: ServerInfo,
     },
     /// 模型设置成功
-    ModelSet {
-        model_id: String,
-    },
+    ModelSet { model_id: String },
     /// 中断成功
-    Interrupted {
-        reason: Option<String>,
-    },
+    Interrupted { reason: Option<String> },
     /// 取消成功
-    Cancelled {
-        request_id: String,
-    },
+    Cancelled { request_id: String },
     /// Pong 响应
     Pong,
     /// 错误
-    Error {
-        code: i32,
-        message: String,
-    },
+    Error { code: i32, message: String },
 }
 
 /// 服务器信息
@@ -96,9 +81,7 @@ pub struct ControlProtocol;
 
 impl ControlProtocol {
     /// 处理初始化请求
-    pub async fn handle_initialize(
-        request: ControlRequest,
-    ) -> Result<ControlResponse> {
+    pub async fn handle_initialize(request: ControlRequest) -> Result<ControlResponse> {
         if let ControlRequest::Initialize {
             protocol_version,
             capabilities,
@@ -250,7 +233,9 @@ mod tests {
         let response = ControlProtocol::handle_initialize(request).await.unwrap();
 
         match response {
-            ControlResponse::InitializeSuccess { protocol_version, .. } => {
+            ControlResponse::InitializeSuccess {
+                protocol_version, ..
+            } => {
                 assert_eq!(protocol_version, "2024-11-05");
             }
             _ => panic!("Expected InitializeSuccess"),

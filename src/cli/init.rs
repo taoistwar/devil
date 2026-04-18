@@ -55,12 +55,16 @@ pub fn get_init_state() -> &'static Arc<InitState> {
 
 pub async fn init() -> Result<()> {
     let state = get_init_state();
-    state.register_cleanup(|| {
-        info!("Cleanup: saving session state");
-    }).await;
-    state.register_cleanup(|| {
-        info!("Cleanup: flushing telemetry");
-    }).await;
+    state
+        .register_cleanup(|| {
+            info!("Cleanup: saving session state");
+        })
+        .await;
+    state
+        .register_cleanup(|| {
+            info!("Cleanup: flushing telemetry");
+        })
+        .await;
 
     Ok(())
 }
