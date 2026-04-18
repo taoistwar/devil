@@ -101,6 +101,8 @@ pub fn build_worktree_notice(parent_cwd: &str, worktree_cwd: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::ForkSubagentConfig;
+
     #[test]
     fn test_fork_query_source_check() {
         assert!(super::is_fork_query_source(Some("agent:builtin:fork")));

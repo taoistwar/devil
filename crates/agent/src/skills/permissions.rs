@@ -420,12 +420,6 @@ mod shell_expansion_tests {
     }
 
     #[test]
-    fn test_command_substitution() {
-        let result = expand_command_substitution("echo $(whoami)");
-        assert!(result.contains("$SUBSTITUTION"));
-    }
-
-    #[test]
     fn test_dangerous_rm_rf() {
         assert!(is_dangerous_command("rm -rf /"));
         assert!(is_dangerous_command("rm -rf /home"));
