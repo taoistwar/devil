@@ -2,7 +2,7 @@
 //!
 //! 实现两条执行路径：Inline 模式和 Fork 模式
 
-use crate::message::Message;
+use crate::message::{Message, ContentBlock};
 use crate::skills::types::{ExecutionContext, SkillCommand, SkillLoadSource, SkillSource};
 use crate::subagent::{SubagentParams, SubagentType};
 use std::collections::HashMap;
@@ -777,11 +777,12 @@ mod tests {
         match result {
             SkillExecutionResult::Inline { new_messages, .. } => {
                 assert_eq!(new_messages.len(), 1);
-                assert!(new_messages[0]
-                    .content
-                    .as_text()
-                    .unwrap()
-                    .contains("src/main.rs"));
+                if let Message::User(msg) = &new_messages[0] {
+                    let text = msg.content.iter()
+                        .find_map(|c| if let ContentBlock::Text { text } = c { Some(text) } else { None })
+                        .unwrap();
+                    assert!(text.contains("src/main.rs"));
+                }
             }
             _ => panic!("Expected Inline result"),
         }

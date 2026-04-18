@@ -670,11 +670,11 @@ mod tests {
             })
         }
 
-        fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
+        fn is_concurrency_safe(&self) -> bool {
             true
         }
 
-        fn is_read_only(&self, _input: &Self::Input) -> bool {
+        fn is_read_only(&self) -> bool {
             true
         }
 
@@ -687,7 +687,6 @@ mod tests {
             input: Self::Input,
             _ctx: &ToolContext,
             _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
-            _cancel_signal: Option<tokio::sync::watch::Receiver<bool>>,
         ) -> Result<ToolResult<Self::Output>> {
             Ok(ToolResult::success("test-1", input))
         }
@@ -697,8 +696,8 @@ mod tests {
     fn test_tool_metadata() {
         let tool = TestTool;
         assert_eq!(tool.name(), "test");
-        assert!(tool.is_concurrency_safe(&serde_json::Value::Null));
-        assert!(tool.is_read_only(&serde_json::Value::Null));
+        assert!(tool.is_concurrency_safe());
+        assert!(tool.is_read_only());
         assert_eq!(tool.interrupt_behavior(), InterruptBehavior::Cancel);
     }
 
@@ -709,7 +708,7 @@ mod tests {
         let input = serde_json::json!({ "message": "Hello" });
 
         let result = tool
-            .execute(input, &ctx, None::<fn(ToolProgress<String>)>, None)
+            .execute(input, &ctx, None::<fn(ToolProgress<String>)>)
             .await;
         assert!(result.is_ok());
         let result = result.unwrap();

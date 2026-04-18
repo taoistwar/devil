@@ -329,6 +329,6 @@ mod tests {
     #[test]
     fn test_continue_creation() {
         let continue_state = Continue::new(ContinueReason::NextTurn);
-        assert_eq!(continue_state.reason, ContinueReason::NextTurn);
+        assert!(matches!(continue_state.reason, ContinueReason::NextTurn));
     }
 }

@@ -434,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_tool_builder() {
-        let tool = ToolBuilder::new("test", "A test tool")
+        let tool = ToolBuilder::<serde_json::Value, serde_json::Value>::new("test", "A test tool")
             .input_schema(json!({
                 "type": "object",
                 "properties": {
@@ -448,8 +448,8 @@ mod tests {
             .build();
 
         assert_eq!(tool.name(), "test");
-        assert!(tool.is_read_only(&serde_json::Value::Null));
-        assert!(tool.is_concurrency_safe(&serde_json::Value::Null));
+        assert!(tool.is_read_only());
+        assert!(tool.is_concurrency_safe());
         assert_eq!(tool.interrupt_behavior(), InterruptBehavior::Cancel);
     }
 
@@ -461,8 +461,8 @@ mod tests {
             .build();
 
         // 验证 fail-closed 默认值
-        assert!(!tool.is_concurrency_safe(&serde_json::Value::Null));
-        assert!(!tool.is_read_only(&serde_json::Value::Null));
+        assert!(!tool.is_concurrency_safe());
+        assert!(!tool.is_read_only());
         assert!(!tool.is_destructive(&serde_json::Value::Null));
         assert_eq!(
             tool.permission_level(),

@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::permissions::bash_analyzer::BashSemanticAnalyzer;
 use crate::tools::tool::{
-    ContextModifier, InputValidationResult, InterruptBehavior, Tool, ToolContext,
-    ToolPermissionLevel, ToolResult,
+    ContextModifier, InputValidationResult, InterruptBehavior, PermissionBehavior,
+    PermissionResult, Tool, ToolContext, ToolPermissionLevel, ToolResult,
 };
 
 /// buildTool 工厂函数
@@ -1327,27 +1327,32 @@ mod tests {
         assert!(tool.is_concurrency_safe());
     }
 
-    #[test]
-    fn test_bash_tool_validation() {
+    #[tokio::test]
+    async fn test_bash_tool_validation() {
         let tool = BashTool::new(false);
 
         // 空命令应该无效
-        let result = tool.validate_input_permissions(&BashInput {
-            command: "".to_string(),
-            cwd: None,
-            background: None,
-        });
+        let result = tool.validate_input_permissions(
+            &BashInput {
+                command: "".to_string(),
+                cwd: None,
+                background: None,
+            },
+            &ToolContext::default(),
+        );
         assert!(!result.is_valid);
 
         // 危险命令应该没有权限
-        assert!(!tool.has_permission(
+        let result = tool.check_permissions(
             &BashInput {
                 command: "rm -rf /".to_string(),
                 cwd: None,
                 background: None,
             },
-            &ToolContext::default()
-        ));
+            &ToolContext::default(),
+        ).await;
+        // 默认不允许危险命令
+        assert!(matches!(result.behavior, PermissionBehavior::Deny { .. }));
     }
 
     #[test]
