@@ -156,6 +156,53 @@ cargo test
 cargo doc --open
 ```
 
+### CLI 使用
+
+devil-agent 提供命令行界面：
+
+```bash
+# 查看版本（快速路径，无模块加载）
+devil --version
+
+# 显示帮助
+devil --help
+devil help
+
+# 单次任务执行
+devil run "帮我分析这个项目的结构"
+
+# 交互式 REPL 模式
+devil repl
+
+# 显示配置
+devil config
+```
+
+**环境变量配置：**
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `DEVIL_API_KEY` | API 密钥 | - |
+| `DEVIL_MODEL` | 模型名称 | `claude-sonnet-4-20250514` |
+| `DEVIL_PROVIDER` | API 提供商 | `anthropic` |
+| `DEVIL_MAX_CONTEXT_TOKENS` | 最大上下文 tokens | `200000` |
+| `DEVIL_MAX_TURNS` | 最大对话轮次 | `50` |
+| `DEVIL_VERBOSE` | 详细日志 | `false` |
+
+**配置文件：**
+
+配置文件位于 `~/.devil/config.toml`：
+
+```toml
+model = "claude-sonnet-4-20250514"
+provider = "anthropic"
+api_key = "your-api-key-here"
+max_context_tokens = 200000
+max_turns = 50
+tool_timeout_secs = 300
+verbose = false
+```
+
 ### 基本使用示例
 
 ```rust

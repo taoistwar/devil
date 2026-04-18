@@ -191,8 +191,8 @@ description: "Task list for CLI Entry Point Alignment"
 
 **Purpose**: Final integration and documentation
 
-- [ ] T047 [P] Update `README.md` with new CLI usage examples
-- [ ] T048 [P] Add shell completion scripts generation using `clap` (skipped - not using clap)
+- [X] T047 [P] Update `README.md` with new CLI usage examples
+- [X] T048 [P] Add shell completion scripts generation using `clap` (skipped - not using clap)
 - [X] T049 [P] Verify `cargo clippy` passes with zero warnings (25 warnings remain, mostly from dependencies)
 - [X] T050 [P] Run `cargo fmt` on all modified files
 - [X] T051 [P] Verify all integration tests pass (skipped per spec)
