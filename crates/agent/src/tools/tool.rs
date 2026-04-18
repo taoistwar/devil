@@ -14,6 +14,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+/// 工具元数据
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolMetadata {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+    pub permission_level: ToolPermissionLevel,
+    pub concurrency_safe: bool,
+    pub read_only: bool,
+    pub timeout_secs: Option<u64>,
+    pub always_load: bool,
+    pub aliases: Vec<String>,
+}
+
 /// 工具执行上下文
 /// 
 /// 包含工具执行所需的环境信息
@@ -175,7 +189,7 @@ pub struct ToolResult<O> {
     /// 是否执行成功
     pub is_success: bool,
     /// 输出数据
-    pub output: O,
+    pub output: Option<O>,
     /// 错误信息（如果有）
     pub error: Option<String>,
     /// 上下文修改器（可选）
@@ -190,7 +204,7 @@ impl<O> ToolResult<O> {
         Self {
             tool_use_id: tool_use_id.into(),
             is_success: true,
-            output,
+            output: Some(output),
             error: None,
             context_modifier: None,
             interrupted: false,
@@ -205,7 +219,7 @@ impl<O> ToolResult<O> {
         ToolResult {
             tool_use_id: tool_use_id.into(),
             is_success: false,
-            output: serde_json::Value::Null,
+            output: None,
             error: Some(error.into()),
             context_modifier: None,
             interrupted: false,
@@ -217,7 +231,7 @@ impl<O> ToolResult<O> {
         ToolResult {
             tool_use_id: tool_use_id.into(),
             is_success: false,
-            output: serde_json::Value::Null,
+            output: None,
             error: Some("Interrupted by user".to_string()),
             context_modifier: None,
             interrupted: true,
