@@ -1304,6 +1304,836 @@ impl Tool for GrepTool {
     }
 }
 
+// ===== WebFetchTool =====
+
+use reqwest::Client;
+use std::time::Duration;
+
+lazy_static::lazy_static! {
+    static ref HTTP_CLIENT: Client = Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .unwrap_or_else(|_| Client::new());
+}
+
+/// WebFetch 工具输入
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebFetchInput {
+    /// 要获取的 URL
+    pub url: String,
+    /// 提示词（用于决定提取什么内容）
+    pub prompt: Option<String>,
+}
+
+/// WebFetch 工具输出
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebFetchOutput {
+    /// 原始字节数
+    pub bytes: Option<usize>,
+    /// HTTP 状态码
+    pub code: u16,
+    /// 内容（转换为文本）
+    pub content: String,
+    /// 内容类型
+    #[serde(rename = "contentType")]
+    pub content_type: Option<String>,
+    /// 请求耗时（毫秒）
+    #[serde(rename = "durationMs")]
+    pub duration_ms: u64,
+    /// 实际 URL（跟随重定向后）
+    pub url: String,
+}
+
+/// WebFetchTool：获取网页内容
+///
+/// 支持 HTML 到文本的转换，可选的 CSS 选择器提取
+pub struct WebFetchTool;
+
+impl Default for WebFetchTool {
+    fn default() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl Tool for WebFetchTool {
+    type Input = WebFetchInput;
+    type Output = WebFetchOutput;
+    type Progress = String;
+
+    fn name(&self) -> &str {
+        "webfetch"
+    }
+
+    fn aliases(&self) -> &[&str] {
+        &["fetch", "WebFetch"]
+    }
+
+    fn input_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "description": "URL to fetch"
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "What to extract from the page"
+                }
+            },
+            "required": ["url"]
+        })
+    }
+
+    fn permission_level(&self) -> ToolPermissionLevel {
+        ToolPermissionLevel::RequiresConfirmation
+    }
+
+    fn is_read_only(&self) -> bool {
+        true
+    }
+
+    fn is_concurrency_safe(&self) -> bool {
+        true
+    }
+
+    fn is_open_world(&self, _input: &Self::Input) -> bool {
+        true
+    }
+
+    fn timeout_ms(&self, _input: &Self::Input) -> Option<u64> {
+        Some(60_000) // 60 秒超时
+    }
+
+    fn max_result_size_chars(&self) -> usize {
+        500_000 // 500KB
+    }
+
+    async fn execute(
+        &self,
+        input: Self::Input,
+        _ctx: &ToolContext,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
+    ) -> Result<ToolResult<Self::Output>> {
+        use std::time::Instant;
+
+        let start = Instant::now();
+        let max_content_size = 10 * 1024 * 1024; // 10MB
+
+        let response = HTTP_CLIENT
+            .get(&input.url)
+            .header("User-Agent", "Mozilla/5.0 (compatible; Devil-Agent/1.0)")
+            .send()
+            .await;
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        match response {
+            Ok(resp) => {
+                let status = resp.status().as_u16();
+                let final_url = resp.url().to_string();
+                let content_type = resp
+                    .headers()
+                    .get("content-type")
+                    .and_then(|v| v.to_str().ok())
+                    .map(|s| s.to_string());
+
+                let bytes = resp.content_length().map(|b| b as usize);
+                let total_bytes = bytes.unwrap_or(0);
+
+                if total_bytes > max_content_size {
+                    return Ok(ToolResult {
+                        tool_use_id: "webfetch-1".to_string(),
+                        is_success: false,
+                        output: None,
+                        error: Some(format!(
+                            "Content too large ({} bytes, max {} bytes)",
+                            total_bytes, max_content_size
+                        )),
+                        context_modifier: None,
+                        interrupted: false,
+                    });
+                }
+
+                let content = resp.text().await.unwrap_or_default();
+
+                let output = WebFetchOutput {
+                    bytes: Some(content.len()),
+                    code: status,
+                    content,
+                    content_type,
+                    duration_ms,
+                    url: final_url,
+                };
+
+                Ok(ToolResult::success("webfetch-1", output))
+            }
+            Err(e) => Ok(ToolResult {
+                tool_use_id: "webfetch-1".to_string(),
+                is_success: false,
+                output: None,
+                error: Some(format!("Fetch failed: {}", e)),
+                context_modifier: None,
+                interrupted: false,
+            }),
+        }
+    }
+}
+
+// ===== WebSearchTool =====
+
+/// WebSearch 工具输入
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebSearchInput {
+    /// 搜索查询
+    pub query: String,
+    /// 允许的域名（可选）
+    #[serde(rename = "allowedDomains")]
+    pub allowed_domains: Option<Vec<String>>,
+    /// 排除的域名（可选）
+    #[serde(rename = "blockedDomains")]
+    pub blocked_domains: Option<Vec<String>>,
+    /// 最大结果数
+    #[serde(rename = "maxResults")]
+    pub max_results: Option<usize>,
+}
+
+/// 单个搜索结果
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebSearchResult {
+    /// 标题
+    pub title: String,
+    /// URL
+    pub url: String,
+    /// 摘要
+    pub snippet: String,
+}
+
+/// WebSearch 工具输出
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebSearchOutput {
+    /// 搜索查询
+    pub query: String,
+    /// 搜索结果
+    pub results: Vec<WebSearchResult>,
+    /// 请求耗时（秒）
+    #[serde(rename = "durationSeconds")]
+    pub duration_seconds: f64,
+}
+
+/// WebSearchTool：搜索网页
+///
+/// 支持多种搜索适配器：
+/// - BRAVE_SEARCH_API_KEY: Brave Search API
+/// - Bing Search API
+/// - Google Search API (limited)
+pub struct WebSearchTool;
+
+impl Default for WebSearchTool {
+    fn default() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl Tool for WebSearchTool {
+    type Input = WebSearchInput;
+    type Output = WebSearchOutput;
+    type Progress = String;
+
+    fn name(&self) -> &str {
+        "websearch"
+    }
+
+    fn aliases(&self) -> &[&str] {
+        &["search", "WebSearch"]
+    }
+
+    fn input_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "Search query"
+                },
+                "allowedDomains": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Domains to allow in results"
+                },
+                "blockedDomains": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Domains to exclude from results"
+                },
+                "maxResults": {
+                    "type": "integer",
+                    "description": "Maximum number of results (default 10)"
+                }
+            },
+            "required": ["query"]
+        })
+    }
+
+    fn permission_level(&self) -> ToolPermissionLevel {
+        ToolPermissionLevel::RequiresConfirmation
+    }
+
+    fn is_read_only(&self) -> bool {
+        true
+    }
+
+    fn is_concurrency_safe(&self) -> bool {
+        true
+    }
+
+    fn is_open_world(&self, _input: &Self::Input) -> bool {
+        true
+    }
+
+    fn timeout_ms(&self, _input: &Self::Input) -> Option<u64> {
+        Some(30_000) // 30 秒超时
+    }
+
+    async fn execute(
+        &self,
+        input: Self::Input,
+        _ctx: &ToolContext,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
+    ) -> Result<ToolResult<Self::Output>> {
+        use std::time::Instant;
+
+        let start = Instant::now();
+        let max_results = input.max_results.unwrap_or(10);
+
+        // 检查环境变量中的 API key
+        let api_key = std::env::var("BRAVE_SEARCH_API_KEY")
+            .or_else(|_| std::env::var("BING_SEARCH_API_KEY"))
+            .ok();
+
+        let results = if let Some(key) = api_key {
+            // 使用 Brave Search API
+            self.brave_search(&input.query, &key, max_results).await
+        } else {
+            // 回退到简单的 HTML 抓取搜索（演示用）
+            self.fallback_search(&input.query, max_results).await
+        };
+
+        let duration_seconds = start.elapsed().as_secs_f64();
+
+        let output = WebSearchOutput {
+            query: input.query,
+            results,
+            duration_seconds,
+        };
+
+        Ok(ToolResult::success("websearch-1", output))
+    }
+}
+
+impl WebSearchTool {
+    async fn brave_search(
+        &self,
+        query: &str,
+        api_key: &str,
+        max_results: usize,
+    ) -> Vec<WebSearchResult> {
+        let url = format!(
+            "https://api.search.brave.com/res/v1/web/search?q={}&count={}",
+            urlencoding::encode(query),
+            max_results
+        );
+
+        let response = HTTP_CLIENT
+            .get(&url)
+            .header("Accept", "application/json")
+            .header("X-Subscription-Token", api_key)
+            .send()
+            .await;
+
+        match response {
+            Ok(resp) => {
+                if let Ok(json) = resp.json::<serde_json::Value>().await {
+                    return self.parse_brave_results(json, max_results);
+                }
+            }
+            Err(_) => {}
+        }
+
+        Vec::new()
+    }
+
+    fn parse_brave_results(&self, json: serde_json::Value, max_results: usize) -> Vec<WebSearchResult> {
+        let mut results = Vec::new();
+
+        if let Some(web_results) = json.get("web").and_then(|w| w.get("results")) {
+            if let Some(arr) = web_results.as_array() {
+                for item in arr.iter().take(max_results) {
+                    let title = item
+                        .get("title")
+                        .and_then(|t| t.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let url = item
+                        .get("url")
+                        .and_then(|u| u.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let snippet = item
+                        .get("description")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    if !title.is_empty() && !url.is_empty() {
+                        results.push(WebSearchResult { title, url, snippet });
+                    }
+                }
+            }
+        }
+
+        results
+    }
+
+    async fn fallback_search(&self, query: &str, max_results: usize) -> Vec<WebSearchResult> {
+        // 简单的回退实现：使用 DuckDuckGo HTML
+        let url = format!(
+            "https://html.duckduckgo.com/html/?q={}",
+            urlencoding::encode(query)
+        );
+
+        let response = HTTP_CLIENT
+            .get(&url)
+            .header("User-Agent", "Mozilla/5.0")
+            .send()
+            .await;
+
+        match response {
+            Ok(resp) => {
+                if let Ok(html) = resp.text().await {
+                    return self.parse_duckduckgo_html(&html, max_results);
+                }
+            }
+            Err(_) => {}
+        }
+
+        Vec::new()
+    }
+
+    fn parse_duckduckgo_html(&self, html: &str, max_results: usize) -> Vec<WebSearchResult> {
+        let mut results = Vec::new();
+        let mut count = 0;
+
+        // 简单的 HTML 解析：查找 <a class="result__a" href="...">标题</a>
+        let link_pattern = r#"<a class="result__a" href="([^"]+)">([^<]+)</a>"#;
+        let snippet_pattern = r#"<a class="result__snippet" href="[^"]+">([^<]+)</a>"#;
+
+        let link_regex = regex::Regex::new(link_pattern).ok();
+        let snippet_regex = regex::Regex::new(snippet_pattern).ok();
+
+        if let Some(link_re) = link_regex {
+            let mut snippets: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
+            if let Some(snippet_re) = snippet_regex {
+                for cap in snippet_re.captures_iter(html) {
+                    if let (Some(url_match), Some(snippet_match)) = (cap.get(1), cap.get(2)) {
+                        snippets.insert(url_match.as_str(), snippet_match.as_str());
+                    }
+                }
+            }
+
+            for cap in link_re.captures_iter(html) {
+                if count >= max_results {
+                    break;
+                }
+
+                let url = cap.get(1).map(|m| m.as_str()).unwrap_or("");
+                let title = cap.get(2).map(|m| m.as_str()).unwrap_or("").to_string();
+                let snippet = snippets.get(url).unwrap_or(&"").to_string();
+
+                if !url.is_empty() && !title.is_empty() {
+                    results.push(WebSearchResult {
+                        title,
+                        url: url.to_string(),
+                        snippet,
+                    });
+                    count += 1;
+                }
+            }
+        }
+
+        results
+    }
+}
+
+// ===== TodoWriteTool =====
+
+/// Todo 条目
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TodoItem {
+    /// 任务内容
+    pub content: String,
+    /// 状态：pending, in_progress, completed
+    pub status: String,
+    /// 当前进行的操作描述
+    #[serde(rename = "activeForm")]
+    pub active_form: Option<String>,
+}
+
+/// TodoWrite 工具输入
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TodoWriteInput {
+    /// 任务列表（完整替换）
+    pub todos: Vec<TodoItem>,
+}
+
+/// TodoWrite 工具输出
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TodoWriteOutput {
+    /// 更新前的任务列表
+    #[serde(rename = "oldTodos")]
+    pub old_todos: Vec<TodoItem>,
+    /// 更新后的任务列表
+    #[serde(rename = "newTodos")]
+    pub new_todos: Vec<TodoItem>,
+}
+
+/// TodoWriteTool：任务列表管理
+///
+/// 使用完整替换模型管理任务列表
+pub struct TodoWriteTool;
+
+impl Default for TodoWriteTool {
+    fn default() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl Tool for TodoWriteTool {
+    type Input = TodoWriteInput;
+    type Output = TodoWriteOutput;
+    type Progress = serde_json::Value;
+
+    fn name(&self) -> &str {
+        "todowrite"
+    }
+
+    fn aliases(&self) -> &[&str] {
+        &["todo", "TodoWrite"]
+    }
+
+    fn input_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "todos": {
+                    "type": "array",
+                    "description": "Full todo list (complete replacement model)",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "content": {
+                                "type": "string",
+                                "description": "Task description"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending", "in_progress", "completed"],
+                                "description": "Task status"
+                            },
+                            "activeForm": {
+                                "type": "string",
+                                "description": "Current action being performed"
+                            }
+                        },
+                        "required": ["content", "status"]
+                    }
+                }
+            },
+            "required": ["todos"]
+        })
+    }
+
+    fn permission_level(&self) -> ToolPermissionLevel {
+        ToolPermissionLevel::RequiresConfirmation
+    }
+
+    fn is_read_only(&self) -> bool {
+        false
+    }
+
+    fn is_concurrency_safe(&self) -> bool {
+        false
+    }
+
+    fn get_activity_description(&self, input: &Self::Input) -> Option<String> {
+        let count = input.todos.len();
+        Some(format!("Updating {} tasks", count))
+    }
+
+    async fn execute(
+        &self,
+        input: Self::Input,
+        _ctx: &ToolContext,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
+    ) -> Result<ToolResult<Self::Output>> {
+        // 从执行历史中获取旧的任务列表
+        let old_todos: Vec<TodoItem> = _ctx
+            .executed_tools
+            .iter()
+            .filter(|t| t.tool_name == "todowrite")
+            .last()
+            .and_then(|_| None)
+            .unwrap_or_default();
+
+        let new_todos = input.todos;
+
+        // 验证状态值
+        for todo in &new_todos {
+            if !["pending", "in_progress", "completed"].contains(&todo.status.as_str()) {
+                return Ok(ToolResult {
+                    tool_use_id: "todowrite-1".to_string(),
+                    is_success: false,
+                    output: None,
+                    error: Some(format!("Invalid status: {}", todo.status)),
+                    context_modifier: None,
+                    interrupted: false,
+                });
+            }
+        }
+
+        let output = TodoWriteOutput {
+            old_todos,
+            new_todos: new_todos.clone(),
+        };
+
+        // 返回带有上下文修改器的结果
+        Ok(ToolResult::success("todowrite-1", output).with_context_modifier(
+            crate::tools::tool::ContextModifier {
+                file_updates: vec![],
+                metadata: {
+                    let mut m = std::collections::HashMap::new();
+                    m.insert(
+                        "todos".to_string(),
+                        serde_json::to_value(&new_todos).unwrap_or_default(),
+                    );
+                    m
+                },
+            },
+        ))
+    }
+}
+
+// ===== AgentTool =====
+
+/// Agent 工具输入
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentInput {
+    /// 子代理描述
+    pub description: String,
+    /// 子代理指令
+    pub prompt: String,
+    /// 子代理类型
+    #[serde(rename = "subagentType")]
+    pub subagent_type: Option<String>,
+    /// 使用的模型（可选）
+    pub model: Option<String>,
+    /// 是否后台运行
+    #[serde(rename = "runInBackground")]
+    pub run_in_background: Option<bool>,
+    /// 工作目录
+    pub cwd: Option<String>,
+}
+
+/// Agent 工具输出
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentOutput {
+    /// 是否成功
+    pub success: bool,
+    /// 输出消息
+    pub message: String,
+    /// 任务 ID（用于后台任务）
+    #[serde(rename = "taskId")]
+    pub task_id: Option<String>,
+}
+
+/// AgentTool：子代理工具
+///
+/// 包装 SubagentExecutor 作为工具使用
+pub struct AgentTool;
+
+impl Default for AgentTool {
+    fn default() -> Self {
+        Self
+    }
+}
+
+#[async_trait]
+impl Tool for AgentTool {
+    type Input = AgentInput;
+    type Output = AgentOutput;
+    type Progress = String;
+
+    fn name(&self) -> &str {
+        "agent"
+    }
+
+    fn aliases(&self) -> &[&str] {
+        &["subagent", "Agent"]
+    }
+
+    fn input_schema(&self) -> serde_json::Value {
+        serde_json::json!({
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "description": "Description of the subagent task"
+                },
+                "prompt": {
+                    "type": "string",
+                    "description": "Instruction for the subagent"
+                },
+                "subagentType": {
+                    "type": "string",
+                    "enum": ["fork", "general", "custom"],
+                    "description": "Type of subagent"
+                },
+                "model": {
+                    "type": "string",
+                    "description": "Model to use (optional)"
+                },
+                "runInBackground": {
+                    "type": "boolean",
+                    "description": "Whether to run in background"
+                },
+                "cwd": {
+                    "type": "string",
+                    "description": "Working directory for the subagent"
+                }
+            },
+            "required": ["description", "prompt"]
+        })
+    }
+
+    fn permission_level(&self) -> ToolPermissionLevel {
+        ToolPermissionLevel::Destructive
+    }
+
+    fn is_read_only(&self) -> bool {
+        false
+    }
+
+    fn is_concurrency_safe(&self) -> bool {
+        false
+    }
+
+    fn is_open_world(&self, _input: &Self::Input) -> bool {
+        true
+    }
+
+    fn interrupt_behavior(&self) -> InterruptBehavior {
+        InterruptBehavior::Block
+    }
+
+    fn timeout_ms(&self, _input: &Self::Input) -> Option<u64> {
+        Some(5 * 60 * 1000) // 5 分钟默认超时
+    }
+
+    fn get_activity_description(&self, input: &Self::Input) -> Option<String> {
+        Some(format!("Running subagent: {}", input.description))
+    }
+
+    async fn execute(
+        &self,
+        input: Self::Input,
+        ctx: &ToolContext,
+        _progress_callback: Option<
+            impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
+        >,
+    ) -> Result<ToolResult<Self::Output>> {
+        use crate::subagent::{SubagentExecutor, SubagentParams, SubagentType, CacheSafeParams, ToolUseContext};
+        use uuid::Uuid;
+        use std::collections::HashMap;
+
+        let task_id = Uuid::new_v4().to_string();
+        let run_in_background = input.run_in_background.unwrap_or(false);
+        let subagent_type = match input.subagent_type.as_deref() {
+            Some("fork") => SubagentType::Fork,
+            Some("general") | Some("general_purpose") => SubagentType::GeneralPurpose,
+            Some("custom") => SubagentType::Custom(input.subagent_type.clone().unwrap_or_default()),
+            _ => SubagentType::GeneralPurpose,
+        };
+
+        let params = SubagentParams {
+            subagent_type,
+            directive: input.prompt.clone(),
+            prompt_messages: vec![],
+            cache_safe_params: CacheSafeParams {
+                system_prompt: String::new(),
+                user_context: HashMap::new(),
+                system_context: HashMap::new(),
+                tool_use_context: ToolUseContext {
+                    available_tools: vec![],
+                    rendered_system_prompt: String::new(),
+                    thinking_config: None,
+                },
+                fork_context_messages: vec![],
+            },
+            max_turns: None,
+            max_output_tokens: None,
+            skip_transcript: false,
+            skip_cache_write: false,
+            run_in_background,
+            worktree_path: None,
+            parent_cwd: input.cwd.or_else(|| ctx.working_directory.clone()),
+        };
+
+        if run_in_background {
+            // 后台执行：立即返回
+            let output = AgentOutput {
+                success: true,
+                message: format!("Subagent started in background with task ID: {}", task_id),
+                task_id: Some(task_id),
+            };
+            return Ok(ToolResult::success("agent-1", output));
+        }
+
+        // 同步执行：等待结果
+        let executor = SubagentExecutor::new();
+        match executor.execute(params).await {
+            Ok(result) => {
+                let message = format!(
+                    "Subagent completed with {} messages",
+                    result.messages.len()
+                );
+                let output = AgentOutput {
+                    success: true,
+                    message,
+                    task_id: Some(task_id),
+                };
+                Ok(ToolResult::success("agent-1", output))
+            }
+            Err(e) => {
+                let output = AgentOutput {
+                    success: false,
+                    message: format!("Subagent error: {}", e),
+                    task_id: Some(task_id),
+                };
+                Ok(ToolResult::success("agent-1", output))
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

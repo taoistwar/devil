@@ -141,7 +141,8 @@ impl Agent {
     /// 注册所有内置工具
     pub async fn register_default_tools(&self) -> Result<()> {
         use crate::tools::builtin::{
-            BashTool, FileEditTool, FileReadTool, FileWriteTool, GlobTool, GrepTool,
+            AgentTool, BashTool, FileEditTool, FileReadTool, FileWriteTool, GlobTool, GrepTool,
+            TodoWriteTool, WebFetchTool, WebSearchTool,
         };
 
         // 注册所有内置工具
@@ -151,6 +152,16 @@ impl Agent {
         self.register_tool(FileEditTool::default()).await?;
         self.register_tool(GlobTool::default()).await?;
         self.register_tool(GrepTool::default()).await?;
+
+        // 注册 Web 工具
+        self.register_tool(WebFetchTool::default()).await?;
+        self.register_tool(WebSearchTool::default()).await?;
+
+        // 注册任务列表工具
+        self.register_tool(TodoWriteTool::default()).await?;
+
+        // 注册子代理工具
+        self.register_tool(AgentTool::default()).await?;
 
         info!("All default tools registered");
         Ok(())
