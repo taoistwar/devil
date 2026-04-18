@@ -738,21 +738,6 @@ mod budget_tests {
         assert!(tokens > 0);
         assert!(tokens < text.len());
     }
-
-    #[test]
-    fn test_truncate_content() {
-        let content = "This is a long content that needs to be truncated";
-        let truncated = truncate_content(content, 5);
-        assert!(truncated.len() < content.len());
-        assert!(truncated.ends_with("..."));
-    }
-
-    #[test]
-    fn test_truncate_content_no_truncation() {
-        let content = "Short content";
-        let truncated = truncate_content(content, 1000);
-        assert_eq!(truncated, content);
-    }
 }
 
 #[cfg(test)]

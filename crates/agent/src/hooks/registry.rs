@@ -172,7 +172,7 @@ impl HookConfigSnapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hooks::types::CommandHook;
+    use crate::hooks::types::{CommandHook, ShellType};
 
     #[test]
     fn test_registry_create() {
@@ -186,9 +186,14 @@ mod tests {
         let mut registry = HookRegistry::new();
         let hook = RegisteredHook {
             hook: HookType::Command(CommandHook {
-                command: vec!["echo test".to_string()],
+                command: "echo test".to_string(),
+                shell: ShellType::Bash,
+                condition: None,
+                timeout: None,
+                status_message: None,
                 once: false,
-                continue_hook: None,
+                r#async: false,
+                async_rewake: false,
             }),
             source: HookSource {
                 source_type: HookSourceType::UserSettings,
@@ -217,9 +222,14 @@ mod tests {
         for (i, priority) in sources.into_iter().enumerate() {
             let hook = RegisteredHook {
                 hook: HookType::Command(CommandHook {
-                    command: vec![format!("echo {}", i)],
+                    command: format!("echo {}", i),
+                    shell: ShellType::Bash,
+                    condition: None,
+                    timeout: None,
+                    status_message: None,
                     once: false,
-                    continue_hook: None,
+                    r#async: false,
+                    async_rewake: false,
                 }),
                 source: HookSource {
                     source_type: HookSourceType::Builtin,
@@ -251,9 +261,14 @@ mod tests {
         // 注册一次性钩子
         let once_hook = RegisteredHook {
             hook: HookType::Command(CommandHook {
-                command: vec!["echo once".to_string()],
+                command: "echo once".to_string(),
+                shell: ShellType::Bash,
+                condition: None,
+                timeout: None,
+                status_message: None,
                 once: true,
-                continue_hook: None,
+                r#async: false,
+                async_rewake: false,
             }),
             source: HookSource {
                 source_type: HookSourceType::UserSettings,
@@ -266,9 +281,14 @@ mod tests {
         // 注册非一次性钩子
         let persist_hook = RegisteredHook {
             hook: HookType::Command(CommandHook {
-                command: vec!["echo persist".to_string()],
+                command: "echo persist".to_string(),
+                shell: ShellType::Bash,
+                condition: None,
+                timeout: None,
+                status_message: None,
                 once: false,
-                continue_hook: None,
+                r#async: false,
+                async_rewake: false,
             }),
             source: HookSource {
                 source_type: HookSourceType::UserSettings,
@@ -292,9 +312,14 @@ mod tests {
 
         let hook = RegisteredHook {
             hook: HookType::Command(CommandHook {
-                command: vec!["echo callback".to_string()],
+                command: "echo callback".to_string(),
+                shell: ShellType::Bash,
+                condition: None,
+                timeout: None,
+                status_message: None,
                 once: false,
-                continue_hook: None,
+                r#async: false,
+                async_rewake: false,
             }),
             source: HookSource {
                 source_type: HookSourceType::Builtin,

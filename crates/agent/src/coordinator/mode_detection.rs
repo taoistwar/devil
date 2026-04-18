@@ -216,8 +216,9 @@ mod tests {
         env::set_var("CLAUDE_CODE_COORDINATOR_MODE", "1");
         let config = CoordinatorConfig {
             enabled: true,
-            worker_count: 3,
-            max_turns: 5,
+            simple_mode: false,
+            scratchpad_dir: None,
+            mcp_servers: Vec::new(),
         };
 
         let context = get_coordinator_user_context(&config);
