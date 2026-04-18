@@ -1323,6 +1323,9 @@ pub struct WebFetchInput {
     pub url: String,
     /// 提示词（用于决定提取什么内容）
     pub prompt: Option<String>,
+    /// CSS 选择器（用于提取特定元素）
+    #[serde(rename = "cssSelector")]
+    pub css_selector: Option<String>,
 }
 
 /// WebFetch 工具输出
@@ -1380,6 +1383,10 @@ impl Tool for WebFetchTool {
                 "prompt": {
                     "type": "string",
                     "description": "What to extract from the page"
+                },
+                "cssSelector": {
+                    "type": "string",
+                    "description": "CSS selector to extract specific elements (e.g., 'article', '.content', '#main')"
                 }
             },
             "required": ["url"]
@@ -1460,10 +1467,17 @@ impl Tool for WebFetchTool {
 
                 let content = resp.text().await.unwrap_or_default();
 
+                // 如果指定了 CSS 选择器，尝试提取匹配的元素内容
+                let final_content = if let Some(ref selector) = input.css_selector {
+                    Self::extract_with_css_selector(&content, selector)
+                } else {
+                    content
+                };
+
                 let output = WebFetchOutput {
-                    bytes: Some(content.len()),
+                    bytes: Some(final_content.len()),
                     code: status,
-                    content,
+                    content: final_content,
                     content_type,
                     duration_ms,
                     url: final_url,
@@ -1480,6 +1494,62 @@ impl Tool for WebFetchTool {
                 interrupted: false,
             }),
         }
+    }
+}
+
+impl WebFetchTool {
+    /// 使用 CSS 选择器从 HTML 中提取内容
+    ///
+    /// 支持简单的标签名、类名、ID 选择器
+    fn extract_with_css_selector(html: &str, selector: &str) -> String {
+        let selector = selector.trim();
+
+        let pattern = if selector.starts_with('#') {
+            let id = &selector[1..];
+            format!(r#"id=["']?{}["']?[^>]*>([^<]+)"#, regex::escape(id))
+        } else if selector.starts_with('.') {
+            let class = &selector[1..];
+            format!(r#"class=["'][^"']*{}[^"']*["'][^>]*>([^<]+)"#, regex::escape(class))
+        } else if selector.starts_with('[') && selector.ends_with(']') {
+            format!(r#"[{}][^>]*>([^<]+)"#, &selector[1..selector.len()-1])
+        } else {
+            format!(r#"<{}[^>]*>([^<]+)</{}>"#, selector, selector)
+        };
+
+        if let Ok(re) = regex::Regex::new(&pattern) {
+            let matches: Vec<&str> = re.captures_iter(html)
+                .filter_map(|c| c.get(1).map(|m| m.as_str().trim()))
+                .collect();
+
+            if !matches.is_empty() {
+                return matches.join("\n");
+            }
+        }
+
+        let fallback_patterns = [
+            format!(r#"class=["'][^"']*{}[^"']*["'][^>]*>([\s\S]*?)</[^>]+>"#, regex::escape(selector)),
+            format!(r#"<{}[\s\S]*?>([\s\S]*?)</{}>"#, regex::escape(selector), regex::escape(selector)),
+        ];
+
+        for pattern in fallback_patterns {
+            if let Ok(re) = regex::Regex::new(&pattern) {
+                let mut results = Vec::new();
+                for cap in re.captures_iter(html) {
+                    if let Some(content) = cap.get(1) {
+                        let text = regex::Regex::new(r"<[^>]+>")
+                            .ok()
+                            .map(|tag_re| tag_re.replace_all(content.as_str(), " ").to_string())
+                            .unwrap_or_else(|| content.as_str().to_string());
+                        results.push(text.trim().to_string());
+                    }
+                }
+                if !results.is_empty() {
+                    return results.join("\n---\n");
+                }
+            }
+        }
+
+        html.chars().take(10000).collect()
     }
 }
 
