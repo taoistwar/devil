@@ -1,6 +1,5 @@
 //! CLI error types
 
-use anyhow::Result;
 use std::process::ExitCode;
 use thiserror::Error;
 

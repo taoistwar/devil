@@ -8,10 +8,8 @@ pub mod error;
 pub mod init;
 
 use anyhow::Result;
-use std::process::ExitCode;
 
 pub use dispatcher::Dispatcher;
-pub use error::CliError;
 
 /// Application name
 pub const APP_NAME: &str = "devil";

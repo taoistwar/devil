@@ -81,7 +81,6 @@ pub async fn wait_for_shutdown_signal() {
                 }
                 Err(e) => {
                     error!("Failed to set up SIGTERM handler: {}", e);
-                    return;
                 }
             }
         } => {

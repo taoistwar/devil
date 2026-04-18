@@ -1,7 +1,7 @@
 //! Version command implementation
 
 use super::super::dispatcher::Command;
-use crate::cli::{show_version, APP_NAME};
+use crate::cli::show_version;
 use anyhow::Result;
 
 pub struct VersionCommand;
