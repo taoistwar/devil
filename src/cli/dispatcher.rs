@@ -1,5 +1,8 @@
 //! Command dispatcher - routes CLI commands to handlers
+//!
+//! Provides structured command dispatch with proper error handling and exit codes
 
+use crate::cli::error::CliError;
 use crate::cli::{run_once, run_repl, show_config, APP_NAME, VERSION};
 use anyhow::Result;
 use std::process::ExitCode;
@@ -25,7 +28,7 @@ impl Dispatcher {
         self.commands.push(Box::new(command));
     }
 
-    pub fn dispatch(&self, args: &[String]) -> Result<ExitCode> {
+    pub fn dispatch(&self, args: &[String]) -> Result<ExitCode, CliError> {
         if args.is_empty() {
             self.print_help()?;
             return Ok(ExitCode::SUCCESS);
@@ -42,33 +45,37 @@ impl Dispatcher {
             }
             "run" => {
                 if args.len() < 2 {
-                    eprintln!("Error: Missing prompt argument");
-                    eprintln!("Usage: {} run \"<prompt>\"", APP_NAME);
-                    return Ok(ExitCode::from(1));
+                    return Err(CliError::MissingArgument(
+                        "Usage: devil run \"<prompt>\"".to_string(),
+                    ));
                 }
                 let prompt = args[1..].join(" ");
-                let rt = tokio::runtime::Runtime::new()?;
-                rt.block_on(run_once(&prompt))?;
+                let rt = tokio::runtime::Runtime::new()
+                    .map_err(|e| CliError::InitError(format!("Failed to create runtime: {}", e)))?;
+                if let Err(e) = rt.block_on(run_once(&prompt)) {
+                    tracing::error!("Task execution failed: {}", e);
+                    return Err(CliError::ToolError(e.to_string()));
+                }
                 Ok(ExitCode::SUCCESS)
             }
             "repl" => {
-                let rt = tokio::runtime::Runtime::new()?;
-                rt.block_on(run_repl())?;
+                let rt = tokio::runtime::Runtime::new()
+                    .map_err(|e| CliError::InitError(format!("Failed to create runtime: {}", e)))?;
+                if let Err(e) = rt.block_on(run_repl()) {
+                    tracing::error!("REPL execution failed: {}", e);
+                    return Err(CliError::ToolError(e.to_string()));
+                }
                 Ok(ExitCode::SUCCESS)
             }
             "config" => {
-                show_config()?;
+                show_config().map_err(|e| CliError::ConfigError(e.to_string()))?;
                 Ok(ExitCode::SUCCESS)
             }
-            unknown => {
-                eprintln!("Unknown command: {}", unknown);
-                self.print_help()?;
-                Ok(ExitCode::from(1))
-            }
+            unknown => Err(CliError::InvalidCommand(unknown.to_string())),
         }
     }
 
-    pub fn print_help(&self) -> Result<()> {
+    pub fn print_help(&self) -> Result<(), CliError> {
         println!("{} v{}", APP_NAME, VERSION);
         println!();
         println!("Usage: {} <command> [arguments]", APP_NAME);
@@ -109,7 +116,15 @@ mod tests {
     fn test_dispatcher_unknown_command() {
         let dispatcher = Dispatcher::new();
         let result = dispatcher.dispatch(&["unknown".to_string()]);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap(), ExitCode::from(1));
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().exit_code(), ExitCode::from(4));
+    }
+
+    #[test]
+    fn test_dispatcher_missing_run_arg() {
+        let dispatcher = Dispatcher::new();
+        let result = dispatcher.dispatch(&["run".to_string()]);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().exit_code(), ExitCode::from(4));
     }
 }

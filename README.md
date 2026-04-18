@@ -203,6 +203,47 @@ tool_timeout_secs = 300
 verbose = false
 ```
 
+### 生产环境使用
+
+**安全最佳实践：**
+
+1. **API 密钥管理**：
+   ```bash
+   # 推荐：使用环境变量
+   export DEVIL_API_KEY="sk-ant-..."
+
+   # 配置文件中的密钥应设置正确权限
+   chmod 600 ~/.devil/config.toml
+   ```
+
+2. **日志配置**：
+   ```bash
+   # 开发环境：人类可读格式
+   DEVIL_VERBOSE=true devil run "task"
+
+   # 生产环境：JSON 格式
+   DEVIL_LOG_JSON=true devil run "task" | jq .
+   ```
+
+3. **退出码参考**：
+   | 退出码 | 含义 |
+   |--------|------|
+   | 0 | 成功 |
+   | 1 | 一般错误 |
+   | 2 | 配置错误 |
+   | 3 | 缺少 API 密钥 |
+   | 4 | 无效参数 |
+   | 5 | 网络错误 |
+
+4. **性能优化**：
+   ```bash
+   # 减少内存占用
+   DEVIL_MAX_CONTEXT_TOKENS=100000 devil run "task"
+
+   # 限制对话轮次
+   DEVIL_MAX_TURNS=10 devil run "task"
+   ```
+
 ### 基本使用示例
 
 ```rust
