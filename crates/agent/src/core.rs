@@ -12,14 +12,14 @@ use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
 use crate::config::AgentConfig;
-use crate::message::{Message, AssistantMessage, SystemMessage, SystemMessageLevel, ToolUseSummaryMessage};
+use crate::message::{Message, AssistantMessage, SystemMessage, SystemMessageLevel, ToolUseSummaryMessage, ContentBlock};
 use crate::state::{State, Terminal, TerminalReason, Continue, ContinueReason};
 use crate::deps::{QueryDeps, ProductionDeps, ModelCallParams};
 use crate::tools::{ToolRegistry, ToolContext};
 use crate::tools::partition::{ConcurrentPartitioner, ToolUseCallInfo};
-use crate::tools::executor::{StreamingToolExecutor, BatchToolExecutor, ExecutorConfig, ToolExecutionResult};
+use crate::tools::executor::{StreamingToolExecutor, BatchToolExecutor, ExecutorConfig, ToolExecutionResult, StreamingToolExecutor as ToolExecutor};
 use crate::context::{ContextManager, ContextPipelineResult};
-use crate::subagent::{SubagentExecutor, SubagentRegistry, SubagentParams, SubagentType, SubagentResult};
+use crate::subagent::{SubagentExecutor, SubagentRegistry, SubagentParams, SubagentType, SubagentResult, SubagentDefinition};
 use crate::subagent::types::{ForkSubagentConfig, CacheSafeParams, ToolUseContext, ThinkingConfig};
 
 /// Agent 状态枚举
@@ -141,7 +141,8 @@ impl Agent {
             enabled,
             ..ForkSubagentConfig::default()
         };
-        *executor = executor.clone().with_fork_config(current_config);
+        let new_executor = (*executor).clone().with_fork_config(current_config);
+        *executor = new_executor;
     }
 
     /// 获取子代理注册表（只读）
@@ -169,6 +170,7 @@ impl Agent {
             initial_messages,
             self.deps.clone(),
             self.tool_registry.clone(),
+            self.context_manager.clone(),
         )
     }
 
@@ -212,6 +214,8 @@ pub struct AgentLoop {
     subagent_registry: Arc<RwLock<SubagentRegistry>>,
     /// 子代理执行器
     subagent_executor: Arc<RwLock<SubagentExecutor>>,
+    /// 上下文管理器
+    context_manager: ContextManager,
 }
 
 impl AgentLoop {
@@ -221,6 +225,7 @@ impl AgentLoop {
         initial_messages: Vec<Message>,
         deps: Arc<dyn QueryDeps>,
         tool_registry: Arc<RwLock<ToolRegistry>>,
+        context_manager: ContextManager,
     ) -> Self {
         let registry = SubagentRegistry::new();
         let executor = SubagentExecutor::new()
@@ -231,9 +236,10 @@ impl AgentLoop {
             state: State::initial(initial_messages),
             deps,
             tool_registry,
-            tool_executor: ToolExecutor::default(),
+            tool_executor: ToolExecutor::with_defaults(),
             subagent_registry: Arc::new(RwLock::new(registry)),
             subagent_executor: Arc::new(RwLock::new(executor)),
+            context_manager,
         }
     }
 
@@ -244,6 +250,7 @@ impl AgentLoop {
         deps: Arc<dyn QueryDeps>,
         tool_registry: Arc<RwLock<ToolRegistry>>,
         fork_enabled: bool,
+        context_manager: ContextManager,
     ) -> Self {
         let registry = SubagentRegistry::new();
         let executor = SubagentExecutor::new()
@@ -257,9 +264,10 @@ impl AgentLoop {
             state: State::initial(initial_messages),
             deps,
             tool_registry,
-            tool_executor: ToolExecutor::default(),
+            tool_executor: ToolExecutor::with_defaults(),
             subagent_registry: Arc::new(RwLock::new(registry)),
             subagent_executor: Arc::new(RwLock::new(executor)),
+            context_manager,
         }
     }
 
@@ -385,9 +393,11 @@ impl AgentLoop {
             // 检查是否有 Agent 工具调用（子代理）
             let mut has_agent_tool = false;
             for block in &tool_use_blocks {
-                if block.name == "Agent" || block.name == "Subagent" {
-                    has_agent_tool = true;
-                    break;
+                if let ContentBlock::ToolUse { name, .. } = block {
+                    if name == "Agent" || name == "Subagent" {
+                        has_agent_tool = true;
+                        break;
+                    }
                 }
             }
 

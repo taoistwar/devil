@@ -139,7 +139,7 @@ impl Orchestrator {
                 if let Some(result) = finding.result {
                     summary.push_str(&format!(
                         "任务 {} 发现：{}\n\n",
-                        finding.description, result
+                        finding.summary, result
                     ));
                 }
             }

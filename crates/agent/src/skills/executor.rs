@@ -62,7 +62,7 @@ impl SkillExecutor {
         
         // 5. 返回新消息和上下文修饰器
         Ok(SkillExecutionResult::Inline {
-            new_messages: vec![Message::user(content)],
+            new_messages: vec![Message::user_text(content)],
             context_modifier,
         })
     }
@@ -81,7 +81,7 @@ impl SkillExecutor {
         
         // 2. 构建子代理参数
         let params = SubagentParams {
-            prompt_messages: vec![Message::user(content)],
+            prompt_messages: vec![Message::user_text(content)],
             cache_safe_params: todo!("从父级继承"),
             subagent_type: SubagentType::Custom(
                 skill.agent.clone().unwrap_or_else(|| "worker".to_string())

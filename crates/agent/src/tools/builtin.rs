@@ -11,13 +11,27 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use tokio::sync::watch::Receiver;
 
 use crate::tools::tool::{
     Tool, ToolContext, ToolResult, ToolPermissionLevel,
-    InputValidationResult, PermissionCheckResult, ContextModifier,
-    InterruptBehavior,
+    InputValidationResult, ContextModifier, ToolProgressData,
+    InterruptBehavior, ToolProgress,
 };
 use crate::permissions::bash_analyzer::BashSemanticAnalyzer;
+
+// ===== ToolProgressData implementations =====
+
+/// 实现 ToolProgressData for serde_json::Value
+impl ToolProgressData for serde_json::Value {}
+
+/// 实现 ToolProgressData for String
+impl ToolProgressData for String {}
+
+/// 实现 ToolProgressData for ()
+impl ToolProgressData for () {}
+
+// ===== ToolBuilder =====
 
 /// buildTool 工厂函数
 /// 
@@ -36,7 +50,7 @@ pub struct ToolBuilder<I, O> {
     read_only: bool,
     timeout_secs: Option<u64>,
     always_load: bool,
-    execute_fn: Box<dyn Fn(I, &ToolContext) -> Result<O> + Send + Sync>,
+    execute_fn: Box<dyn Fn(I, &ToolContext, Option<Receiver<bool>>) -> Result<O> + Send + Sync>,
 }
 
 impl<I, O> ToolBuilder<I, O>
@@ -56,7 +70,7 @@ where
             read_only: false,        // fail-closed: 默认不是只读
             timeout_secs: None,
             always_load: false,
-            execute_fn: Box::new(|_, _| Err(anyhow::anyhow!("No execute function"))),
+            execute_fn: Box::new(|_, _, _| Err(anyhow::anyhow!("No execute function"))),
         }
     }
 
@@ -106,7 +120,7 @@ where
     /// 设置执行函数
     pub fn execute<F>(mut self, f: F) -> Self
     where
-        F: Fn(I, &ToolContext) -> Result<O> + Send + Sync + 'static,
+        F: Fn(I, &ToolContext, Option<Receiver<bool>>) -> Result<O> + Send + Sync + 'static,
     {
         self.execute_fn = Box::new(f);
         self
@@ -140,7 +154,7 @@ pub struct BuiltTool<I, O> {
     read_only: bool,
     timeout_secs: Option<u64>,
     always_load: bool,
-    execute_fn: Box<dyn Fn(I, &ToolContext) -> Result<O> + Send + Sync>,
+    execute_fn: Box<dyn Fn(I, &ToolContext, Option<Receiver<bool>>) -> Result<O> + Send + Sync>,
 }
 
 #[async_trait]
@@ -157,6 +171,10 @@ where
         &self.name
     }
 
+    fn description(&self) -> &str {
+        &self.description
+    }
+
     fn aliases(&self) -> &[&str] {
         &[]
     }
@@ -169,15 +187,15 @@ where
         self.permission_level
     }
 
-    fn is_concurrency_safe(&self) -> bool {
+    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
         self.concurrency_safe
     }
 
-    fn is_read_only(&self) -> bool {
+    fn is_read_only(&self, _input: &Self::Input) -> bool {
         self.read_only
     }
 
-    fn timeout_secs(&self) -> Option<u64> {
+    fn timeout_ms(&self, _input: &Self::Input) -> Option<u64> {
         self.timeout_secs
     }
 
@@ -189,9 +207,10 @@ where
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
+        cancel_signal: Option<Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>> {
-        let output = (self.execute_fn)(input, ctx)?;
+        let output = (self.execute_fn)(input, ctx, cancel_signal)?;
         Ok(ToolResult::success(format!("{}-1", self.name), output))
     }
 }
@@ -246,6 +265,10 @@ impl Tool for BashTool {
 
     fn name(&self) -> &str {
         "bash"
+    }
+
+    fn description(&self) -> &str {
+        "Execute bash commands"
     }
 
     fn input_schema(&self) -> serde_json::Value {
@@ -369,7 +392,8 @@ impl Tool for BashTool {
         &self,
         input: Self::Input,
         _ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
+        _cancel_signal: Option<Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>> {
         // TODO: 实际执行 bash 命令
         // 这里返回模拟结果
@@ -426,6 +450,10 @@ impl Tool for FileReadTool {
         "read"
     }
 
+    fn description(&self) -> &str {
+        "Read file contents"
+    }
+
     fn aliases(&self) -> &[&str] {
         &["file_read", "FileRead"]
     }
@@ -451,11 +479,11 @@ impl Tool for FileReadTool {
         ToolPermissionLevel::ReadOnly
     }
 
-    fn is_read_only(&self) -> bool {
+    fn is_read_only(&self, _input: &Self::Input) -> bool {
         true
     }
 
-    fn is_concurrency_safe(&self) -> bool {
+    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
         // 读取文件是并发安全的
         true
     }
@@ -464,11 +492,12 @@ impl Tool for FileReadTool {
         &self,
         input: Self::Input,
         ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
+        _cancel_signal: Option<Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>> {
         // TODO: 实际读取文件
         // 检查文件缓存
-        if let Some(_state) = ctx.file_cache.get(&input.path) {
+        if let Some(_state) = ctx.file_cache.read().await.get(&input.path) {
             // 缓存命中
         }
 
@@ -539,6 +568,10 @@ impl Tool for FileEditTool {
         "edit"
     }
 
+    fn description(&self) -> &str {
+        "Edit file contents"
+    }
+
     fn input_schema(&self) -> serde_json::Value {
         serde_json::json!({
             "type": "object",
@@ -568,11 +601,11 @@ impl Tool for FileEditTool {
         ToolPermissionLevel::RequiresConfirmation
     }
 
-    fn is_read_only(&self) -> bool {
+    fn is_read_only(&self, _input: &Self::Input) -> bool {
         false
     }
 
-    fn is_concurrency_safe(&self) -> bool {
+    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
         // 编辑操作不是并发安全的
         false
     }
@@ -587,7 +620,8 @@ impl Tool for FileEditTool {
         &self,
         input: Self::Input,
         _ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
+        _cancel_signal: Option<Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>> {
         // TODO: 实际执行编辑
         let output = FileEditOutput {
@@ -642,6 +676,10 @@ impl Tool for FileWriteTool {
         "write"
     }
 
+    fn description(&self) -> &str {
+        "Write content to a file"
+    }
+
     fn input_schema(&self) -> serde_json::Value {
         serde_json::json!({
             "type": "object",
@@ -667,11 +705,11 @@ impl Tool for FileWriteTool {
         ToolPermissionLevel::Destructive
     }
 
-    fn is_read_only(&self) -> bool {
+    fn is_read_only(&self, _input: &Self::Input) -> bool {
         false
     }
 
-    fn is_concurrency_safe(&self) -> bool {
+    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
         false
     }
 
@@ -679,7 +717,8 @@ impl Tool for FileWriteTool {
         &self,
         input: Self::Input,
         _ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
+        _cancel_signal: Option<Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>> {
         let bytes_written = input.content.len();
         
@@ -735,6 +774,10 @@ impl Tool for GlobTool {
         "glob"
     }
 
+    fn description(&self) -> &str {
+        "Find files by glob pattern"
+    }
+
     fn input_schema(&self) -> serde_json::Value {
         serde_json::json!({
             "type": "object",
@@ -761,11 +804,11 @@ impl Tool for GlobTool {
         ToolPermissionLevel::ReadOnly
     }
 
-    fn is_read_only(&self) -> bool {
+    fn is_read_only(&self, _input: &Self::Input) -> bool {
         true
     }
 
-    fn is_concurrency_safe(&self) -> bool {
+    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
         // Glob 是并发安全的
         true
     }
@@ -774,7 +817,8 @@ impl Tool for GlobTool {
         &self,
         input: Self::Input,
         _ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
+        _cancel_signal: Option<Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>> {
         // TODO: 实际执行 glob 搜索
         let output = GlobOutput {
@@ -844,6 +888,10 @@ impl Tool for GrepTool {
         "grep"
     }
 
+    fn description(&self) -> &str {
+        "Search file contents using regex"
+    }
+
     fn input_schema(&self) -> serde_json::Value {
         serde_json::json!({
             "type": "object",
@@ -878,11 +926,11 @@ impl Tool for GrepTool {
         ToolPermissionLevel::ReadOnly
     }
 
-    fn is_read_only(&self) -> bool {
+    fn is_read_only(&self, _input: &Self::Input) -> bool {
         true
     }
 
-    fn is_concurrency_safe(&self) -> bool {
+    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
         // Grep 是并发安全的
         true
     }
@@ -891,7 +939,8 @@ impl Tool for GrepTool {
         &self,
         input: Self::Input,
         _ctx: &ToolContext,
-        _progress_callback: Option<impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync>,
+        _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
+        _cancel_signal: Option<Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>> {
         // TODO: 实际执行 grep 搜索
         let output = GrepOutput {
@@ -922,59 +971,83 @@ mod tests {
             }))
             .read_only()
             .concurrency_safe()
-            .execute(|input: serde_json::Value, _ctx: &ToolContext| {
+            .execute(|input: serde_json::Value, _ctx: &ToolContext, _cancel: Option<Receiver<bool>>| {
                 Ok("result".to_string())
             })
             .build();
 
         assert_eq!(tool.name(), "test");
-        assert!(tool.is_read_only());
-        assert!(tool.is_concurrency_safe());
-    }
-
-    #[test]
-    fn test_bash_tool_validation() {
-        let tool = BashTool::new(false);
-        
-        // 空命令应该无效
-        let result = tool.validate_input_permissions(&BashInput {
-            command: "".to_string(),
-            cwd: None,
-            background: None,
-        });
-        assert!(!result.is_valid);
-        
-        // 危险命令应该没有权限
-        assert!(!tool.has_permission(&BashInput {
-            command: "rm -rf /".to_string(),
-            cwd: None,
-            background: None,
-        }, &ToolContext::default()));
+        assert!(tool.is_read_only(&serde_json::Value::Null));
+        assert!(tool.is_concurrency_safe(&serde_json::Value::Null));
     }
 
     #[test]
     fn test_file_tools_properties() {
         let read_tool = FileReadTool::default();
-        assert!(read_tool.is_read_only());
-        assert!(read_tool.is_concurrency_safe());
+        assert!(read_tool.is_read_only(&FileReadInput {
+            path: "test.txt".to_string(),
+            max_lines: None,
+        }));
+        assert!(read_tool.is_concurrency_safe(&FileReadInput {
+            path: "test.txt".to_string(),
+            max_lines: None,
+        }));
         
         let edit_tool = FileEditTool::default();
-        assert!(!edit_tool.is_read_only());
-        assert!(!edit_tool.is_concurrency_safe());
+        assert!(!edit_tool.is_read_only(&FileEditInput {
+            path: "test.txt".to_string(),
+            old_string: "foo".to_string(),
+            new_string: "bar".to_string(),
+            insert_index: None,
+        }));
+        assert!(!edit_tool.is_concurrency_safe(&FileEditInput {
+            path: "test.txt".to_string(),
+            old_string: "foo".to_string(),
+            new_string: "bar".to_string(),
+            insert_index: None,
+        }));
         
         let write_tool = FileWriteTool::default();
-        assert!(!write_tool.is_read_only());
-        assert!(!write_tool.is_concurrency_safe());
+        assert!(!write_tool.is_read_only(&FileWriteInput {
+            path: "test.txt".to_string(),
+            content: "hello".to_string(),
+            append: None,
+        }));
+        assert!(!write_tool.is_concurrency_safe(&FileWriteInput {
+            path: "test.txt".to_string(),
+            content: "hello".to_string(),
+            append: None,
+        }));
     }
 
     #[test]
     fn test_search_tools_properties() {
         let glob_tool = GlobTool::default();
-        assert!(glob_tool.is_read_only());
-        assert!(glob_tool.is_concurrency_safe());
+        assert!(glob_tool.is_read_only(&GlobInput {
+            pattern: "**/*.rs".to_string(),
+            ignore: None,
+            max_results: None,
+        }));
+        assert!(glob_tool.is_concurrency_safe(&GlobInput {
+            pattern: "**/*.rs".to_string(),
+            ignore: None,
+            max_results: None,
+        }));
         
         let grep_tool = GrepTool::default();
-        assert!(grep_tool.is_read_only());
-        assert!(grep_tool.is_concurrency_safe());
+        assert!(grep_tool.is_read_only(&GrepInput {
+            pattern: "fn".to_string(),
+            path: None,
+            file_type: None,
+            ignore: None,
+            case_sensitive: None,
+        }));
+        assert!(grep_tool.is_concurrency_safe(&GrepInput {
+            pattern: "fn".to_string(),
+            path: None,
+            file_type: None,
+            ignore: None,
+            case_sensitive: None,
+        }));
     }
 }

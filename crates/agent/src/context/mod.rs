@@ -26,16 +26,63 @@
 //! - 5,000 每文件
 //! - 25,000 技能独立预算
 
+use anyhow::Result;
+use crate::message::Message;
+
 pub mod context_window;
 pub mod compression;
 pub mod circuit_breaker;
 pub mod token_budget;
-pub mod boundary;
-pub mod compact_service;
 
 pub use context_window::*;
 pub use compression::*;
 pub use circuit_breaker::*;
 pub use token_budget::*;
-pub use boundary::*;
-pub use compact_service::*;
+
+/// 上下文管线处理结果
+#[derive(Debug)]
+pub enum ContextPipelineResult {
+    Success {
+        messages: Vec<Message>,
+        system_prompt: String,
+        token_count: usize,
+    },
+    TokenLimitExceeded {
+        current_tokens: usize,
+        max_tokens: usize,
+    },
+}
+
+/// 上下文管理器
+#[derive(Clone)]
+pub struct ContextManager {
+    max_context_tokens: usize,
+}
+
+impl ContextManager {
+    pub fn with_defaults() -> Self {
+        Self {
+            max_context_tokens: 100000,
+        }
+    }
+
+    pub async fn process_full_pipeline(
+        &self,
+        messages: Vec<Message>,
+        system_prompt: &str,
+        max_tokens: usize,
+    ) -> Result<ContextPipelineResult> {
+        let token_count = messages.len() * 100;
+        if token_count > max_tokens {
+            return Ok(ContextPipelineResult::TokenLimitExceeded {
+                current_tokens: token_count,
+                max_tokens,
+            });
+        }
+        Ok(ContextPipelineResult::Success {
+            messages,
+            system_prompt: system_prompt.to_string(),
+            token_count,
+        })
+    }
+}

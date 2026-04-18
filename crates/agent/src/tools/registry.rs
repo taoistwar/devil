@@ -53,9 +53,11 @@ impl<T: Tool> AnyTool for ToolWrapper<T> {
             description: String::new(),
             input_schema: self.tool.input_schema(),
             permission_level: self.tool.permission_level(),
-            concurrency_safe: self.tool.is_concurrency_safe(),
-            read_only: self.tool.is_read_only(),
-            timeout_secs: self.tool.timeout_secs(),
+            // Note: concurrency_safe, read_only, and timeout_ms require input to determine accurately
+            // Using conservative defaults since we don't have the actual input
+            concurrency_safe: false, // fail-closed: assume not safe
+            read_only: false,        // fail-closed: assume not read-only
+            timeout_secs: None,       // no timeout by default
             always_load: self.tool.should_always_load(),
             aliases: self.tool.aliases().iter().map(|s| s.to_string()).collect(),
         }
@@ -70,11 +72,13 @@ impl<T: Tool> AnyTool for ToolWrapper<T> {
     }
 
     fn is_concurrency_safe(&self) -> bool {
-        self.tool.is_concurrency_safe()
+        // Cannot determine without input - use conservative default
+        false
     }
 
     fn is_read_only(&self) -> bool {
-        self.tool.is_read_only()
+        // Cannot determine without input - use conservative default
+        false
     }
 
     fn should_always_load(&self) -> bool {

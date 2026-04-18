@@ -2,8 +2,10 @@
 //! 
 //! 定义 6 种钩子类型及其配置 Schema
 
+use crate::hooks::{HookEvent, HookResponse};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 /// 钩子类型枚举（6 种）
@@ -27,7 +29,7 @@ pub enum HookType {
 }
 
 /// Command 钩子配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CommandHook {
     /// Shell 命令
     pub command: String,
@@ -67,7 +69,7 @@ fn default_shell() -> ShellType {
 }
 
 /// Prompt 钩子配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PromptHook {
     /// LLM 提示词
     pub prompt: String,
@@ -89,7 +91,7 @@ pub struct PromptHook {
 }
 
 /// Agent 钩子配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentHook {
     /// 验证提示词
     pub prompt: String,
@@ -111,7 +113,7 @@ pub struct AgentHook {
 }
 
 /// HTTP 钩子配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct HttpHook {
     /// 请求 URL
     pub url: String,
@@ -139,7 +141,7 @@ pub struct HttpHook {
 #[derive(Clone)]
 pub struct CallbackHook {
     /// 回调函数
-    pub callback: Box<dyn Fn(&HookEvent) -> HookResponse + Send + Sync>,
+    pub callback: Arc<dyn Fn(&HookEvent) -> HookResponse + Send + Sync>,
 }
 
 impl std::fmt::Debug for CallbackHook {
@@ -154,7 +156,7 @@ pub struct FunctionHook {
     /// 函数名称
     pub name: String,
     /// 回调函数
-    pub callback: Box<dyn Fn(&HookEvent) -> HookResponse + Send + Sync>,
+    pub callback: Arc<dyn Fn(&HookEvent) -> HookResponse + Send + Sync>,
 }
 
 impl std::fmt::Debug for FunctionHook {

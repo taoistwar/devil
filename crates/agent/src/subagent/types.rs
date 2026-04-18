@@ -3,6 +3,7 @@
 //! 定义子代理的类型、配置和参数
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::collections::HashMap;
 use crate::message::Message;
 use crate::tools::Tool;
@@ -86,7 +87,7 @@ pub enum SubagentSource {
 }
 
 /// 系统提示生成器类型
-pub type SystemPromptFn = Box<dyn Fn() -> String + Send + Sync>;
+pub type SystemPromptFn = Arc<dyn Fn() -> String + Send + Sync>;
 
 /// Fork 子代理配置
 #[derive(Debug, Clone)]
@@ -148,7 +149,7 @@ pub struct ThinkingConfig {
 }
 
 /// 子代理启动参数
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SubagentParams {
     /// 启动消息
     pub prompt_messages: Vec<Message>,

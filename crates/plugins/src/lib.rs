@@ -14,8 +14,9 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use std::sync::Arc;
+use tokio::sync::{Mutex, RwLock};
+use tracing::{debug, info, warn};
 
 /// 插件元数据
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,7 +35,7 @@ pub struct PluginMetadata {
 }
 
 /// 插件权限级别
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
 pub enum PermissionLevel {
     /// 仅读操作
@@ -157,7 +158,29 @@ pub trait Plugin: Send + Sync {
 /// 插件注册信息
 struct PluginRegistration {
     metadata: PluginMetadata,
-    plugin: Box<dyn Plugin>,
+    plugin: Arc<Mutex<Box<dyn Plugin>>>,
+}
+
+#[async_trait]
+impl Plugin for Arc<Mutex<Box<dyn Plugin>>> {
+    fn metadata(&self) -> PluginMetadata {
+        self.blocking_lock().metadata()
+    }
+    
+    async fn initialize(&mut self) -> Result<()> {
+        let mut plugin = self.lock().await;
+        (&mut *plugin).initialize().await
+    }
+    
+    async fn execute(&self, ctx: PluginContext) -> Result<PluginResult> {
+        let plugin = self.lock().await;
+        plugin.execute(ctx).await
+    }
+    
+    async fn shutdown(&self) -> Result<()> {
+        let plugin = self.lock().await;
+        plugin.shutdown().await
+    }
 }
 
 /// 插件管理器
@@ -189,7 +212,7 @@ impl PluginManager {
             name.clone(),
             PluginRegistration {
                 metadata,
-                plugin: Box::new(plugin),
+                plugin: Arc::new(Mutex::new(Box::new(plugin))),
             },
         );
 
@@ -198,9 +221,9 @@ impl PluginManager {
     }
 
     /// 获取插件
-    pub async fn get_plugin(&self, name: &str) -> Option<&Box<dyn Plugin>> {
-        let plugins = self.plugins.read().await;
-        plugins.get(name).map(|reg| &reg.plugin)
+    pub fn get_plugin(&self, name: &str) -> Option<Arc<Mutex<Box<dyn Plugin>>>> {
+        let plugin = self.plugins.blocking_read().get(name)?.plugin.clone();
+        Some(plugin)
     }
 
     /// 执行插件
@@ -209,14 +232,16 @@ impl PluginManager {
         name: &str,
         ctx: PluginContext,
     ) -> Result<PluginResult> {
-        let plugins = self.plugins.read().await;
-        
-        let registration = plugins
-            .get(name)
-            .ok_or_else(|| anyhow::anyhow!("Plugin not found: {}", name))?;
+        let plugin = {
+            let plugins = self.plugins.read().await;
+            let registration = plugins
+                .get(name)
+                .ok_or_else(|| anyhow::anyhow!("Plugin not found: {}", name))?;
+            registration.plugin.clone()
+        };
 
         debug!("Executing plugin: {}", name);
-        registration.plugin.execute(ctx).await
+        plugin.execute(ctx).await
     }
 
     /// 列出所有已注册的插件
@@ -228,7 +253,7 @@ impl PluginManager {
     /// 自动更新插件
     pub async fn update_plugin(&self, name: &str) -> Result<String> {
         let plugins = self.plugins.read().await;
-        let registration = plugins.get(name)
+        let _registration = plugins.get(name)
             .ok_or_else(|| anyhow::anyhow!("Plugin not found: {}", name))?;
         
         info!("Checking for updates for plugin: {}", name);
@@ -471,6 +496,7 @@ impl Plugin for EchoPlugin {
             version: "0.1.0".to_string(),
             description: "Echo plugin that returns input as output".to_string(),
             author: Some("Devil Team".to_string()),
+            permission_level: Default::default(),
         }
     }
 

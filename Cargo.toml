@@ -11,19 +11,25 @@ members = [
     "crates/streaming",
 ]
 
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Devil Team <team@devil.ai>"]
+description = "Devil Agent - 智能开发助手"
+
 # 主程序包
 [package]
 name = "devil-agent"
-version = "0.1.0"
-edition = "2021"
-description = "Devil Agent - 智能开发助手"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
 
 [[bin]]
 name = "devil"
 path = "src/main.rs"
 
 [dependencies]
-devil-agent-core = { path = "crates/agent" }
+agent = { path = "crates/agent" }
 devil-streaming = { path = "crates/streaming" }
 devil-mcp = { path = "crates/mcp" }
 providers = { path = "crates/providers" }

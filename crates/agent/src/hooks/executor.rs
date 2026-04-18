@@ -104,14 +104,11 @@ impl HookExecutor {
             let status = child.wait().await?;
             exit_code = status.code();
             
-            Ok::<HookResponse, HookError>(())
+            self.parse_command_response(&stdout_content, exit_code, stderr_content)
         }).await;
         
         match result {
-            Ok(Ok(())) => {
-                let response = self.parse_command_response(&stdout_content, exit_code, stderr_content)?;
-                Ok(response)
-            }
+            Ok(Ok(response)) => Ok(response),
             Ok(Err(e)) => Err(e),
             Err(_) => Err(HookError::Timeout(timeout_secs)),
         }
@@ -252,5 +249,11 @@ pub enum HookError {
 impl From<std::path::PathBuf> for HookError {
     fn from(err: std::path::PathBuf) -> Self {
         HookError::SystemError(format!("路径错误：{:?}", err))
+    }
+}
+
+impl From<reqwest::Error> for HookError {
+    fn from(err: reqwest::Error) -> Self {
+        HookError::HttpError(format!("HTTP 请求失败：{}", err))
     }
 }

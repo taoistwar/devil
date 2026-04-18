@@ -4,6 +4,7 @@
 
 use crate::message::Message;
 use crate::subagent::types::{CacheSafeParams, ToolUseContext, ThinkingConfig};
+use crate::subagent::build_child_message;
 use std::collections::HashMap;
 
 /// 构建继承的消息历史
@@ -55,11 +56,9 @@ pub fn build_user_message_with_placeholder(
     content.push_str("\n\n");
     content.push_str(&build_child_message(directive, fork_config));
     
-    Message {
-        role: "user".to_string(),
-        content: crate::message::MessageContent::Text(content),
-        uuid: None,
-    }
+    Message::User(crate::message::UserMessage {
+        content: vec![crate::message::ContentBlock::Text { text: content }],
+    })
 }
 
 /// 从父级上下文创建 CacheSafeParams
@@ -109,7 +108,11 @@ pub fn filter_incomplete_tool_calls(messages: &[Message]) -> Vec<Message> {
     // 倒序扫描，找出所有未完成的 tool_use
     let mut tool_results = std::collections::HashSet::new();
     for msg in messages.iter().rev() {
-        if let Some(content) = msg.content.as_text() {
+        if let Some(text) = match msg {
+            Message::User(u) => u.content.iter().find_map(|b| if let ContentBlock::Text { text } = b { Some(text) } else { None }),
+            Message::Assistant(a) => a.content.iter().find_map(|b| if let ContentBlock::Text { text } = b { Some(text) } else { None }),
+            _ => None,
+        } {
             if content.contains("tool_result") {
                 // 提取 tool_use_id
                 // 简化处理：实际应解析 XML
@@ -117,7 +120,7 @@ pub fn filter_incomplete_tool_calls(messages: &[Message]) -> Vec<Message> {
             }
         }
         
-        if msg.role == "assistant" {
+        if msg.role() == "assistant" {
             // 检查是否有悬空的 tool_use
             if !pending_tool_uses.is_empty() {
                 // 有不完整的工具调用
@@ -136,14 +139,18 @@ pub fn filter_incomplete_tool_calls(messages: &[Message]) -> Vec<Message> {
 
 /// 获取最后一条 assistant 消息
 pub fn get_last_assistant_message(messages: &[Message]) -> Option<&Message> {
-    messages.iter().rev().find(|msg| msg.role == "assistant")
+    messages.iter().rev().find(|msg| msg.role() == "assistant")
 }
 
 /// 提取工具使用块 ID 列表
 pub fn extract_tool_use_ids(message: &Message) -> Vec<String> {
     let mut ids = Vec::new();
     
-    if let Some(content) = message.content.as_text() {
+    if let Some(text) = match message {
+    Message::User(u) => u.content.iter().find_map(|b| if let ContentBlock::Text { text } = b { Some(text) } else { None }),
+    Message::Assistant(a) => a.content.iter().find_map(|b| if let ContentBlock::Text { text } = b { Some(text) } else { None }),
+    _ => None,
+} {
         // 简化：实际应解析 XML 提取所有 tool_use 块的 id
         // 这里仅返回一个占位符
         if content.contains("tool_use") {

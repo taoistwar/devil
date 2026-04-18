@@ -6,6 +6,7 @@
 //! - 统一的工具构建入口
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -52,7 +53,7 @@ pub struct ToolBuilder<I, O, P = String> {
     
     // 执行函数
     execute_fn: Option<Box<dyn Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) 
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>>,
+        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>>>,
     
     // 虚拟类型参数
     _phantom: PhantomData<(I, O, P)>,
@@ -239,7 +240,7 @@ pub struct BuiltTool<I, O, P = String> {
     interrupt_behavior: InterruptBehavior,
     transparent_wrapper: bool,
     execute_fn: Box<dyn Fn(I, &ToolContext, Option<tokio::sync::watch::Receiver<bool>>) 
-        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>>>,
+        -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<O>> + Send>> + Send + Sync>,
     _phantom: PhantomData<(I, O, P)>,
 }
 
@@ -327,7 +328,9 @@ where
     ) -> Result<ToolResult<Self::Output>, anyhow::Error> {
         // 简化处理，忽略 progress_callback
         let _ = progress_callback;
-        (self.execute_fn)(input, ctx, cancel_signal).await
+        let output = (self.execute_fn)(input, ctx, cancel_signal).await?;
+        let tool_use_id = Uuid::new_v4().to_string();
+        Ok(ToolResult::success(tool_use_id, output))
     }
 }
 
