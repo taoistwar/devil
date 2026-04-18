@@ -1,3 +1,6 @@
+pub mod enter;
+pub mod exit;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -64,3 +67,6 @@ impl WorktreeManager {
         worktrees.values().find(|w| w.is_primary).cloned()
     }
 }
+
+pub use enter::{EnterWorktreeInput, EnterWorktreeOutput, EnterWorktreeTool};
+pub use exit::{ExitWorktreeInput, ExitWorktreeOutput, ExitWorktreeTool};

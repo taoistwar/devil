@@ -7,18 +7,46 @@
 //! - StreamingToolExecutor 四阶段状态机
 //! - 权限检查三层管线
 
+pub mod ask;
 pub mod bash_analyzer;
 pub mod build_tool;
 pub mod builtin;
+pub mod config;
+pub mod cron;
+pub mod enhanced;
 pub mod executor;
+pub mod file_tools;
+pub mod lsp;
+pub mod mcp;
 pub mod partition;
+pub mod planning;
 pub mod registry;
+pub mod skills;
+pub mod task;
+pub mod team;
 pub mod tool;
+pub mod web;
+pub mod workflow;
+pub mod worktree;
 
+pub use ask::*;
 pub use bash_analyzer::*;
 pub use build_tool::*;
 pub use builtin::*;
+pub use config::*;
+pub use cron::*;
+pub use enhanced::*;
 pub use executor::*;
+pub use file_tools::*;
+pub use lsp::*;
+pub use mcp::*;
 pub use partition::*;
+pub use planning::*;
 pub use registry::*;
+pub use skills::*;
+pub use task::*;
+pub use team::*;
 pub use tool::*;
+pub use web::*;
+pub use workflow::*;
+pub use worktree::*;
