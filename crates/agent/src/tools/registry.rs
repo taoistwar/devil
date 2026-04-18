@@ -5,7 +5,7 @@
 //! - 工具过滤管线
 //! - ToolSearchTool 延迟发现机制
 
-use crate::tools::tool::{Tool, ToolContext, ToolMetadata, ToolPermissionLevel};
+use crate::tools::tool::{Tool, ToolContext, ToolMetadata, ToolPermissionLevel, ToolProgress};
 use anyhow::Result;
 use std::collections::HashMap;
 
@@ -90,9 +90,34 @@ impl<T: Tool> AnyTool for ToolWrapper<T> {
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = anyhow::Result<serde_json::Value>> + Send + '_>,
     > {
+        let ctx = ctx.clone();
         Box::pin(async move {
-            // 这里需要泛型执行，简化处理
-            Ok(serde_json::Value::Null)
+            // 将 serde_json::Value 转换为具体工具的 Input 类型
+            let typed_input: T::Input = match serde_json::from_value(input) {
+                Ok(i) => i,
+                Err(e) => {
+                    return Err(anyhow::anyhow!("Failed to parse tool input: {}", e));
+                }
+            };
+            // 调用具体工具的 execute 方法
+            // 使用 Some 包装闭包来帮助 Rust 推断 T::Progress 类型
+            let result = self
+                .tool
+                .execute(typed_input, &ctx, Some(|_: ToolProgress<T::Progress>| {}))
+                .await;
+            match result {
+                Ok(tool_result) => {
+                    // 将 ToolResult 转换为 JSON
+                    Ok(serde_json::json!({
+                        "tool_use_id": tool_result.tool_use_id,
+                        "is_success": tool_result.is_success,
+                        "output": tool_result.output,
+                        "error": tool_result.error,
+                        "interrupted": tool_result.interrupted,
+                    }))
+                }
+                Err(e) => Err(e),
+            }
         })
     }
 }

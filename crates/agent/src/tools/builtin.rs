@@ -1343,14 +1343,16 @@ mod tests {
         assert!(!result.is_valid);
 
         // 危险命令应该没有权限
-        let result = tool.check_permissions(
-            &BashInput {
-                command: "rm -rf /".to_string(),
-                cwd: None,
-                background: None,
-            },
-            &ToolContext::default(),
-        ).await;
+        let result = tool
+            .check_permissions(
+                &BashInput {
+                    command: "rm -rf /".to_string(),
+                    cwd: None,
+                    background: None,
+                },
+                &ToolContext::default(),
+            )
+            .await;
         // 默认不允许危险命令
         assert!(matches!(result.behavior, PermissionBehavior::Deny { .. }));
     }

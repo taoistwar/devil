@@ -14,21 +14,15 @@ use tracing::{debug, error, info, warn};
 use crate::config::AgentConfig;
 use crate::context::{ContextManager, ContextPipelineResult};
 use crate::deps::{ModelCallParams, ProductionDeps, QueryDeps};
-use crate::message::{
-    AssistantMessage, ContentBlock, Message, SystemMessage, SystemMessageLevel,
-    ToolUseSummaryMessage,
-};
-use crate::state::{Continue, ContinueReason, State, Terminal, TerminalReason};
-use crate::subagent::types::{CacheSafeParams, ForkSubagentConfig, ThinkingConfig, ToolUseContext};
+use crate::message::{AssistantMessage, ContentBlock, Message, UserMessage};
+use crate::state::{ContinueReason, State, Terminal, TerminalReason};
+use crate::subagent::types::{CacheSafeParams, ForkSubagentConfig, ToolUseContext};
 use crate::subagent::{
     SubagentDefinition, SubagentExecutor, SubagentParams, SubagentRegistry, SubagentResult,
     SubagentType,
 };
-use crate::tools::executor::{
-    BatchToolExecutor, ExecutorConfig, StreamingToolExecutor, ToolExecutionResult,
-};
-use crate::tools::partition::{ConcurrentPartitioner, ToolUseCallInfo};
-use crate::tools::{ToolContext, ToolRegistry};
+use crate::tools::executor::StreamingToolExecutor;
+use crate::tools::{ToolPermissionLevel, ToolRegistry};
 
 /// Agent 状态枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -109,6 +103,10 @@ impl Agent {
     /// 初始化 Agent
     pub async fn initialize(&self) -> Result<()> {
         info!("Initializing agent: {}", self.config.name);
+
+        // 注册所有内置工具
+        self.register_default_tools().await?;
+
         *self.status.write().await = AgentStatus::Running;
         info!("Agent {} is now running", self.config.name);
         Ok(())
@@ -137,6 +135,24 @@ impl Agent {
     pub async fn register_tool<T: crate::tools::Tool + 'static>(&self, tool: T) -> Result<()> {
         let mut registry = self.tool_registry.write().await;
         registry.register(tool)?;
+        Ok(())
+    }
+
+    /// 注册所有内置工具
+    pub async fn register_default_tools(&self) -> Result<()> {
+        use crate::tools::builtin::{
+            BashTool, FileEditTool, FileReadTool, FileWriteTool, GlobTool, GrepTool,
+        };
+
+        // 注册所有内置工具
+        self.register_tool(BashTool::new(false)).await?;
+        self.register_tool(FileReadTool::default()).await?;
+        self.register_tool(FileWriteTool::default()).await?;
+        self.register_tool(FileEditTool::default()).await?;
+        self.register_tool(GlobTool::default()).await?;
+        self.register_tool(GrepTool::default()).await?;
+
+        info!("All default tools registered");
         Ok(())
     }
 
@@ -406,7 +422,7 @@ impl AgentLoop {
 
             // 检查是否有 Agent 工具调用（子代理）
             let mut has_agent_tool = false;
-            for block in tool_use_blocks {
+            for block in &tool_use_blocks {
                 if let ContentBlock::ToolUse { name, .. } = block {
                     if name == "Agent" || name == "Subagent" {
                         has_agent_tool = true;
@@ -441,12 +457,109 @@ impl AgentLoop {
                 }
             }
 
-            // TODO: 执行其他工具调用
-            // 这里简化处理，实际应该：
-            // 1. 根据是否启用流式执行选择执行策略
-            // 2. 执行权限检查
-            // 3. 并发分区调度
-            // 4. 收集结果并回填
+            // ===== 阶段四（非子代理）：执行普通工具调用 =====
+            // 获取工具注册表
+            let registry = self.tool_registry.read().await;
+
+            // 遍历所有工具调用
+            for block in tool_use_blocks {
+                if let ContentBlock::ToolUse { id, name, input } = block {
+                    // 跳过 Agent/Subagent 工具（已在上方处理）
+                    if name == "Agent" || name == "Subagent" {
+                        continue;
+                    }
+
+                    // 查找工具
+                    if let Some(tool_any) = registry.get(name) {
+                        debug!("Executing tool: {}", name);
+
+                        // 检查权限级别
+                        let permission_level = tool_any.metadata().permission_level;
+                        match permission_level {
+                            ToolPermissionLevel::BlanketDenied => {
+                                // 工具被全局拒绝
+                                warn!("Tool {} is blanket denied", name);
+                                let tool_result_msg = UserMessage::with_tool_result(
+                                    id.clone(),
+                                    format!(
+                                        "{{\"error\": \"Tool '{}' is not permitted to run\"}}",
+                                        name
+                                    ),
+                                    true,
+                                );
+                                self.state.messages.push(Message::User(tool_result_msg));
+                                continue;
+                            }
+                            ToolPermissionLevel::Destructive
+                            | ToolPermissionLevel::RequiresConfirmation => {
+                                // 需要确认的破坏性操作
+                                // 在生产环境中，这里应该暂停执行并等待用户确认
+                                // 目前返回需要确认的提示
+                                info!(
+                                    "Tool {} requires confirmation (level: {:?})",
+                                    name, permission_level
+                                );
+                                let tool_result_msg = UserMessage::with_tool_result(
+                                    id.clone(),
+                                    format!(
+                                        "{{\"confirmation_required\": true, \"tool\": \"{}\", \"level\": \"{:?}\", \"message\": \"This operation requires user confirmation\"}}",
+                                        name, permission_level
+                                    ),
+                                    false,
+                                );
+                                self.state.messages.push(Message::User(tool_result_msg));
+                                continue;
+                            }
+                            ToolPermissionLevel::ReadOnly => {
+                                // 只读工具，直接执行
+                            }
+                        }
+
+                        // 执行工具
+                        match tool_any
+                            .execute_any(input.clone(), &self.state.tool_context)
+                            .await
+                        {
+                            Ok(result_json) => {
+                                // 将结果转换为字符串
+                                let output =
+                                    serde_json::to_string(&result_json).unwrap_or_else(|_| {
+                                        "{\"error\": \"serialization failed\"}".to_string()
+                                    });
+                                let is_error = result_json.get("error").is_some();
+
+                                // 创建工具结果消息（作为 User 消息）
+                                let tool_result_msg =
+                                    UserMessage::with_tool_result(id.clone(), output, is_error);
+                                self.state.messages.push(Message::User(tool_result_msg));
+
+                                debug!("Tool {} completed successfully", name);
+                            }
+                            Err(e) => {
+                                warn!("Tool {} execution failed: {}", name, e);
+
+                                // 创建错误结果
+                                let tool_result_msg = UserMessage::with_tool_result(
+                                    id.clone(),
+                                    format!("{{\"error\": \"{}\"}}", e),
+                                    true,
+                                );
+                                self.state.messages.push(Message::User(tool_result_msg));
+                            }
+                        }
+                    } else {
+                        warn!("Tool not found in registry: {}", name);
+
+                        // 工具不存在，返回错误
+                        let tool_result_msg = UserMessage::with_tool_result(
+                            id.clone(),
+                            format!("{{\"error\": \"Tool '{}' not found\"}}", name),
+                            true,
+                        );
+                        self.state.messages.push(Message::User(tool_result_msg));
+                    }
+                }
+            }
 
             // ===== 阶段五：工具结果回填与下一轮 =====
             // 构造新的状态对象，continue 到下一轮
@@ -475,20 +588,58 @@ impl AgentLoop {
         &self,
         assistant_message: &crate::message::AssistantMessage,
     ) -> Result<SubagentResult> {
+        use crate::message::ContentBlock;
         use crate::subagent::types::CacheSafeParams;
         use std::collections::HashMap;
 
         // 获取子代理参数（从工具输入解析）
-        // TODO: 实际需要从 tool_use_blocks 中解析 Agent 工具的输入
-        // 这里简化处理
+        let tool_use_blocks = assistant_message.tool_use_blocks();
+
+        // 查找 Agent/Subagent 工具调用
+        let mut directive = "执行子代理任务".to_string();
+        let mut subagent_type = SubagentType::GeneralPurpose;
+        let mut worktree_path = None;
+        let mut max_turns: Option<u32> = None;
+
+        for block in tool_use_blocks {
+            if let ContentBlock::ToolUse { name, input, .. } = block {
+                if name == "Agent" || name == "Subagent" {
+                    // 解析子代理参数
+                    // 支持的输入字段：task, prompt, type, worktree, max_turns
+                    if let Some(task) = input.get("task").and_then(|v| v.as_str()) {
+                        directive = task.to_string();
+                    } else if let Some(prompt) = input.get("prompt").and_then(|v| v.as_str()) {
+                        directive = prompt.to_string();
+                    }
+
+                    // 解析子代理类型
+                    if let Some(type_str) = input.get("type").and_then(|v| v.as_str()) {
+                        subagent_type = match type_str {
+                            "fork" => SubagentType::Fork,
+                            "general" | "general-purpose" => SubagentType::GeneralPurpose,
+                            "custom" => SubagentType::Custom("custom".to_string()),
+                            _ => SubagentType::GeneralPurpose,
+                        };
+                    }
+
+                    // 解析工作目录
+                    if let Some(path) = input.get("worktree").and_then(|v| v.as_str()) {
+                        worktree_path = Some(path.to_string());
+                    }
+
+                    // 解析最大轮次
+                    if let Some(turns) = input.get("max_turns").and_then(|v| v.as_u64()) {
+                        max_turns = Some(turns as u32);
+                    }
+
+                    break;
+                }
+            }
+        }
 
         let registry = self.subagent_registry.read().await;
         let fork_enabled = registry.get_fork_config().enabled;
         drop(registry);
-
-        let executor = self.subagent_executor.read().await;
-        let is_fork_enabled = executor.is_fork_enabled();
-        drop(executor);
 
         // 构建子代理参数
         let params = SubagentParams {
@@ -507,15 +658,15 @@ impl AgentLoop {
             subagent_type: if fork_enabled {
                 SubagentType::Fork
             } else {
-                SubagentType::GeneralPurpose
+                subagent_type
             },
-            directive: "执行子代理任务".to_string(),
-            max_turns: None,
+            directive,
+            max_turns,
             max_output_tokens: None,
             skip_transcript: false,
             skip_cache_write: false,
             run_in_background: true,
-            worktree_path: None,
+            worktree_path,
             parent_cwd: None,
         };
 

@@ -265,6 +265,9 @@ pub enum StreamEvent {
     /// 消息结束
     #[serde(rename = "message_stop")]
     MessageStop,
+    /// 进度消息
+    #[serde(rename = "progress")]
+    Progress { message: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

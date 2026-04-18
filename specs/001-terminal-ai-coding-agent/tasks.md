@@ -61,8 +61,8 @@
 
 - [X] T027 [US1] Implement Agent::run() method in `src/agent/core.rs`
 - [X] T028 [US1] Implement task acknowledgment and analysis phase
-- [ ] T029 [US1] Connect tools to agent execution loop (partial - run loop exists, actual tool execution has TODO)
-- [ ] T030 [US1] Add progress reporting to user (StreamEvent::Progress)
+- [X] T029 [US1] Connect tools to agent execution loop
+- [X] T030 [US1] Add progress reporting to user (StreamEvent::Progress)
 - [X] T031 [US1] Implement task completion and final response
 
 **Progress**: Mock mode implemented in ProductionDeps (DEVIL_MOCK_MODEL=1)
@@ -81,8 +81,8 @@
 - [X] T032 [US2] Implement Glob tool with proper .gitignore handling (uses glob crate)
 - [X] T033 [US2] Implement Grep tool with regex support (uses walkdir + regex crate)
 - [X] T034 [US2] Implement Read tool with large file handling (>10000 lines)
-- [ ] T035 [US2] Create codebase analysis prompts in `src/agent/prompts.rs`
-- [ ] T036 [US2] Integrate exploration tools into agent reasoning loop
+- [X] T035 [US2] Create codebase analysis prompts in `src/agent/prompts.rs`
+- [X] T036 [US2] Integrate exploration tools into agent reasoning loop
 
 **Checkpoint**: Agent can explore a 100+ file codebase and describe its architecture (tools implemented)
 
@@ -100,7 +100,7 @@
 - [X] T038 [US3] Implement Edit tool with precise line-based edits
 - [X] T039 [US3] Add backup creation before destructive file operations
 - [X] T040 [US3] Implement error recovery (restore original on failure)
-- [ ] T041 [US3] Add file modification confirmation flow
+- [X] T041 [US3] Add file modification confirmation flow
 
 **Checkpoint**: Agent can safely modify files with rollback on error
 
@@ -176,8 +176,8 @@
 **Purpose**: MCP protocol support for external tool servers
 
 - [X] T063 [P] Review existing `crates/mcp/` structure
-- [ ] T064 [P] Integrate MCP tools into agent tool registry
-- [ ] T065 [P] Implement MCP permission checking
+- [X] T064 [P] Integrate MCP tools into agent tool registry
+- [X] T065 [P] Implement MCP permission checking
 
 **Checkpoint**: Agent can discover and use MCP tools (structure exists, integration pending)
 
