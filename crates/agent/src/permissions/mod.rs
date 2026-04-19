@@ -28,7 +28,9 @@
 pub mod bash_analyzer;
 pub mod context;
 pub mod pipeline;
+pub mod prompts;
 
 pub use bash_analyzer::*;
 pub use context::*;
 pub use pipeline::*;
+pub use prompts::*;

@@ -15,21 +15,21 @@
 
 ### P1.1 Permission Types Module
 
-- [ ] 创建 `crates/agent/src/permissions/types.rs`
+- [x] 创建 `crates/agent/src/permissions/types.rs`
   - 定义 `PermissionDecision`, `PermissionResult`, `InputValidationResult`
   - 定义 `PermissionBehavior` 枚举 (allow/deny/ask/passthrough)
   - 定义 `DecisionReason` 类型
 
 ### P1.2 Tool Trait Updates
 
-- [ ] 更新 `crates/agent/src/tools/tool.rs` 中的 `Tool` trait
+- [x] 更新 `crates/agent/src/tools/tool.rs` 中的 `Tool` trait
   - 添加 `validate_input` 方法
   - 添加 `check_permissions` 方法
   - 添加 `permission_level` 方法
 
 ### P1.3 Permission Context
 
-- [ ] 创建 `crates/agent/src/permissions/context.rs`
+- [x] 创建 `crates/agent/src/permissions/context.rs`
   - 定义 `ToolUseContext` 结构
   - 定义 `PermissionContext` 包含当前模式
 
@@ -37,7 +37,7 @@
 
 ### P2.1 Rule Types
 
-- [ ] 创建 `crates/agent/src/permissions/rules.rs`
+- [x] 创建 `crates/agent/src/permissions/rules.rs`
   - 定义 `PermissionRule` 结构
   - 定义 `RuleMatch` 特性
   - 实现工具名称匹配、命令前缀匹配
@@ -51,7 +51,7 @@
 
 ### P2.3 Rule Matching
 
-- [ ] 实现 `has_permissions_to_use_tool` 函数
+- [x] 实现 `has_permissions_to_use_tool` 函数
   - 1a: 检查 deny rule
   - 1b: 检查 ask rule
   - 1c: 调用工具的 check_permissions
@@ -62,7 +62,7 @@
 
 ### P3.1 Bash Tool Security
 
-- [ ] 增强 `BashTool` 的 `check_permissions`
+- [x] 增强 `BashTool` 的 `check_permissions`
   - 危险命令检测
   - 敏感路径检测
   - 沙箱自动放行
@@ -86,14 +86,14 @@
 
 ### P4.1 Permission Modes
 
-- [ ] 实现权限模式枚举
+- [x] 实现权限模式枚举
   - Default: 询问模式
   - Auto: AI 分类器自动决策
   - Bypass: 跳过所有确认
 
 ### P4.2 Interactive Prompts
 
-- [ ] 创建 `crates/agent/src/permissions/prompts.rs`
+- [x] 创建 `crates/agent/src/permissions/prompts.rs`
   - 定义权限提示消息格式
   - 实现等待用户确认的机制
 
@@ -101,7 +101,7 @@
 
 ### P5.1 Tool Executor Integration
 
-- [ ] 更新 `crates/agent/src/tools/executor.rs`
+- [x] 更新 `crates/agent/src/tools/executor.rs`
   - 在工具执行前调用四阶段检查
   - 处理权限拒绝和询问
 
@@ -115,9 +115,9 @@
 
 ### P6.1 Unit Tests
 
-- [ ] 测试权限规则匹配
-- [ ] 测试危险命令检测
-- [ ] 测试敏感路径检测
+- [x] 测试权限规则匹配
+- [x] 测试危险命令检测
+- [x] 测试敏感路径检测
 
 ### P6.2 Integration Tests
 

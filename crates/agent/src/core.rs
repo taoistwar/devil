@@ -14,6 +14,7 @@ use crate::config::AgentConfig;
 use crate::context::{ContextManager, ContextPipelineResult};
 use crate::deps::{ModelCallParams, ProductionDeps, QueryDeps};
 use crate::message::{ContentBlock, Message, UserMessage};
+use crate::permissions::{PermissionMode, PermissionPromptManager, ToolPermissionContext};
 use crate::state::{ContinueReason, State, Terminal, TerminalReason};
 use crate::subagent::types::{ForkSubagentConfig, ToolUseContext};
 use crate::subagent::{
@@ -54,6 +55,10 @@ pub struct Agent {
     subagent_registry: Arc<RwLock<SubagentRegistry>>,
     /// 子代理执行器
     subagent_executor: Arc<RwLock<SubagentExecutor>>,
+    /// 权限提示管理器
+    permission_manager: Arc<PermissionPromptManager>,
+    /// 当前权限上下文
+    permission_context: Arc<RwLock<ToolPermissionContext>>,
 }
 
 impl Agent {
@@ -70,6 +75,8 @@ impl Agent {
             context_manager: ContextManager::with_defaults(),
             subagent_registry: Arc::new(RwLock::new(registry)),
             subagent_executor: Arc::new(RwLock::new(executor)),
+            permission_manager: Arc::new(PermissionPromptManager::new()),
+            permission_context: Arc::new(RwLock::new(ToolPermissionContext::with_defaults())),
         })
     }
 
@@ -86,6 +93,8 @@ impl Agent {
             context_manager: ContextManager::with_defaults(),
             subagent_registry: Arc::new(RwLock::new(registry)),
             subagent_executor: Arc::new(RwLock::new(executor)),
+            permission_manager: Arc::new(PermissionPromptManager::new()),
+            permission_context: Arc::new(RwLock::new(ToolPermissionContext::with_defaults())),
         }
     }
 
@@ -128,6 +137,54 @@ impl Agent {
         info!("Shutting down agent: {}", self.config.name);
         *self.status.write().await = AgentStatus::Stopped;
         Ok(())
+    }
+
+    // ===== 权限管理 =====
+
+    /// 获取当前权限模式
+    pub async fn get_permission_mode(&self) -> PermissionMode {
+        let ctx = self.permission_context.read().await;
+        ctx.mode
+    }
+
+    /// 设置权限模式
+    pub async fn set_permission_mode(&self, mode: PermissionMode) {
+        let mut ctx = self.permission_context.write().await;
+        ctx.mode = mode;
+        info!("Permission mode changed to: {:?}", mode);
+    }
+
+    /// 获取当前权限上下文
+    pub async fn get_permission_context(&self) -> ToolPermissionContext {
+        self.permission_context.read().await.clone()
+    }
+
+    /// 添加允许规则
+    pub async fn add_allow_rule(&self, source: crate::permissions::RuleSource, target: impl Into<String>) {
+        let mut ctx = self.permission_context.write().await;
+        ctx.add_allow_rule(source, target);
+    }
+
+    /// 添加拒绝规则
+    pub async fn add_deny_rule(&self, source: crate::permissions::RuleSource, target: impl Into<String>) {
+        let mut ctx = self.permission_context.write().await;
+        ctx.add_deny_rule(source, target);
+    }
+
+    /// 添加询问规则
+    pub async fn add_ask_rule(&self, source: crate::permissions::RuleSource, target: impl Into<String>) {
+        let mut ctx = self.permission_context.write().await;
+        ctx.add_ask_rule(source, target);
+    }
+
+    /// 检查是否应该绕过权限提示
+    pub async fn should_bypass_permissions(&self) -> bool {
+        self.permission_context.read().await.allows_bypass()
+    }
+
+    /// 获取权限提示管理器
+    pub fn permission_manager(&self) -> Arc<PermissionPromptManager> {
+        self.permission_manager.clone()
     }
 
     /// 注册工具
