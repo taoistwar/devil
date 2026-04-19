@@ -69,18 +69,19 @@
 
 ### P3.2 File Tools Security
 
-- [ ] 增强 `FileWriteTool` 的 `validate_input`
+- [x] 增强 `FileWriteTool` 的 `validate_input`
   - 目标路径验证
-  - 目录创建权限检查
+  - 敏感路径阻止
 
-- [ ] 增强 `FileEditTool` 的 `validate_input`
+- [x] 增强 `FileEditTool` 的 `validate_input`
   - old_string 存在性验证
 
 ### P3.3 Web Tools Security
 
-- [ ] 增强 `WebFetchTool` 的 `check_permissions`
+- [x] 增强 `WebFetchTool` 的 `check_permissions`
   - URL 安全检查
-  - 允许/阻止域名列表
+  - 阻止域名列表
+  - 协议验证
 
 ## Phase 4: Permission Modes & UI
 

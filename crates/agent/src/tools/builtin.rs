@@ -716,6 +716,43 @@ impl Tool for FileEditTool {
         ToolPermissionLevel::RequiresConfirmation
     }
 
+    fn validate_input_permissions(
+        &self,
+        input: &Self::Input,
+        _context: &ToolContext,
+    ) -> InputValidationResult {
+        use std::fs;
+        use std::path::Path;
+
+        let path = Path::new(&input.path);
+
+        if input.path.trim().is_empty() {
+            return InputValidationResult::invalid("File path cannot be empty");
+        }
+
+        if !path.exists() {
+            return InputValidationResult::invalid(format!(
+                "File does not exist: {}",
+                input.path
+            ));
+        }
+
+        if input.old_string.is_empty() {
+            return InputValidationResult::invalid("old_string cannot be empty");
+        }
+
+        if let Ok(content) = fs::read_to_string(path) {
+            if !content.contains(&input.old_string) {
+                return InputValidationResult::invalid(format!(
+                    "old_string not found in file: {}",
+                    input.path
+                ));
+            }
+        }
+
+        InputValidationResult::valid()
+    }
+
     fn is_read_only(&self) -> bool {
         false
     }
@@ -890,6 +927,45 @@ impl Tool for FileWriteTool {
 
     fn permission_level(&self) -> ToolPermissionLevel {
         ToolPermissionLevel::Destructive
+    }
+
+    fn validate_input_permissions(
+        &self,
+        input: &Self::Input,
+        _context: &ToolContext,
+    ) -> InputValidationResult {
+        use std::path::Path;
+
+        let path = Path::new(&input.path);
+
+        if input.path.trim().is_empty() {
+            return InputValidationResult::invalid("File path cannot be empty");
+        }
+
+        let sensitive_paths = [
+            "/etc/",
+            "/var/",
+            "/usr/",
+            "/bin/",
+            "/sbin/",
+            "/root/",
+            "/boot/",
+            "/sys/",
+            "/proc/",
+            "/.ssh/",
+            "/.env",
+        ];
+
+        for sensitive in sensitive_paths {
+            if input.path.starts_with(sensitive) && !input.path.starts_with("./") && !input.path.starts_with("../") {
+                return InputValidationResult::invalid(format!(
+                    "Cannot write to sensitive system path: {}",
+                    input.path
+                ));
+            }
+        }
+
+        InputValidationResult::valid()
     }
 
     fn is_read_only(&self) -> bool {
@@ -1414,6 +1490,54 @@ impl Tool for WebFetchTool {
 
     fn max_result_size_chars(&self) -> usize {
         500_000 // 500KB
+    }
+
+    async fn check_permissions(
+        &self,
+        input: &Self::Input,
+        _context: &ToolContext,
+    ) -> crate::tools::tool::PermissionResult {
+        let url = &input.url;
+
+        if url.trim().is_empty() {
+            return crate::tools::tool::PermissionResult::deny("URL cannot be empty");
+        }
+
+        let blocked_domains = [
+            "localhost",
+            "127.0.0.1",
+            "0.0.0.0",
+            "[::1]",
+            "metadata.google.internal",
+            "metadata.internal",
+        ];
+
+        for blocked in blocked_domains {
+            if url.contains(blocked) {
+                return crate::tools::tool::PermissionResult::deny(format!(
+                    "Cannot fetch from blocked domain: {}",
+                    blocked
+                ));
+            }
+        }
+
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            return crate::tools::tool::PermissionResult::deny(
+                "URL must start with http:// or https://".to_string(),
+            );
+        }
+
+        let suspicious_patterns = ["file://", "ftp://", "sftp://"];
+        for pattern in suspicious_patterns {
+            if url.starts_with(pattern) {
+                return crate::tools::tool::PermissionResult::deny(format!(
+                    "URL scheme not allowed: {}",
+                    pattern
+                ));
+            }
+        }
+
+        crate::tools::tool::PermissionResult::allow()
     }
 
     async fn execute(
