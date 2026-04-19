@@ -29,8 +29,10 @@ pub mod bash_analyzer;
 pub mod context;
 pub mod pipeline;
 pub mod prompts;
+pub mod store;
 
 pub use bash_analyzer::*;
 pub use context::*;
 pub use pipeline::*;
 pub use prompts::*;
+pub use store::*;
