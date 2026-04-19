@@ -39,7 +39,14 @@ impl Dispatcher {
             return Ok(ExitCode::SUCCESS);
         }
 
-        match args[0].as_str() {
+        let first_arg = args[0].as_str();
+
+        // Handle slash commands (e.g., /help, /compact)
+        if first_arg.starts_with('/') {
+            return self.dispatch_slash_command(first_arg, &args[1..]);
+        }
+
+        match first_arg {
             "--version" | "-v" | "-V" => {
                 println!("{} v{}", APP_NAME, VERSION);
                 Ok(ExitCode::SUCCESS)
@@ -80,6 +87,40 @@ impl Dispatcher {
         }
     }
 
+    fn dispatch_slash_command(&self, cmd_name: &str, args: &[String]) -> Result<ExitCode, CliError> {
+        let name = cmd_name.trim_start_matches('/');
+        
+        let ctx = devil_agent_core::commands::CommandContext::default();
+        let cmd_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+        
+        let rt = tokio::runtime::Runtime::new()
+            .map_err(|e| CliError::InitError(format!("Failed to create runtime: {}", e)))?;
+        
+        let result = rt.block_on(async {
+            let registry = devil_agent_core::commands::global_registry();
+            registry.execute(name, &ctx, &cmd_args).await
+        });
+        
+        match result {
+            Some(result) => {
+                if result.success {
+                    if let Some(output) = result.output {
+                        println!("{}", output);
+                    }
+                    Ok(ExitCode::SUCCESS)
+                } else {
+                    if let Some(error) = result.error {
+                        eprintln!("Error: {}", error);
+                    }
+                    Ok(ExitCode::FAILURE)
+                }
+            }
+            None => {
+                Err(CliError::InvalidCommand(format!("/{}", name)))
+            }
+        }
+    }
+
     pub fn print_help(&self) -> Result<(), CliError> {
         println!("{} v{}", APP_NAME, VERSION);
         println!();
@@ -91,6 +132,15 @@ impl Dispatcher {
         println!("  config          Show configuration");
         println!("  version, -v     Show version number");
         println!("  help, -h        Show this help message");
+        println!();
+        println!("Slash Commands (inside REPL):");
+        println!("  /help [cmd]     Show help for a command");
+        println!("  /compact         Manually compact context");
+        println!("  /model [name]    Switch AI model");
+        println!("  /clear           Clear conversation");
+        println!("  /plan            Enter plan mode");
+        println!("  /review          Code review mode");
+        println!("  ... (95+ more commands available)");
         println!();
         println!("Examples:");
         println!("  {} run \"analyze project structure\"", APP_NAME);

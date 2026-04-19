@@ -14,7 +14,7 @@ pub mod collaboration;
 pub mod system;
 
 pub use cmd_trait::{SlashCommand, CommandResult, CommandContext};
-pub use registry::CommandRegistry;
+pub use registry::{CommandRegistry, global_registry};
 
 #[cfg(test)]
 mod tests;
