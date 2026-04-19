@@ -7,7 +7,9 @@ pub mod dispatcher;
 pub mod error;
 pub mod init;
 
+use std::io::{self, Write};
 use anyhow::Result;
+use devil_agent_core::commands::{CommandContext, global_registry};
 pub use dispatcher::Dispatcher;
 pub use error::CliError;
 
@@ -40,18 +42,131 @@ pub async fn run_once(prompt: &str) -> Result<()> {
 
 /// Run the interactive REPL
 pub async fn run_repl() -> Result<()> {
-    // Placeholder - will connect to agent core
     tracing::info!("Starting interactive REPL mode");
-    println!("Entering REPL mode...");
-    println!("(REPL implementation pending)");
+    println!();
+    println!("╔════════════════════════════════════════════════════════════╗");
+    println!("║  {} v{} - AI Development Assistant                       ║", APP_NAME, VERSION);
+    println!("╚════════════════════════════════════════════════════════════╝");
+    println!();
+    println!("Type /help for available commands, or enter a prompt to start.");
+    println!("Press Ctrl+C or type /exit to quit.");
+    println!();
 
-    // Check for API key when running REPL
+    // Check for API key
     let config = crate::config::Config::load().unwrap_or_default();
     if !config.has_api_key() {
-        tracing::warn!("API key not configured. Set DEVIL_API_KEY to enable model calls.");
+        println!("⚠️  Warning: API key not configured. Set DEVIL_API_KEY to enable model calls.");
+        println!();
+    }
+
+    // Get command registry
+    let registry = global_registry();
+    let ctx = CommandContext::default();
+
+    loop {
+        print!("> ");
+        if let Err(e) = io::stdout().flush() {
+            eprintln!("Flush error: {}", e);
+            break;
+        }
+
+        let mut input = String::new();
+        match std::io::stdin().read_line(&mut input) {
+            Ok(0) => {
+                println!("\nGoodbye!");
+                break;
+            }
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("Read error: {}", e);
+                break;
+            }
+        }
+
+        let input = input.trim();
+        if input.is_empty() {
+            continue;
+        }
+
+        // Handle slash commands
+        if input.starts_with('/') {
+            let parts: Vec<&str> = input.split_whitespace().collect();
+            let cmd_name = parts[0].trim_start_matches('/');
+            let args: Vec<&str> = parts[1..].iter().copied().collect();
+
+            match registry.execute(cmd_name, &ctx, &args).await {
+                Some(result) => {
+                    if let Some(output) = result.output {
+                        println!("{}", output);
+                    }
+                    if !result.success {
+                        if let Some(error) = result.error {
+                            println!("❌ Error: {}", error);
+                        }
+                    }
+                }
+                None => {
+                    println!("❌ Unknown command: /{}", cmd_name);
+                    println!("Type /help for available commands.");
+                }
+            }
+            println!();
+            continue;
+        }
+
+        // Handle built-in commands
+        match input {
+            "/exit" | "/quit" | "/q" => {
+                println!("Goodbye!");
+                break;
+            }
+            "/help" | "/h" | "?" => {
+                print_repl_help();
+                continue;
+            }
+            _ => {
+                // Regular prompt - would send to agent in full implementation
+                tracing::info!("User prompt: {}", input);
+                println!("📝 Processing: {}", input);
+                println!("(Agent processing not yet connected - set DEVIL_API_KEY)");
+                println!();
+            }
+        }
     }
 
     Ok(())
+}
+
+fn print_repl_help() {
+    println!();
+    println!("═══ Available Commands ═══");
+    println!();
+    println!("Slash Commands:");
+    println!("  /help, /h, ?     Show this help message");
+    println!("  /exit, /quit, /q Exit the REPL");
+    println!();
+    println!("Core Commands:");
+    println!("  /compact         Manually compact context");
+    println!("  /model [name]     Switch AI model");
+    println!("  /clear           Clear conversation history");
+    println!("  /plan            Enter plan mode");
+    println!("  /review          Code review mode");
+    println!();
+    println!("Configuration:");
+    println!("  /config          Show configuration");
+    println!("  /theme [name]    Switch theme");
+    println!("  /login           Login to service");
+    println!("  /logout          Logout from service");
+    println!();
+    println!("Advanced:");
+    println!("  /mcp             MCP server management");
+    println!("  /skills          Skill management");
+    println!("  /tasks           Task management");
+    println!("  /memory          Memory management");
+    println!("  /permissions     Permission settings");
+    println!();
+    println!("  ... and 85+ more commands");
+    println!();
 }
 
 /// Display configuration
