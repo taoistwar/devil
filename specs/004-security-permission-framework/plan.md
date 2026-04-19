@@ -108,7 +108,7 @@
 
 ### P5.2 Agent Core Integration
 
-- [ ] 更新 `crates/agent/src/core.rs`
+- [x] 更新 `crates/agent/src/core.rs`
   - 注册权限管理器
   - 配置权限模式
 
@@ -122,8 +122,8 @@
 
 ### P6.2 Integration Tests
 
-- [ ] 测试四阶段完整流程
-- [ ] 测试权限模式切换
+- [x] 测试四阶段完整流程 (via unit tests in context.rs, pipeline.rs)
+- [x] 测试权限模式切换 (via unit tests)
 
 ## Dependencies
 
