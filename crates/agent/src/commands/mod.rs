@@ -4,6 +4,7 @@
 //! 100+ 命令，每个命令一个独立的 Rust 模块
 
 pub mod cmd_trait;
+pub mod registry;
 
 pub mod core;
 pub mod config;
@@ -13,6 +14,7 @@ pub mod collaboration;
 pub mod system;
 
 pub use cmd_trait::{SlashCommand, CommandResult, CommandContext};
+pub use registry::CommandRegistry;
 
 #[cfg(test)]
 mod tests;
