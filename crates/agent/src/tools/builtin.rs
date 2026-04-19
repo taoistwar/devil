@@ -2330,6 +2330,8 @@ impl Tool for AgentTool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tools::tool::PermissionBehavior;
+    use crate::tools::ToolPermissionLevel;
 
     #[test]
     fn test_tool_builder() {

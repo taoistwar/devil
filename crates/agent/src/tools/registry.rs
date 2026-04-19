@@ -342,6 +342,7 @@ impl DiscoveryStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tools::ToolPermissionLevel;
 
     #[test]
     fn test_registry_creation() {

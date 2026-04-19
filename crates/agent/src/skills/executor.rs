@@ -742,7 +742,9 @@ mod budget_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::message::ContentBlock;
     use crate::skills::types::{SkillLoadSource, SkillSource};
+    use std::collections::HashMap;
 
     #[tokio::test]
     async fn test_inline_execution() {

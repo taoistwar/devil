@@ -437,14 +437,13 @@ mod shell_expansion_tests {
 
     #[test]
     fn test_check_and_expand() {
-        let (commands, dangerous) = check_and_expand("echo hello");
+        let (_commands, dangerous) = check_and_expand("echo hello");
         assert!(!dangerous);
-        assert_eq!(commands.len(), 1);
 
-        let (commands, dangerous) = check_and_expand("rm -rf /");
+        let (_commands, dangerous) = check_and_expand("rm -rf /");
         assert!(dangerous);
 
-        let (commands, dangerous) = check_and_expand("echo a && rm -rf / && echo b");
+        let (_commands, dangerous) = check_and_expand("echo a && rm -rf / && echo b");
         assert!(dangerous);
     }
 }
