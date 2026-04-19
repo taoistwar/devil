@@ -5,7 +5,7 @@
 //! - 工具过滤管线
 //! - ToolSearchTool 延迟发现机制
 
-use crate::tools::tool::{Tool, ToolContext, ToolMetadata, ToolPermissionLevel, ToolProgress};
+use crate::tools::tool::{Tool, ToolContext, ToolMetadata, ToolProgress};
 use anyhow::Result;
 use std::collections::HashMap;
 

@@ -2,11 +2,8 @@
 //!
 //! 将 MCP 服务器发现的工具适配到 Agent 工具系统
 
-use crate::tools::tool::{
-    InputValidationResult, InterruptBehavior, PermissionResult, Tool, ToolContext,
-    ToolPermissionLevel, ToolProgress, ToolProgressData, ToolResult,
-};
-use anyhow::{Context, Result};
+use crate::tools::tool::Tool;
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -223,7 +220,7 @@ impl McpToolRegistry {
 
     /// 设置执行器
     pub fn set_executor(&self, executor: McpToolExecutor) {
-        let executor = Arc::new(RwLock::new(Some(executor)));
+        let _executor = Arc::new(RwLock::new(Some(executor)));
     }
 
     /// 注册 MCP 服务器

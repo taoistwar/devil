@@ -334,7 +334,7 @@ pub trait Tool: Send + Sync {
     fn input_schema(&self) -> serde_json::Value;
 
     /// 验证输入参数
-    fn validate_input(&self, input: &serde_json::Value) -> InputValidationResult {
+    fn validate_input(&self, _input: &serde_json::Value) -> InputValidationResult {
         // 默认实现：总是有效
         InputValidationResult::valid()
     }
@@ -345,7 +345,7 @@ pub trait Tool: Send + Sync {
     /// 在权限检查之前运行，用于拒绝无效输入
     fn validate_input_permissions(
         &self,
-        input: &Self::Input,
+        _input: &Self::Input,
         _context: &ToolContext,
     ) -> InputValidationResult {
         InputValidationResult::valid()
@@ -355,7 +355,7 @@ pub trait Tool: Send + Sync {
     /// 检查是否有权限使用此工具
     async fn check_permissions(
         &self,
-        input: &Self::Input,
+        _input: &Self::Input,
         _context: &ToolContext,
     ) -> PermissionResult {
         // 默认：允许执行

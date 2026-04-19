@@ -8,12 +8,11 @@
 //! - 丢弃机制：流式回退时废弃待执行工具
 //! - 层级化取消信号链
 
-use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{watch, Mutex, RwLock};
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use crate::tools::partition::{ConcurrentPartitioner, ToolCallBatch, ToolUseCallInfo};
 use crate::tools::tool::{InterruptBehavior, ToolContext, ToolUseBlock};
@@ -268,12 +267,12 @@ impl StreamingToolExecutor {
                 tool.cancel_tx = Some(Arc::new(cancel_tx));
 
                 // 启动异步执行
-                let tool_id = tool.block.id.clone();
+                let _tool_id = tool.block.id.clone();
                 let tool_name = tool.block.name.clone();
-                let tool_input = tool.block.input.clone();
-                let tools_clone = self.tools.clone();
-                let state_clone = self.state.clone();
-                let error_channel_clone = self.error_channel.clone();
+                let _tool_input = tool.block.input.clone();
+                let _tools_clone = self.tools.clone();
+                let _state_clone = self.state.clone();
+                let _error_channel_clone = self.error_channel.clone();
 
                 let ctx_clone = ctx.clone();
 
@@ -281,7 +280,7 @@ impl StreamingToolExecutor {
                     debug!("Starting execution of tool: {}", tool_name);
 
                     // 监听取消信号
-                    let mut cancel_receiver = cancel_rx;
+                    let _cancel_receiver = cancel_rx;
 
                     // TODO: 实际执行工具
                     // tokio::select! {

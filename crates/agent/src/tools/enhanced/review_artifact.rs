@@ -68,7 +68,7 @@ impl Tool for ReviewArtifactTool {
 
     async fn execute(
         &self,
-        input: Self::Input,
+        _input: Self::Input,
         _ctx: &ToolContext,
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {

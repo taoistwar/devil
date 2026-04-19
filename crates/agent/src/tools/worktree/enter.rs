@@ -7,7 +7,7 @@ use std::process::Command;
 use crate::tools::tool::{
     Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
 };
-use crate::tools::worktree::{WorktreeManager, WorktreeState};
+use crate::tools::worktree::WorktreeManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnterWorktreeInput {
@@ -114,7 +114,7 @@ impl Tool for EnterWorktreeTool {
         let create = input.create.unwrap_or(true);
 
         if create {
-            if let Err(e) = self.create_git_worktree(&input.name, &worktree_path).await {
+            if let Err(_e) = self.create_git_worktree(&input.name, &worktree_path).await {
             }
         }
 

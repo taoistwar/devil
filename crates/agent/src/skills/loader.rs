@@ -227,7 +227,7 @@ impl Default for SkillLoader {
 pub mod bundled {
     use super::*;
     use std::fs::{create_dir_all, File};
-    use std::io::{self, Read, Write};
+    use std::io::{Read, Write};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     /// 内置 Skills 压缩数据（编译时嵌入）
@@ -451,21 +451,21 @@ pub mod mcp {
     }
 
     /// 列出 MCP 资源
-    fn list_mcp_resources(server_name: &str) -> Vec<Value> {
+    fn list_mcp_resources(_server_name: &str) -> Vec<Value> {
         // 实际实现需要调用 MCP Client API
         // 这里返回空数组作为框架
         vec![]
     }
 
     /// 获取 MCP 资源内容
-    fn get_mcp_resource_content(server_name: &str, uri: &str) -> Result<String, String> {
+    fn get_mcp_resource_content(_server_name: &str, _uri: &str) -> Result<String, String> {
         // 实际实现需要调用 MCP Client API
         // 这里返回错误作为框架
         Err("MCP resource content not implemented".to_string())
     }
 
     /// 获取服务器能力
-    fn get_server_capabilities(server_name: &str) -> Vec<String> {
+    fn get_server_capabilities(_server_name: &str) -> Vec<String> {
         // 实际实现需要查询服务器能力
         vec!["resources".to_string()]
     }

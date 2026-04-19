@@ -3,7 +3,6 @@
 //! 定义子代理的类型、配置和参数
 
 use crate::message::Message;
-use crate::tools::Tool;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -91,9 +90,9 @@ pub type SystemPromptFn = Arc<dyn Fn() -> String + Send + Sync>;
 impl Clone for SubagentDefinition {
     fn clone(&self) -> Self {
         Self {
-            agent_type: self.agent_type.clone(),
-            when_to_use: self.when_to_use.clone(),
-            tools: self.tools.clone(),
+            agent_type: self.agent_type,
+            when_to_use: self.when_to_use,
+            tools: self.tools,
             max_turns: self.max_turns,
             model: self.model.clone(),
             permission_mode: self.permission_mode.clone(),

@@ -114,7 +114,7 @@ impl Tool for REPLTool {
     async fn execute(
         &self,
         input: Self::Input,
-        ctx: &ToolContext,
+        _ctx: &ToolContext,
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
         let session_id = input.session_id.unwrap_or_else(|| {

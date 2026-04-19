@@ -6,7 +6,6 @@
 //! - 状态管理
 
 use anyhow::Result;
-use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
@@ -14,9 +13,9 @@ use tracing::{debug, error, info, warn};
 use crate::config::AgentConfig;
 use crate::context::{ContextManager, ContextPipelineResult};
 use crate::deps::{ModelCallParams, ProductionDeps, QueryDeps};
-use crate::message::{AssistantMessage, ContentBlock, Message, UserMessage};
+use crate::message::{ContentBlock, Message, UserMessage};
 use crate::state::{ContinueReason, State, Terminal, TerminalReason};
-use crate::subagent::types::{CacheSafeParams, ForkSubagentConfig, ToolUseContext};
+use crate::subagent::types::{ForkSubagentConfig, ToolUseContext};
 use crate::subagent::{
     SubagentDefinition, SubagentExecutor, SubagentParams, SubagentRegistry, SubagentResult,
     SubagentType,
@@ -144,6 +143,28 @@ impl Agent {
             AgentTool, BashTool, FileEditTool, FileReadTool, FileWriteTool, GlobTool, GrepTool,
             TodoWriteTool, WebFetchTool, WebSearchTool,
         };
+        use crate::tools::config::{BriefTool, ConfigGetTool, ConfigSetTool, CtxInspectTool};
+        use crate::tools::cron::{CronCreateTool, CronDeleteTool, CronListTool};
+        use crate::tools::enhanced::{
+            MonitorTool, PushNotificationTool, RemoteTriggerTool, ReviewArtifactTool,
+            SleepTool, SnipTool, SubscribePRTool, SuggestBackgroundPRTool,
+            SyntheticOutputTool, TerminalCaptureTool, ToolSearchTool,
+        };
+        use crate::tools::file_tools::{NotebookEditTool, PowerShellTool, REPLTool};
+        use crate::tools::mcp::{ListMcpResourcesTool, MCPTool, McpAuthTool, ReadMcpResourceTool};
+        use crate::tools::planning::{EnterPlanModeTool, ExitPlanModeTool};
+        use crate::tools::skills::{DiscoverSkillsTool, SkillTool};
+        use crate::tools::ask::AskUserQuestionTool;
+        use crate::tools::ask::read_multiple::ReadMultipleFilesTool;
+        use crate::tools::ask::write_diff::WriteDiffTool;
+        use crate::tools::task::{
+            TaskCreateTool, TaskGetTool, TaskListTool, TaskOutputTool, TaskStopTool, TaskUpdateTool,
+        };
+        use crate::tools::team::{ListPeersTool, SendMessageTool, TeamCreateTool, TeamDeleteTool};
+        use crate::tools::web::WebBrowserTool;
+        use crate::tools::workflow::WorkflowTool;
+        use crate::tools::worktree::{EnterWorktreeTool, ExitWorktreeTool};
+        use crate::tools::lsp::LSPTool;
 
         // 注册所有内置工具
         self.register_tool(BashTool::new(false)).await?;
@@ -163,7 +184,72 @@ impl Agent {
         // 注册子代理工具
         self.register_tool(AgentTool::default()).await?;
 
-        info!("All default tools registered");
+        // Phase 2: File Tools
+        self.register_tool(NotebookEditTool::default()).await?;
+        self.register_tool(REPLTool::new()).await?;
+        self.register_tool(PowerShellTool::default()).await?;
+
+        // Phase 3: Planning & Worktree
+        self.register_tool(EnterPlanModeTool::new(Default::default())).await?;
+        self.register_tool(ExitPlanModeTool::new(Default::default())).await?;
+        self.register_tool(EnterWorktreeTool::new(Default::default())).await?;
+        self.register_tool(ExitWorktreeTool::new(Default::default())).await?;
+
+        // Phase 4: Task Tools
+        self.register_tool(TaskCreateTool::new(Default::default())).await?;
+        self.register_tool(TaskUpdateTool::new(Default::default())).await?;
+        self.register_tool(TaskListTool::new(Default::default())).await?;
+        self.register_tool(TaskGetTool::new(Default::default())).await?;
+        self.register_tool(TaskStopTool::new(Default::default())).await?;
+        self.register_tool(TaskOutputTool::new(Default::default())).await?;
+
+        // Phase 5: MCP Tools
+        self.register_tool(MCPTool::default()).await?;
+        self.register_tool(ListMcpResourcesTool::default()).await?;
+        self.register_tool(ReadMcpResourceTool::default()).await?;
+        self.register_tool(McpAuthTool::default()).await?;
+
+        // Phase 6: Config & Skills
+        self.register_tool(ConfigGetTool::new(Default::default())).await?;
+        self.register_tool(ConfigSetTool::new(Default::default())).await?;
+        self.register_tool(BriefTool::default()).await?;
+        self.register_tool(CtxInspectTool::default()).await?;
+        self.register_tool(SkillTool::default()).await?;
+        self.register_tool(DiscoverSkillsTool::default()).await?;
+
+        // Phase 7: LSP
+        self.register_tool(LSPTool::default()).await?;
+
+        // Phase 8: Cron & Workflow
+        self.register_tool(CronCreateTool::new(Default::default())).await?;
+        self.register_tool(CronDeleteTool::new(Default::default())).await?;
+        self.register_tool(CronListTool::new(Default::default())).await?;
+        self.register_tool(WorkflowTool::default()).await?;
+
+        // Phase 9: Team
+        self.register_tool(SendMessageTool::default()).await?;
+        self.register_tool(ListPeersTool::default()).await?;
+        self.register_tool(TeamCreateTool::new(Default::default())).await?;
+        self.register_tool(TeamDeleteTool::new(Default::default())).await?;
+
+        // Phase 10: Ask & Enhanced
+        self.register_tool(AskUserQuestionTool::default()).await?;
+        self.register_tool(ReadMultipleFilesTool::default()).await?;
+        self.register_tool(WriteDiffTool::default()).await?;
+        self.register_tool(WebBrowserTool::default()).await?;
+        self.register_tool(SnipTool::default()).await?;
+        self.register_tool(SyntheticOutputTool::default()).await?;
+        self.register_tool(ReviewArtifactTool::default()).await?;
+        self.register_tool(SubscribePRTool::default()).await?;
+        self.register_tool(SuggestBackgroundPRTool::default()).await?;
+        self.register_tool(PushNotificationTool::default()).await?;
+        self.register_tool(TerminalCaptureTool::default()).await?;
+        self.register_tool(MonitorTool::default()).await?;
+        self.register_tool(SleepTool::default()).await?;
+        self.register_tool(ToolSearchTool::default()).await?;
+        self.register_tool(RemoteTriggerTool::default()).await?;
+
+        info!("All {} tools registered", 52);
         Ok(())
     }
 

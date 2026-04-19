@@ -392,7 +392,7 @@ impl PluginUpdater {
     }
 
     /// 获取最新版本
-    async fn fetch_latest_version(&self, plugin_name: &str) -> Result<String, PluginUpdateError> {
+    async fn fetch_latest_version(&self, _plugin_name: &str) -> Result<String, PluginUpdateError> {
         // 从注册表或 CDN 获取最新版本
         // 框架实现
         Ok("1.0.0".to_string())

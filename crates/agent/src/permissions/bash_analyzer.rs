@@ -150,7 +150,7 @@ impl BashSemanticAnalyzer {
 
     /// 判断是否为搜索命令
     fn is_search_command(command: &str) -> bool {
-        let search_commands: HashSet<&str> = [
+        let _search_commands: HashSet<&str> = [
             "grep", "rg", "ag", "find", "locate", "which", "whereis", "type",
         ]
         .iter()
@@ -169,7 +169,7 @@ impl BashSemanticAnalyzer {
 
     /// 判断是否为读取命令
     fn is_read_command(command: &str) -> bool {
-        let read_commands: HashSet<&str> = [
+        let _read_commands: HashSet<&str> = [
             "cat",
             "head",
             "tail",
@@ -509,7 +509,7 @@ pub fn is_command_allowed(command: &str, whitelist: &[&str]) -> bool {
 fn simple_glob_match(pattern: &str, text: &str) -> bool {
     // 将 * 转换为正则表达式 .* 并匹配
     let regex_pattern = pattern.replace('*', ".*");
-    let re_pattern = format!("^{}$", regex_pattern);
+    let _re_pattern = format!("^{}$", regex_pattern);
 
     // 简化的正则匹配（避免依赖 regex crate）
     if regex_pattern == ".*" {

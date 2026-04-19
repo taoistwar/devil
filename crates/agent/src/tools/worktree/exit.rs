@@ -92,7 +92,7 @@ impl Tool for ExitWorktreeTool {
 
         if let Some(state) = worktree {
             if input.remove.unwrap_or(false) {
-                if let Err(e) = self.remove_git_worktree(&state.path).await {
+                if let Err(_e) = self.remove_git_worktree(&state.path).await {
                 }
             }
         }

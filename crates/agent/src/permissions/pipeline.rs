@@ -143,7 +143,7 @@ impl PermissionPipeline {
         }
 
         // 反序列化为工具的输入类型
-        let typed_input = tool.validate_input(input);
+        let _typed_input = tool.validate_input(input);
 
         // 阶段二：规则匹配
         let rule_check = Self::phase2_rule_matching(tool, input, permission_context);
@@ -404,7 +404,7 @@ pub struct ClassifierCheckResult {
 /// 使用 2 秒超时，与用户交互形成"竞赛"机制
 pub async fn run_classifier_check(
     tool_name: &str,
-    input: &serde_json::Value,
+    _input: &serde_json::Value,
 ) -> ClassifierCheckResult {
     // 模拟分类器检查
     // 实际实现应该调用 AI 分类器 API

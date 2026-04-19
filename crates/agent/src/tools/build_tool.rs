@@ -6,13 +6,11 @@
 //! - 统一的工具构建入口
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::pin::Pin;
 
 use crate::tools::tool::{
-    ContextModifier, InputValidationResult, InterruptBehavior, PermissionResult,
-    SearchOrReadResult, Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolProgressData,
+    InterruptBehavior, Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolProgressData,
     ToolResult,
 };
 

@@ -14,8 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::permissions::bash_analyzer::BashSemanticAnalyzer;
 use crate::tools::tool::{
-    ContextModifier, InputValidationResult, InterruptBehavior, PermissionBehavior,
-    PermissionResult, Tool, ToolContext, ToolPermissionLevel, ToolResult,
+    ContextModifier, InputValidationResult, InterruptBehavior, Tool, ToolContext, ToolPermissionLevel, ToolResult,
 };
 
 /// buildTool 工厂函数
@@ -386,7 +385,7 @@ impl Tool for BashTool {
         use tokio::io::AsyncReadExt;
         use tokio::process::Command as AsyncCommand;
 
-        let timeout_ms = self.timeout_ms(&input).unwrap_or(300000);
+        let _timeout_ms = self.timeout_ms(&input).unwrap_or(300000);
         let max_output_lines = 10000;
 
         let cwd = input.cwd.as_ref().or(ctx.working_directory.as_ref());
@@ -550,7 +549,7 @@ impl Tool for FileReadTool {
     async fn execute(
         &self,
         input: Self::Input,
-        ctx: &ToolContext,
+        _ctx: &ToolContext,
         _progress_callback: Option<
             impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
         >,
@@ -735,7 +734,7 @@ impl Tool for FileEditTool {
     async fn execute(
         &self,
         input: Self::Input,
-        ctx: &ToolContext,
+        _ctx: &ToolContext,
         _progress_callback: Option<
             impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
         >,
@@ -904,7 +903,7 @@ impl Tool for FileWriteTool {
     async fn execute(
         &self,
         input: Self::Input,
-        ctx: &ToolContext,
+        _ctx: &ToolContext,
         _progress_callback: Option<
             impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
         >,

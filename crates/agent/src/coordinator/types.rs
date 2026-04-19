@@ -3,7 +3,6 @@
 //! 定义协调器模式的核心类型和配置
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 /// 协调器模式配置
 #[derive(Debug, Clone, Serialize, Deserialize)]

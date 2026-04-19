@@ -73,8 +73,8 @@ impl Tool for PowerShellTool {
 
     async fn execute(
         &self,
-        input: Self::Input,
-        ctx: &ToolContext,
+        _input: Self::Input,
+        _ctx: &ToolContext,
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
         #[cfg(target_os = "windows")]

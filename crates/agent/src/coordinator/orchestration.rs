@@ -3,7 +3,6 @@
 //! 实现任务的派发、综合和验证流程
 
 use crate::coordinator::types::{TaskNotification, TaskPhase, TaskStatus, WorkerDirective};
-use crate::subagent::{SubagentParams, SubagentResult, SubagentType};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -90,7 +89,7 @@ impl Orchestrator {
     pub async fn continue_task(
         &self,
         task_id: &str,
-        message: impl Into<String>,
+        _message: impl Into<String>,
     ) -> Result<(), String> {
         let tasks = self.running_tasks.read().await;
         let found = tasks.iter().any(|t| t.task_id == task_id);

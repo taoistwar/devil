@@ -176,7 +176,7 @@ impl HookExecutor {
     }
 
     async fn handle_async_hook(&self, json_line: &str) -> Result<HookResponse, HookError> {
-        if let Ok(async_response) =
+        if let Ok(_async_response) =
             serde_json::from_str::<crate::hooks::response::AsyncHookResponse>(json_line)
         {
             let mut response = HookResponse::ok();

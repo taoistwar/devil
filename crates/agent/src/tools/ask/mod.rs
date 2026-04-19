@@ -1,3 +1,6 @@
+pub mod read_multiple;
+pub mod write_diff;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

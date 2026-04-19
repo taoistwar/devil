@@ -65,7 +65,7 @@ impl TeamStore {
         }
     }
 
-    pub async fn create(&self, name: &str, description: &str) -> TeamInfo {
+    pub async fn create(&self, name: &str, _description: &str) -> TeamInfo {
         let id = Uuid::new_v4().to_string();
         let team = TeamInfo {
             id: id.clone(),

@@ -9,7 +9,6 @@
 //! 依赖注入使得测试可以注入 fake 实现，避免模块级别的 mock 样板代码
 
 use crate::message::{AssistantMessage, Message};
-use crate::state::{Continue, Terminal};
 use anyhow::Result;
 use async_trait::async_trait;
 

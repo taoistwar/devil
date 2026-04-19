@@ -2,10 +2,9 @@
 //!
 //! 实现两条执行路径：Inline 模式和 Fork 模式
 
-use crate::message::{ContentBlock, Message};
+use crate::message::Message;
 use crate::skills::types::{ExecutionContext, SkillCommand, SkillLoadSource, SkillSource};
 use crate::subagent::{SubagentParams, SubagentType};
-use std::collections::HashMap;
 use tokio::process::Command as TokioCommand;
 
 /// Skill 执行器
@@ -76,7 +75,7 @@ impl SkillExecutor {
         let content = self.replace_env_variables(&content, &skill.skill_dir);
 
         // 2. 构建子代理参数
-        let params = SubagentParams {
+        let _params = SubagentParams {
             prompt_messages: vec![Message::user_text(content)],
             cache_safe_params: todo!("从父级继承"),
             subagent_type: SubagentType::Custom(

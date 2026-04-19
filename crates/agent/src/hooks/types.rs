@@ -7,7 +7,6 @@ use crate::hooks::response::HookResponse;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Duration;
 
 /// 钩子类型枚举（6 种）
 #[derive(Debug, Clone, Serialize, Deserialize)]

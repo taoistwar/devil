@@ -7,9 +7,8 @@ use crate::subagent::context_inheritance;
 use crate::subagent::recursion_guard;
 use crate::subagent::types::ForkSubagentConfig;
 use crate::subagent::types::{
-    SubagentDefinition, SubagentParams, SubagentResult, SubagentType, Usage,
+    SubagentParams, SubagentResult, SubagentType, Usage,
 };
-use std::sync::Arc;
 
 /// 子代理执行器
 pub struct SubagentExecutor {
@@ -147,7 +146,7 @@ impl SubagentExecutor {
     async fn run_subagent_loop(
         &self,
         messages: Vec<Message>,
-        params: SubagentParams,
+        _params: SubagentParams,
     ) -> Result<SubagentResult, SubagentError> {
         // TODO: 实际的查询循环实现
         // 这里返回一个模拟结果

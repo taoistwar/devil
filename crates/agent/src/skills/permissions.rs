@@ -79,7 +79,7 @@ impl SkillPermissionChecker {
         }
 
         // 第 3 层：Allow 规则匹配
-        if let Some(reason) = self.check_allow_rules(skill) {
+        if let Some(_reason) = self.check_allow_rules(skill) {
             return PermissionCheckResult::Allow;
         }
 
@@ -280,7 +280,7 @@ pub enum RuleSource {
 ///
 /// 展开复合命令并过滤危险命令
 pub mod shell_expansion {
-    use super::*;
+    
 
     /// 展开复合命令
     ///

@@ -2,7 +2,6 @@
 //!
 //! 生成协调者的系统提示词
 
-use crate::coordinator::mode_detection::is_coordinator_mode;
 use crate::coordinator::types::CoordinatorConfig;
 
 /// 获取协调器系统提示词
