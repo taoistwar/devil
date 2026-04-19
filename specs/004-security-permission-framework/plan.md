@@ -44,7 +44,7 @@
 
 ### P2.2 Rule Store
 
-- [ ] 创建 `crates/agent/src/permissions/store.rs`
+- [x] 创建 `crates/agent/src/permissions/store.rs`
   - 实现规则存储（内存 + 文件持久化）
   - 支持加载/保存 TOML 配置
   - 实现规则优先级排序
