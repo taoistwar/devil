@@ -6,14 +6,11 @@
 //! - 结果按顺序缓冲输出
 //! - Bash 失败时级联取消兄弟工具
 
-use anyhow::{Context, Result};
 use futures::stream::Stream;
-use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
-use uuid::Uuid;
 
 /// 工具状态
 #[derive(Debug, Clone, PartialEq, Eq)]

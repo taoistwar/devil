@@ -4,14 +4,17 @@ use super::super::dispatcher::Command;
 use crate::cli::run_once;
 use anyhow::Result;
 
+#[allow(dead_code)]
 pub struct RunCommand;
 
+#[allow(dead_code)]
 impl RunCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
+#[allow(dead_code)]
 impl Command for RunCommand {
     fn name(&self) -> &str {
         "run"

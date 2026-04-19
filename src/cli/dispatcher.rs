@@ -8,12 +8,16 @@ use anyhow::Result;
 use std::process::ExitCode;
 
 pub trait Command: Send + Sync {
+    #[allow(dead_code)]
     fn name(&self) -> &str;
+    #[allow(dead_code)]
     fn description(&self) -> &str;
+    #[allow(dead_code)]
     fn execute(&self, args: &[&str]) -> Result<()>;
 }
 
 pub struct Dispatcher {
+    #[allow(dead_code)]
     commands: Vec<Box<dyn Command>>,
 }
 
@@ -24,6 +28,7 @@ impl Dispatcher {
         }
     }
 
+    #[allow(dead_code)]
     pub fn register<C: Command + 'static>(&mut self, command: C) {
         self.commands.push(Box::new(command));
     }

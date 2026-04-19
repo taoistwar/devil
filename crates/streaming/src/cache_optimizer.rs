@@ -5,11 +5,10 @@
 //! - 缓存命中率监控
 //! - 缓存断裂检测
 
-use anyhow::Result;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use crate::cost_tracking::TokenUsage;
 use crate::forked_agent::CacheSafeParams;

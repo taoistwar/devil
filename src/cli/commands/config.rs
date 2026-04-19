@@ -4,14 +4,17 @@ use super::super::dispatcher::Command;
 use crate::cli::show_config;
 use anyhow::Result;
 
+#[allow(dead_code)]
 pub struct ConfigCommand;
 
+#[allow(dead_code)]
 impl ConfigCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
+#[allow(dead_code)]
 impl Command for ConfigCommand {
     fn name(&self) -> &str {
         "config"

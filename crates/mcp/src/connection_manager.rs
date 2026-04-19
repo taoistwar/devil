@@ -10,7 +10,7 @@ use crate::types::*;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{info, warn};
 
 /// MCP 连接
 pub struct McpConnection {
@@ -38,6 +38,7 @@ pub struct McpReconnectResult {
 pub struct McpConnectionManager {
     /// 连接池（按服务器名称索引）
     connections: RwLock<HashMap<String, McpConnection>>,
+    #[allow(dead_code)]
     /// 配置来源
     config_sources: ConfigSources,
 }
@@ -79,7 +80,7 @@ impl McpConnectionManager {
 
             // 1. 断开现有连接
             if let McpConnectionState::Connected { cleanup, .. } = &mut conn.state {
-                let cleanup_fn = Box::new(cleanup as &mut dyn FnOnce());
+                let _cleanup_fn = Box::new(cleanup as &mut dyn FnOnce());
                 // cleanup_fn(); // 实际调用清理函数
             }
 
@@ -119,9 +120,9 @@ impl McpConnectionManager {
 
     /// 从配置加载所有服务器
     pub async fn load_from_config(&self) -> Result<McpLoadResult, anyhow::Error> {
-        let mut result = McpLoadResult::default();
+        let result = McpLoadResult::default();
 
-        let mut connections = self.connections.write().await;
+        let _connections = self.connections.write().await;
 
         // 1. 加载 7 个作用域的配置
         // 2. 去重（插件 vs 手动配置）

@@ -2,7 +2,6 @@
 //!
 //! 将 MCP 服务器发现的工具适配到 Agent 工具系统
 
-use crate::tools::tool::Tool;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -14,13 +13,16 @@ use tokio::sync::RwLock;
 /// 将 MCP 服务器发现的工具适配为 Agent 的 Tool trait 实现
 pub struct McpToolAdapter {
     /// 全局唯一名称 (mcp__{server}__{tool})
+    #[allow(dead_code)]
     name: String,
     /// 原始工具名
     original_name: String,
     /// 服务器标识符
     server_id: String,
+    #[allow(dead_code)]
     /// 工具描述
     description: String,
+    #[allow(dead_code)]
     /// 输入 Schema
     input_schema: serde_json::Value,
     /// 是否已授权
@@ -174,6 +176,7 @@ pub struct McpToolRegistry {
     servers: Arc<RwLock<HashMap<String, McpServerInfo>>>,
     /// 全局工具名 -> MCP 工具信息
     tools: Arc<RwLock<HashMap<String, McpToolInfo>>>,
+    #[allow(dead_code)]
     /// MCP 工具执行器
     executor: Arc<RwLock<Option<McpToolExecutor>>>,
 }

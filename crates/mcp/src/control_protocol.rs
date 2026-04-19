@@ -10,7 +10,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// 控制请求类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,7 +84,7 @@ impl ControlProtocol {
     pub async fn handle_initialize(request: ControlRequest) -> Result<ControlResponse> {
         if let ControlRequest::Initialize {
             protocol_version,
-            capabilities,
+            capabilities: _,
             client_info,
         } = request
         {

@@ -4,7 +4,6 @@
 
 use crate::message::Message;
 use crate::skills::types::{ExecutionContext, SkillCommand, SkillLoadSource, SkillSource};
-use crate::subagent::{SubagentParams, SubagentType};
 use tokio::process::Command as TokioCommand;
 
 /// Skill 执行器
@@ -71,25 +70,27 @@ impl SkillExecutor {
         arguments: Option<&str>,
     ) -> Result<SkillExecutionResult, SkillExecutionError> {
         // 1. 准备 Fork 上下文
-        let content = self.process_arguments(&skill.content, arguments);
-        let content = self.replace_env_variables(&content, &skill.skill_dir);
-
-        // 2. 构建子代理参数
-        let _params = SubagentParams {
-            prompt_messages: vec![Message::user_text(content)],
-            cache_safe_params: todo!("从父级继承"),
-            subagent_type: SubagentType::Custom(
-                skill.agent.clone().unwrap_or_else(|| "worker".to_string()),
-            ),
-            directive: skill.description.clone(),
-            max_turns: None,
-            max_output_tokens: None,
-            skip_transcript: false,
-            skip_cache_write: false,
-            run_in_background: true,
-            worktree_path: None,
-            parent_cwd: None,
+        let _content = {
+            let content = self.process_arguments(&skill.content, arguments);
+            self.replace_env_variables(&content, &skill.skill_dir)
         };
+
+        // 2. 构建子代理参数（TODO: 需要与 subagent executor 集成）
+        // let _params = SubagentParams {
+        //     prompt_messages: vec![Message::user_text(_content)],
+        //     cache_safe_params: todo!("从父级继承"),
+        //     subagent_type: SubagentType::Custom(
+        //         skill.agent.clone().unwrap_or_else(|| "worker".to_string()),
+        //     ),
+        //     directive: skill.description.clone(),
+        //     max_turns: None,
+        //     max_output_tokens: None,
+        //     skip_transcript: false,
+        //     skip_cache_write: false,
+        //     run_in_background: true,
+        //     worktree_path: None,
+        //     parent_cwd: None,
+        // };
 
         // 3. 执行子代理（TODO: 需要与 subagent executor 集成）
         // let result = subagent_executor.execute(params).await?;
@@ -328,6 +329,7 @@ pub fn clear_invoked_skills_for_agent() {
 /// - Bundled Skills 不可截断
 /// - 降级策略：完整描述 → 均分预算 → 仅保留名称
 pub struct SkillBudgetManager {
+    #[allow(dead_code)]
     /// 上下文窗口 token 数
     context_window_tokens: usize,
     /// 当前 token 预算（字符数）
@@ -385,6 +387,7 @@ impl SkillBudgetManager {
     /// # Returns
     /// 返回格式化后的技能描述列表和是否被截断
     pub fn format_skills_in_budget(&self, skills: &[SkillCommand]) -> (Vec<String>, bool) {
+        #[allow(unused_assignments)]
         let mut truncated = false;
         let mut formatted = Vec::new();
 

@@ -32,7 +32,7 @@ impl SlashCommand for ConfigCommand {
         "/config [key] [value]"
     }
 
-    async fn execute(&self, ctx: &CommandContext, args: &[&str]) -> CommandResult {
+    async fn execute(&self, _ctx: &CommandContext, args: &[&str]) -> CommandResult {
         if args.is_empty() {
             return CommandResult::success_with_data(
                 "当前配置",

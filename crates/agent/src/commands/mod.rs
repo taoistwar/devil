@@ -13,3 +13,6 @@ pub mod collaboration;
 pub mod system;
 
 pub use cmd_trait::{SlashCommand, CommandResult, CommandContext};
+
+#[cfg(test)]
+mod tests;

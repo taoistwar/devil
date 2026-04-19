@@ -21,6 +21,7 @@ pub struct TaskStopOutput {
 }
 
 pub struct TaskStopTool {
+    #[allow(dead_code)]
     store: TaskStore,
     running_tasks: Arc<RwLock<std::collections::HashSet<String>>>,
 }

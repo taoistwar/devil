@@ -6,17 +6,18 @@ use futures::stream::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info};
 
-use crate::cost_tracking::{update_usage, TokenUsage, UsageDelta};
+use crate::cost_tracking::{TokenUsage, UsageDelta};
 use crate::query_engine::{ContentBlock, Message, QueryDeps, StreamEvent};
-use crate::streaming_tool_executor::{ToolResult, TrackedTool};
+use crate::streaming_tool_executor::TrackedTool;
 use devil_mcp::{MappedTool, McpConnectionManager, PermissionChecker, ToolDiscoverer};
 use providers::{
     AnthropicClient, ChatMessage as AnthropicChatMessage, ContentBlock as AnthropicContentBlock,
     ContentBlockStart as AnthropicContentBlockStart, ToolDef,
 };
 
+#[allow(dead_code)]
 fn convert_usage(usage: &providers::Usage) -> TokenUsage {
     TokenUsage {
         input_tokens: usage.input_tokens,
@@ -26,6 +27,7 @@ fn convert_usage(usage: &providers::Usage) -> TokenUsage {
     }
 }
 
+#[allow(dead_code)]
 fn convert_content_block(block: &AnthropicContentBlock) -> ContentBlock {
     match block {
         AnthropicContentBlock::Text { text } => ContentBlock::Text { text: text.clone() },
@@ -126,6 +128,7 @@ impl AnthropicQueryDeps {
     }
 
     /// 转换 Message 为 Anthropic format
+    #[allow(dead_code)]
     async fn convert_messages(&self, messages: &[Message]) -> Vec<AnthropicChatMessage> {
         let mut anthropic_messages = Vec::new();
 
@@ -171,6 +174,7 @@ impl AnthropicQueryDeps {
     }
 
     /// 转换工具定义为 Anthropic format
+    #[allow(dead_code)]
     async fn convert_tools(&self) -> Vec<ToolDef> {
         let tools = self.tool_discoverer.get_authorized_tools().await;
         let mut tool_defs = Vec::new();
@@ -304,7 +308,7 @@ impl QueryDeps for AnthropicQueryDeps {
                                 StreamEvent::MessageStart { id: message.id }
                             }
                             providers::StreamEvent::ContentBlockStart {
-                                index,
+                                index: _,
                                 content_block,
                             } => StreamEvent::ContentBlockDelta {
                                 block_type: crate::query_engine::BlockType::Text,
@@ -315,7 +319,7 @@ impl QueryDeps for AnthropicQueryDeps {
                                     },
                                 },
                             },
-                            providers::StreamEvent::ContentBlockDelta { index, delta } => {
+                            providers::StreamEvent::ContentBlockDelta { index: _, delta } => {
                                 match delta {
                                     providers::ContentDelta::TextDelta { text } => {
                                         StreamEvent::ContentBlockDelta {
@@ -354,7 +358,7 @@ impl QueryDeps for AnthropicQueryDeps {
                                     }),
                                 }
                             }
-                            providers::StreamEvent::ContentBlockStop { index } => {
+                            providers::StreamEvent::ContentBlockStop { index: _ } => {
                                 StreamEvent::MessageStop
                             }
                             providers::StreamEvent::MessageStop => StreamEvent::MessageStop,

@@ -7,12 +7,13 @@ use async_trait::async_trait;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdout, Command};
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use super::Transport;
 
 /// Stdio 传输层
 pub struct StdioTransport {
+    #[allow(dead_code)]
     /// 子进程句柄
     child: Child,
     /// 标准输出读取器

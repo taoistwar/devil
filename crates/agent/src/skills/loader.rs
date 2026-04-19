@@ -227,7 +227,7 @@ impl Default for SkillLoader {
 pub mod bundled {
     use super::*;
     use std::fs::{create_dir_all, File};
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     /// 内置 Skills 压缩数据（编译时嵌入）

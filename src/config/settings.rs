@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// Runtime settings that can be modified during execution
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeSettings {
     /// Enable/disable tools
@@ -24,6 +25,7 @@ pub struct RuntimeSettings {
 }
 
 /// Output format for results
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
@@ -38,6 +40,7 @@ impl Default for OutputFormat {
 }
 
 /// Log level
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
@@ -56,6 +59,7 @@ impl Default for LogLevel {
 
 impl LogLevel {
     /// Convert to tracing level
+    #[allow(dead_code)]
     pub fn to_tracing_level(&self) -> &str {
         match self {
             Self::Error => "error",
@@ -81,10 +85,12 @@ impl Default for RuntimeSettings {
 }
 
 /// Settings manager for runtime configuration
+#[allow(dead_code)]
 pub struct SettingsManager {
     settings: Arc<RwLock<RuntimeSettings>>,
 }
 
+#[allow(dead_code)]
 impl SettingsManager {
     /// Create a new settings manager
     pub fn new() -> Self {

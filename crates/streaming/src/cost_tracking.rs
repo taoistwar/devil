@@ -5,7 +5,6 @@
 //! - accumulateUsage: 跨消息累加总量
 //! - CostTracker: 成本预算控制
 
-use anyhow::Result;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tracing::{debug, info, warn};

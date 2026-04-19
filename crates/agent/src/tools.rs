@@ -32,7 +32,7 @@ pub mod worktree;
 pub use ask::*;
 pub use bash_analyzer::*;
 pub use build_tool::*;
-pub use builtin::*;
+pub use builtin::{BashInput, BashOutput, BashTool, FileReadInput, FileReadOutput, FileReadTool, FileEditInput, FileEditOutput, FileEditTool, FileWriteInput, FileWriteOutput, FileWriteTool, GlobInput, GlobOutput, GlobTool, GrepInput, GrepOutput, GrepMatch, GrepTool, WebFetchInput, WebFetchOutput, WebFetchTool, WebSearchInput, WebSearchResult, WebSearchOutput, WebSearchTool, TodoItem, TodoWriteInput, TodoWriteOutput, TodoWriteTool, AgentInput, AgentOutput, AgentTool};
 pub use config::*;
 pub use cron::*;
 pub use enhanced::*;

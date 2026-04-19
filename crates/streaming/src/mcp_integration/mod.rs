@@ -11,12 +11,12 @@ use futures::stream::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
-use crate::query_engine::{ContentBlock, Message, QueryDeps, QueryEngine, StreamEvent};
+use crate::query_engine::{Message, QueryDeps, QueryEngine, StreamEvent};
 use crate::streaming_tool_executor::{StreamingToolExecutor, ToolResult, TrackedTool};
 use devil_mcp::{
-    MappedTool, McpConnectionManager, McpServerConfig, PermissionChecker, ToolDiscoverer,
+    MappedTool, McpConnectionManager, PermissionChecker, ToolDiscoverer,
 };
 
 /// MCP-Aware QueryDeps 实现
@@ -160,8 +160,8 @@ impl McpQueryDeps {
 impl QueryDeps for McpQueryDeps {
     fn call_model(
         &self,
-        messages: &[Message],
-        stream: bool,
+        _messages: &[Message],
+        _stream: bool,
     ) -> futures::stream::BoxStream<'static, Result<StreamEvent>> {
         // TODO: 实际调用 LLM API
         // 这里返回模拟流

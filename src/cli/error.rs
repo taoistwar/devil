@@ -22,6 +22,7 @@ pub enum CliError {
     #[error("Config error: {0}")]
     ConfigError(String),
 
+    #[allow(dead_code)]
     #[error(
         "Missing API key: Set DEVIL_API_KEY environment variable or add api_key to config file"
     )]
@@ -33,6 +34,7 @@ pub enum CliError {
     #[error("Initialization failed: {0}")]
     InitError(String),
 
+    #[allow(dead_code)]
     #[error("Network error: {0}")]
     NetworkError(String),
 

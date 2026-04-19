@@ -17,7 +17,7 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// Bridge 消息类型
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +78,7 @@ pub struct McpBridge {
     router: MessageRouter,
     /// 发送通道
     tx: mpsc::Sender<BridgeMessage>,
+    #[allow(dead_code)]
     /// 接收通道
     rx: mpsc::Receiver<BridgeMessage>,
     /// 当前状态

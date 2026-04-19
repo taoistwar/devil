@@ -130,8 +130,11 @@ where
 /// 构建完成的工具
 pub struct BuiltTool<I, O> {
     name: String,
+    #[allow(dead_code)]
     description: String,
+    #[allow(dead_code)]
     input_schema: serde_json::Value,
+    #[allow(dead_code)]
     aliases: Vec<String>,
     permission_level: ToolPermissionLevel,
     concurrency_safe: bool,
@@ -380,9 +383,7 @@ impl Tool for BashTool {
             impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
         >,
     ) -> Result<ToolResult<Self::Output>> {
-        use std::io::Read;
         use std::process::{Command, Stdio};
-        use tokio::io::AsyncReadExt;
         use tokio::process::Command as AsyncCommand;
 
         let _timeout_ms = self.timeout_ms(&input).unwrap_or(300000);
@@ -936,7 +937,7 @@ impl Tool for FileWriteTool {
     ) -> InputValidationResult {
         use std::path::Path;
 
-        let path = Path::new(&input.path);
+        let _path = Path::new(&input.path);
 
         if input.path.trim().is_empty() {
             return InputValidationResult::invalid("File path cannot be empty");

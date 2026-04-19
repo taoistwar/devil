@@ -49,6 +49,7 @@ pub struct Agent {
     tool_registry: Arc<RwLock<ToolRegistry>>,
     /// 依赖实现
     deps: Arc<dyn QueryDeps>,
+    #[allow(dead_code)]
     /// 上下文管理器
     context_manager: ContextManager,
     /// 子代理注册表
@@ -385,12 +386,14 @@ pub struct AgentLoop {
     deps: Arc<dyn QueryDeps>,
     /// 工具注册表
     tool_registry: Arc<RwLock<ToolRegistry>>,
+    #[allow(dead_code)]
     /// 工具执行器
     tool_executor: StreamingToolExecutor,
     /// 子代理注册表
     subagent_registry: Arc<RwLock<SubagentRegistry>>,
     /// 子代理执行器
     subagent_executor: Arc<RwLock<SubagentExecutor>>,
+    #[allow(dead_code)]
     /// 上下文管理器
     context_manager: ContextManager,
 }
@@ -726,12 +729,14 @@ impl AgentLoop {
     }
 
     /// 执行上下文压缩
+    #[allow(dead_code)]
     async fn execute_auto_compact(&self, messages: Vec<Message>) -> Result<Vec<Message>> {
         let result = self.deps.auto_compact(messages).await?;
         Ok(result.messages)
     }
 
     /// 执行轻量压缩
+    #[allow(dead_code)]
     async fn execute_micro_compact(&self, messages: Vec<Message>) -> Result<Vec<Message>> {
         let result = self.deps.micro_compact(messages).await?;
         Ok(result.messages)

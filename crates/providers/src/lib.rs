@@ -13,7 +13,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use plugins::{Plugin, PluginContext, PluginMetadata, PluginResult};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 /// 提供者类型枚举
 #[derive(Debug, Clone, Serialize, Deserialize)]

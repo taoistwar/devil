@@ -6,12 +6,12 @@
 //! - 工具元数据缓存
 //! - Unicode 字符清理
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// 工具定义（来自 MCP tools/list 响应）
 #[derive(Debug, Clone, Deserialize, Serialize)]

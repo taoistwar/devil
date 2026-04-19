@@ -154,11 +154,13 @@ impl Config {
     }
 
     /// Get a custom setting value
+    #[allow(dead_code)]
     pub fn get(&self, key: &str) -> Option<&String> {
         self.custom.get(key)
     }
 
     /// Set a custom setting value
+    #[allow(dead_code)]
     pub fn set(&mut self, key: String, value: String) {
         self.custom.insert(key, value);
     }

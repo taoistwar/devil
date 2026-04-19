@@ -15,6 +15,7 @@ use super::Transport;
 pub struct HttpPollingTransport {
     client: Client,
     base_url: String,
+    #[allow(dead_code)]
     poll_interval: std::time::Duration,
     tx: mpsc::Sender<String>,
     rx: mpsc::Receiver<String>,

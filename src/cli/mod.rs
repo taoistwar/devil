@@ -18,6 +18,7 @@ pub const APP_NAME: &str = "devil";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Initialize the CLI application
+#[allow(dead_code)]
 pub async fn init() -> Result<()> {
     init::init().await
 }
@@ -87,6 +88,7 @@ pub fn show_config() -> anyhow::Result<()> {
 }
 
 /// Display version
+#[allow(dead_code)]
 pub fn show_version() {
     println!("{} v{}", APP_NAME, VERSION);
 }

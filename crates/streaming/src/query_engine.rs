@@ -6,14 +6,13 @@
 //! - 维护会话状态（usage、fileCache、skills 等）
 //! - 中止控制
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use futures::stream::Stream;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
-use tracing::{debug, error, info, warn};
-use uuid::Uuid;
+use tracing::{error, info};
 
 use crate::cost_tracking::{TokenUsage, UsageDelta};
 use crate::streaming_tool_executor::TrackedTool;
@@ -166,6 +165,7 @@ pub struct QueryEngine<D: QueryDeps> {
     discovered_skills: Arc<RwLock<HashSet<String>>>,
     /// 依赖注入
     deps: D,
+    #[allow(dead_code)]
     /// 当前消息 ID
     current_message_id: Arc<Mutex<Option<String>>>,
 }
@@ -223,7 +223,7 @@ impl<D: QueryDeps> QueryEngine<D> {
 
         stream.filter_map(move |event| {
             let usage = usage.clone();
-            let messages = messages.clone();
+            let _messages = messages.clone();
             let abort = abort.clone();
 
             async move {

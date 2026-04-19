@@ -296,8 +296,10 @@ pub enum PluginLoadError {
 
 /// 插件更新器
 pub struct PluginUpdater {
+    #[allow(dead_code)]
     /// 检查更新的间隔（秒）
     check_interval: u64,
+    #[allow(dead_code)]
     /// 是否启用自动更新
     auto_update_enabled: bool,
 }

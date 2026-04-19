@@ -42,8 +42,10 @@ pub enum SecurityCheckResult {
 /// 钩子安全检查器
 pub struct HookSecurityGuard {
     config: HookSecurityConfig,
+    #[allow(dead_code)]
     /// 当前工作区路径
     workspace_path: String,
+    #[allow(dead_code)]
     /// 工作区是否受信任
     is_trusted: bool,
 }

@@ -112,6 +112,7 @@ pub struct StreamingToolExecutor {
     state: Arc<Mutex<ExecutorState>>,
     /// 错误传播通道
     error_channel: Arc<watch::Sender<Option<ErrorPropagationEvent>>>,
+    #[allow(dead_code)]
     /// 工具结果通道（用于顺序 yield）
     result_channel: Arc<Mutex<tokio::sync::mpsc::Sender<ToolExecutionResult>>>,
 }
@@ -158,6 +159,7 @@ pub struct ExecutorState {
 
 /// 取消信号管理
 pub struct CancellationManager {
+    #[allow(dead_code)]
     /// 主取消通道
     main_cancel_tx: watch::Sender<bool>,
     /// 子取消通道（按工具）
@@ -595,6 +597,7 @@ pub struct ExecutorStatus {
 pub struct BatchToolExecutor {
     /// 并发分区器
     partitioner: ConcurrentPartitioner,
+    #[allow(dead_code)]
     /// 取消管理
     cancellation: Arc<Mutex<CancellationManager>>,
 }

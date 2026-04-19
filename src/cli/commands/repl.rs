@@ -4,14 +4,17 @@ use super::super::dispatcher::Command;
 use crate::cli::run_repl;
 use anyhow::Result;
 
+#[allow(dead_code)]
 pub struct ReplCommand;
 
+#[allow(dead_code)]
 impl ReplCommand {
     pub fn new() -> Self {
         Self
     }
 }
 
+#[allow(dead_code)]
 impl Command for ReplCommand {
     fn name(&self) -> &str {
         "repl"

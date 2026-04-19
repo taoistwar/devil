@@ -193,15 +193,6 @@ You:
     )
 }
 
-/// 获取 Worker 能力描述
-fn get_worker_capabilities(config: &CoordinatorConfig) -> &'static str {
-    if config.simple_mode {
-        "Workers have access to Bash, Read, and Edit tools, plus MCP tools from configured MCP servers."
-    } else {
-        "Workers have access to standard tools, MCP tools from configured MCP servers, and project skills via the Skill tool. Delegate skill invocations (e.g. /commit, /verify) to workers."
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

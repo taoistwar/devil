@@ -3,10 +3,10 @@
 //! 支持多种语言的 SDK（Rust/Python/Node.js/Bun），在同进程中运行
 //! 无需跨进程通信，直接调用 SDK API
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use super::Transport;
 
@@ -68,7 +68,7 @@ impl SdkTransport {
     }
 
     /// 初始化 Rust SDK
-    async fn init_rust_sdk(&self, config: &str) -> Result<()> {
+    async fn init_rust_sdk(&self, _config: &str) -> Result<()> {
         // Rust SDK 在同进程中，直接调用
         // TODO: 实际的 SDK 初始化逻辑
         debug!("Rust SDK initialized (stub)");
@@ -76,7 +76,7 @@ impl SdkTransport {
     }
 
     /// 初始化 Python SDK
-    async fn init_python_sdk(&self, config: &str) -> Result<()> {
+    async fn init_python_sdk(&self, _config: &str) -> Result<()> {
         // Python SDK 需要通过 PyO3 或子进程调用
         // TODO: 实际的 SDK 初始化逻辑
         debug!("Python SDK initialized (stub)");
@@ -84,7 +84,7 @@ impl SdkTransport {
     }
 
     /// 初始化 Node.js SDK
-    async fn init_node_sdk(&self, config: &str) -> Result<()> {
+    async fn init_node_sdk(&self, _config: &str) -> Result<()> {
         // Node.js SDK 需要通过 Node-API 或子进程调用
         // TODO: 实际的 SDK 初始化逻辑
         debug!("Node.js SDK initialized (stub)");
@@ -92,7 +92,7 @@ impl SdkTransport {
     }
 
     /// 初始化 Bun SDK
-    async fn init_bun_sdk(&self, config: &str) -> Result<()> {
+    async fn init_bun_sdk(&self, _config: &str) -> Result<()> {
         // Bun SDK 需要通过 Bun 的 FFI 或子进程调用
         // TODO: 实际的 SDK 初始化逻辑
         debug!("Bun SDK initialized (stub)");

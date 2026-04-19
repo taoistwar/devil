@@ -4,12 +4,8 @@
 //! 优化目标：节省启动时间 > 50ms
 
 use anyhow::{Context, Result};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::Instant;
-use tokio::process::Command;
-use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 /// MDM 配置预取句柄
 pub struct MdmPrefetchHandle {

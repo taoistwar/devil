@@ -269,16 +269,6 @@ impl PromptBuilder {
     }
 }
 
-/// 好提示词示例（合成后的具体指令）
-fn good_prompt_example() -> &'static str {
-    r#"Fix the null pointer in src/auth/validate.ts:42. The user field on Session (src/auth/types.ts:15) is undefined when sessions expire but the token is still cached. Add a null check before user.id access — if null, return 401 with 'Session expired'. Commit and report the hash."#
-}
-
-/// 坏提示词示例（懒惰委托）
-fn bad_prompt_example() -> &'static str {
-    r#"Based on your findings, fix the auth bug."#
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

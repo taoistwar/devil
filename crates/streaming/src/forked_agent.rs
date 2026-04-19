@@ -5,10 +5,9 @@
 //! - Cache-safe params 共享
 //! - contentReplacementState 克隆
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::sync::Arc;
-use tracing::{debug, error, info, warn};
-use uuid::Uuid;
+use tracing::{debug, info};
 
 use crate::cost_tracking::TokenUsage;
 use crate::query_engine::Message;
@@ -119,6 +118,7 @@ pub struct ToolCall {
 pub struct ForkedAgent {
     /// Fork 上下文
     context: ForkContext,
+    #[allow(dead_code)]
     /// 配置
     config: ForkedAgentConfig,
 }
@@ -150,7 +150,7 @@ impl ForkedAgent {
 
         // 克隆 content_replacement_state 以保证字节级一致性
         // 这对于缓存命中至关重要
-        let replacement_state = self.context.content_replacement_state.clone();
+        let _replacement_state = self.context.content_replacement_state.clone();
 
         // TODO: 实际调用模型 API
         // 这里返回模拟结果

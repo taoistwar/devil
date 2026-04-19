@@ -10,12 +10,15 @@ use tokio::signal::unix::SignalKind;
 use tokio::sync::RwLock;
 use tracing::{error, info};
 
+#[allow(dead_code)]
 type CleanupFn = Box<dyn Fn() + Send + Sync>;
 
+#[allow(dead_code)]
 pub struct InitState {
     cleanup_handlers: RwLock<Vec<CleanupFn>>,
 }
 
+#[allow(dead_code)]
 impl InitState {
     pub fn new() -> Self {
         Self {
@@ -41,18 +44,22 @@ impl InitState {
     }
 }
 
+#[allow(dead_code)]
 impl Default for InitState {
     fn default() -> Self {
         Self::new()
     }
 }
 
+#[allow(dead_code)]
 static INIT_STATE: std::sync::OnceLock<Arc<InitState>> = std::sync::OnceLock::new();
 
+#[allow(dead_code)]
 pub fn get_init_state() -> &'static Arc<InitState> {
     INIT_STATE.get_or_init(|| Arc::new(InitState::new()))
 }
 
+#[allow(dead_code)]
 pub async fn init() -> Result<()> {
     let state = get_init_state();
     state
@@ -69,6 +76,7 @@ pub async fn init() -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub async fn wait_for_shutdown_signal() {
     tokio::select! {
         _ = signal::ctrl_c() => {
@@ -89,6 +97,7 @@ pub async fn wait_for_shutdown_signal() {
     }
 }
 
+#[allow(dead_code)]
 pub async fn run_with_graceful_shutdown<F, Fut>(future: F) -> Result<()>
 where
     F: Fn() -> Fut,

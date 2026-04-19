@@ -6,12 +6,12 @@
 //! 3. 用户权限（User Permission）- 用户个性化配置
 //! 4. 运行时确认（Runtime Confirmation）- 每次调用前确认
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info};
 
 /// 权限检查器
 pub struct PermissionChecker {

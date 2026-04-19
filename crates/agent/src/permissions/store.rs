@@ -6,12 +6,11 @@
 //! - 内存缓存 + 文件持久化
 
 use crate::permissions::context::{
-    apply_permission_update, apply_permission_updates, PermissionAction, PermissionMode,
+    apply_permission_update, apply_permission_updates, PermissionMode,
     PermissionRule, PermissionUpdate, RuleSource, ToolPermissionContext,
 };
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use tokio::sync::RwLock;
@@ -241,6 +240,7 @@ struct StoredPermissions {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::permissions::PermissionAction;
 
     #[tokio::test]
     async fn test_rule_store_add_rule() {
