@@ -7,6 +7,7 @@
 //! - 上下文预处理管线
 //! - 工具系统管理
 
+pub mod commands;
 pub mod config;
 pub mod context;
 pub mod coordinator;
