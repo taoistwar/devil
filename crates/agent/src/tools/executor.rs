@@ -184,7 +184,7 @@ impl CancellationManager {
 
     /// 取消所有子通道
     pub fn cancel_all_children(&self) {
-        for (_, tx) in &self.child_cancel_channels {
+        for tx in self.child_cancel_channels.values() {
             let _ = tx.send(true);
         }
     }

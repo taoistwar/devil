@@ -55,7 +55,7 @@ impl PluginLoader {
     pub fn load_all(&mut self) -> Result<usize, PluginLoadError> {
         let mut loaded_count = 0;
 
-        let dirs: Vec<PathBuf> = self.plugin_dirs.iter().map(|p| p.clone()).collect();
+        let dirs: Vec<PathBuf> = self.plugin_dirs.to_vec();
         for dir in dirs {
             loaded_count += self.load_from_dir(&dir)?;
         }
@@ -506,6 +506,7 @@ mod updater_tests {
 }
 
 /// 插件验证器
+#[derive(Default)]
 pub struct PluginVerifier {
     /// 公钥列表（用于验证签名）
     public_keys: Vec<String>,
@@ -516,10 +517,7 @@ pub struct PluginVerifier {
 impl PluginVerifier {
     /// 创建验证器
     pub fn new() -> Self {
-        Self {
-            public_keys: Vec::new(),
-            verification_enabled: false,
-        }
+        Self::default()
     }
 
     /// 启用签名验证

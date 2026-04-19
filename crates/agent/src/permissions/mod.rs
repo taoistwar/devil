@@ -33,8 +33,13 @@ pub mod store;
 
 pub use bash_analyzer::*;
 pub use context::*;
-pub use pipeline::{PermissionCheckResult, PermissionPipeline, PermissionBehavior, ClassifierCheckResult};
-pub use prompts::{PermissionPrompt, PermissionPrompter, PermissionPromptManager, ResolveOnce, PermissionDecisionRace, PermissionResponse};
+pub use pipeline::{
+    ClassifierCheckResult, PermissionBehavior, PermissionCheckResult, PermissionPipeline,
+};
+pub use prompts::{
+    PermissionDecisionRace, PermissionPrompt, PermissionPromptManager, PermissionPrompter,
+    PermissionResponse, ResolveOnce,
+};
 pub use store::*;
 
 pub use context::PermissionAction;

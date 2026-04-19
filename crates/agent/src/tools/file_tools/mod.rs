@@ -5,7 +5,7 @@ pub mod repl;
 
 pub use notebook::NotebookEditTool;
 pub use notebook_types::{
-    CellUpdate, CellType, NotebookCell, NotebookDocument, NotebookEditInput, NotebookEditOutput,
+    CellType, CellUpdate, NotebookCell, NotebookDocument, NotebookEditInput, NotebookEditOutput,
     NotebookOperation,
 };
 pub use powershell::{PowerShellInput, PowerShellOutput, PowerShellTool};

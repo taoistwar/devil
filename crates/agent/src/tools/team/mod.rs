@@ -6,9 +6,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TeamCreateInput {
@@ -152,7 +150,10 @@ impl Tool for TeamCreateTool {
         _ctx: &ToolContext,
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        let team = self.store.create(&input.name, input.description.as_deref().unwrap_or("")).await;
+        let team = self
+            .store
+            .create(&input.name, input.description.as_deref().unwrap_or(""))
+            .await;
 
         let output = TeamCreateOutput {
             id: team.id,
@@ -291,9 +292,7 @@ impl Tool for ListPeersTool {
         _ctx: &ToolContext,
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        let output = ListPeersOutput {
-            peers: Vec::new(),
-        };
+        let output = ListPeersOutput { peers: Vec::new() };
 
         Ok(ToolResult::success("list_peers-1", output))
     }

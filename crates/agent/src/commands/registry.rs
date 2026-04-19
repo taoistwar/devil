@@ -45,7 +45,12 @@ impl CommandRegistry {
         self.commands.values().cloned().collect()
     }
 
-    pub async fn execute(&self, name: &str, ctx: &CommandContext, args: &[&str]) -> Option<CommandResult> {
+    pub async fn execute(
+        &self,
+        name: &str,
+        ctx: &CommandContext,
+        args: &[&str],
+    ) -> Option<CommandResult> {
         if let Some(cmd) = self.get(name) {
             Some(cmd.execute(ctx, args).await)
         } else {
@@ -65,7 +70,7 @@ impl CommandRegistry {
         self.register(crate::commands::core::cost::CostCommand::new());
 
         // 配置命令
-        self.register(crate::commands::config::config::ConfigCommand::new());
+        self.register(crate::commands::config::cmd::ConfigCommand::new());
         self.register(crate::commands::config::login::LoginCommand::new());
         self.register(crate::commands::config::logout::LogoutCommand::new());
         self.register(crate::commands::config::theme::ThemeCommand::new());

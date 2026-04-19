@@ -2,9 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TerminalCaptureInput {

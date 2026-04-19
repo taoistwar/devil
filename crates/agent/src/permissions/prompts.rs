@@ -78,7 +78,10 @@ impl PermissionPrompter {
     /// 发送权限提示
     ///
     /// 返回一个 channel receiver 用于接收响应
-    pub async fn send_prompt(&self, prompt: PermissionPrompt) -> mpsc::Receiver<PermissionResponse> {
+    pub async fn send_prompt(
+        &self,
+        prompt: PermissionPrompt,
+    ) -> mpsc::Receiver<PermissionResponse> {
         let (response_tx, response_rx) = mpsc::channel(1);
 
         // 存储发送端，以便后续可以使用

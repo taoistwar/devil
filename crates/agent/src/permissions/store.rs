@@ -6,8 +6,8 @@
 //! - 内存缓存 + 文件持久化
 
 use crate::permissions::context::{
-    apply_permission_update, apply_permission_updates, PermissionMode,
-    PermissionRule, PermissionUpdate, RuleSource, ToolPermissionContext,
+    apply_permission_update, apply_permission_updates, PermissionMode, PermissionRule,
+    PermissionUpdate, RuleSource, ToolPermissionContext,
 };
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -78,7 +78,9 @@ impl RuleStore {
     }
 
     /// 获取可变权限上下文
-    pub async fn get_mut_context(&self) -> tokio::sync::RwLockWriteGuard<'_, ToolPermissionContext> {
+    pub async fn get_mut_context(
+        &self,
+    ) -> tokio::sync::RwLockWriteGuard<'_, ToolPermissionContext> {
         self.context.write().await
     }
 
@@ -95,7 +97,11 @@ impl RuleStore {
     }
 
     /// 添加允许规则
-    pub async fn add_allow_rule(&self, source: RuleSource, target: impl Into<String>) -> Result<()> {
+    pub async fn add_allow_rule(
+        &self,
+        source: RuleSource,
+        target: impl Into<String>,
+    ) -> Result<()> {
         let rule = PermissionRule::allow(source, target);
         self.add_rule(rule).await
     }
@@ -162,8 +168,8 @@ impl RuleStore {
         let content = fs::read_to_string(&self.rules_path)
             .context(format!("Failed to read rules from {:?}", self.rules_path))?;
 
-        let stored: StoredPermissions = toml::from_str(&content)
-            .context("Failed to parse rules file")?;
+        let stored: StoredPermissions =
+            toml::from_str(&content).context("Failed to parse rules file")?;
 
         let mut ctx = self.context.write().await;
 
@@ -200,8 +206,7 @@ impl RuleStore {
             mode: Some(ctx.mode),
         };
 
-        let content = toml::to_string_pretty(&stored)
-            .context("Failed to serialize rules")?;
+        let content = toml::to_string_pretty(&stored).context("Failed to serialize rules")?;
 
         fs::write(&self.rules_path, content)
             .context(format!("Failed to write rules to {:?}", self.rules_path))?;
@@ -245,7 +250,10 @@ mod tests {
     #[tokio::test]
     async fn test_rule_store_add_rule() {
         let store = RuleStore::with_defaults();
-        store.add_allow_rule(RuleSource::UserSettings, "Read").await.unwrap();
+        store
+            .add_allow_rule(RuleSource::UserSettings, "Read")
+            .await
+            .unwrap();
 
         let ctx = store.get_context().await;
         let rules = ctx.get_rules_by_priority(PermissionAction::Allow);
@@ -255,7 +263,10 @@ mod tests {
     #[tokio::test]
     async fn test_rule_store_set_mode() {
         let store = RuleStore::with_defaults();
-        store.set_mode(PermissionMode::BypassPermissions).await.unwrap();
+        store
+            .set_mode(PermissionMode::BypassPermissions)
+            .await
+            .unwrap();
 
         let ctx = store.get_context().await;
         assert_eq!(ctx.mode, PermissionMode::BypassPermissions);

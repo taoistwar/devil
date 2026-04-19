@@ -211,7 +211,7 @@ impl SkillLoader {
         }
 
         // 按路径深度排序（深层优先）
-        skill_dirs.sort_by(|a, b| b.components().count().cmp(&a.components().count()));
+        skill_dirs.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
 
         skill_dirs
     }
@@ -331,14 +331,14 @@ pub mod bundled {
         let mut in_content = false;
 
         for line in lines {
-            if line.starts_with("SKILL:") {
+            if let Some(skill_name) = line.strip_prefix("SKILL:") {
                 // 新技能开始
                 if let Some(name) = current_skill_name.take() {
                     // 保存前一个技能
                     save_skill(&temp_dir, &name, &current_content)?;
                     current_content.clear();
                 }
-                current_skill_name = Some(line[6..].to_string());
+                current_skill_name = Some(skill_name.to_string());
                 in_content = false;
             } else if line.starts_with("SIZE:") {
                 // 跳过大小行（可以用于预分配）

@@ -2,9 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BriefInput {
@@ -66,7 +64,8 @@ impl Tool for BriefTool {
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
         let output = BriefOutput {
-            summary: "Brief tool provides concise summaries of available tools and capabilities".to_string(),
+            summary: "Brief tool provides concise summaries of available tools and capabilities"
+                .to_string(),
             relevant_tools: vec![
                 "bash".to_string(),
                 "read".to_string(),

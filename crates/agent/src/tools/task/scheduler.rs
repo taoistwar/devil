@@ -20,7 +20,7 @@ impl TaskScheduler {
     }
 
     pub async fn get_state(&self) -> AgentState {
-        self.state.read().await.clone()
+        *self.state.read().await
     }
 
     pub async fn set_state(&self, new_state: AgentState) {

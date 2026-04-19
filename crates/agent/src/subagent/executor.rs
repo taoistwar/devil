@@ -6,9 +6,7 @@ use crate::message::Message;
 use crate::subagent::context_inheritance;
 use crate::subagent::recursion_guard;
 use crate::subagent::types::ForkSubagentConfig;
-use crate::subagent::types::{
-    SubagentParams, SubagentResult, SubagentType, Usage,
-};
+use crate::subagent::types::{SubagentParams, SubagentResult, SubagentType, Usage};
 
 /// 子代理执行器
 pub struct SubagentExecutor {

@@ -3,10 +3,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::tools::planning::AgentState;
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
 use crate::tools::task::scheduler::TaskScheduler;
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExitPlanModeInput;

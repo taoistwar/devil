@@ -17,7 +17,9 @@ pub use review_artifact::{ReviewArtifactInput, ReviewArtifactOutput, ReviewArtif
 pub use sleep::{SleepInput, SleepOutput, SleepTool};
 pub use snip::{SnipInput, SnipOutput, SnipTool};
 pub use subscribe_pr::{SubscribePRInput, SubscribePROutput, SubscribePRTool};
-pub use suggest_background_pr::{SuggestBackgroundPRInput, SuggestBackgroundPROutput, SuggestBackgroundPRTool};
+pub use suggest_background_pr::{
+    SuggestBackgroundPRInput, SuggestBackgroundPROutput, SuggestBackgroundPRTool,
+};
 pub use synthetic_output::{SyntheticOutputInput, SyntheticOutputOutput, SyntheticOutputTool};
 pub use terminal_capture::{TerminalCaptureInput, TerminalCaptureOutput, TerminalCaptureTool};
 pub use tool_search::{ToolSearchInput, ToolSearchOutput, ToolSearchTool};

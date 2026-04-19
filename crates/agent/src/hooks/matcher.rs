@@ -116,8 +116,7 @@ impl HookMatcher {
         }
 
         // 检查是否以特定前缀开头
-        if pattern.ends_with('*') {
-            let prefix = &pattern[..pattern.len() - 1];
+        if let Some(prefix) = pattern.strip_suffix('*') {
             if let Some(input_str) = input.as_str() {
                 return input_str.starts_with(prefix);
             }

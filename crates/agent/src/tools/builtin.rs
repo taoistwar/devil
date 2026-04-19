@@ -14,7 +14,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::permissions::bash_analyzer::BashSemanticAnalyzer;
 use crate::tools::tool::{
-    ContextModifier, InputValidationResult, InterruptBehavior, Tool, ToolContext, ToolPermissionLevel, ToolResult,
+    ContextModifier, InputValidationResult, InterruptBehavior, Tool, ToolContext,
+    ToolPermissionLevel, ToolResult,
 };
 
 /// buildTool 工厂函数
@@ -580,11 +581,14 @@ impl Tool for FileReadTool {
             let mut count = 0;
 
             for line in reader.lines().take(max_lines + 1) {
-                if let Ok(line) = line {
-                    if count < max_lines {
-                        lines.push(line);
+                match line {
+                    Ok(line) => {
+                        if count < max_lines {
+                            lines.push(line);
+                        }
+                        count += 1;
                     }
-                    count += 1;
+                    Err(_) => count += 1,
                 }
             }
 
@@ -732,10 +736,7 @@ impl Tool for FileEditTool {
         }
 
         if !path.exists() {
-            return InputValidationResult::invalid(format!(
-                "File does not exist: {}",
-                input.path
-            ));
+            return InputValidationResult::invalid(format!("File does not exist: {}", input.path));
         }
 
         if input.old_string.is_empty() {
@@ -944,21 +945,15 @@ impl Tool for FileWriteTool {
         }
 
         let sensitive_paths = [
-            "/etc/",
-            "/var/",
-            "/usr/",
-            "/bin/",
-            "/sbin/",
-            "/root/",
-            "/boot/",
-            "/sys/",
-            "/proc/",
-            "/.ssh/",
-            "/.env",
+            "/etc/", "/var/", "/usr/", "/bin/", "/sbin/", "/root/", "/boot/", "/sys/", "/proc/",
+            "/.ssh/", "/.env",
         ];
 
         for sensitive in sensitive_paths {
-            if input.path.starts_with(sensitive) && !input.path.starts_with("./") && !input.path.starts_with("../") {
+            if input.path.starts_with(sensitive)
+                && !input.path.starts_with("./")
+                && !input.path.starts_with("../")
+            {
                 return InputValidationResult::invalid(format!(
                     "Cannot write to sensitive system path: {}",
                     input.path
@@ -1628,20 +1623,22 @@ impl WebFetchTool {
     fn extract_with_css_selector(html: &str, selector: &str) -> String {
         let selector = selector.trim();
 
-        let pattern = if selector.starts_with('#') {
-            let id = &selector[1..];
+        let pattern = if let Some(id) = selector.strip_prefix('#') {
             format!(r#"id=["']?{}["']?[^>]*>([^<]+)"#, regex::escape(id))
-        } else if selector.starts_with('.') {
-            let class = &selector[1..];
-            format!(r#"class=["'][^"']*{}[^"']*["'][^>]*>([^<]+)"#, regex::escape(class))
+        } else if let Some(class) = selector.strip_prefix('.') {
+            format!(
+                r#"class=["'][^"']*{}[^"']*["'][^>]*>([^<]+)"#,
+                regex::escape(class)
+            )
         } else if selector.starts_with('[') && selector.ends_with(']') {
-            format!(r#"[{}][^>]*>([^<]+)"#, &selector[1..selector.len()-1])
+            format!(r#"[{}][^>]*>([^<]+)"#, &selector[1..selector.len() - 1])
         } else {
             format!(r#"<{}[^>]*>([^<]+)</{}>"#, selector, selector)
         };
 
         if let Ok(re) = regex::Regex::new(&pattern) {
-            let matches: Vec<&str> = re.captures_iter(html)
+            let matches: Vec<&str> = re
+                .captures_iter(html)
                 .filter_map(|c| c.get(1).map(|m| m.as_str().trim()))
                 .collect();
 
@@ -1651,17 +1648,25 @@ impl WebFetchTool {
         }
 
         let fallback_patterns = [
-            format!(r#"class=["'][^"']*{}[^"']*["'][^>]*>([\s\S]*?)</[^>]+>"#, regex::escape(selector)),
-            format!(r#"<{}[\s\S]*?>([\s\S]*?)</{}>"#, regex::escape(selector), regex::escape(selector)),
+            format!(
+                r#"class=["'][^"']*{}[^"']*["'][^>]*>([\s\S]*?)</[^>]+>"#,
+                regex::escape(selector)
+            ),
+            format!(
+                r#"<{}[\s\S]*?>([\s\S]*?)</{}>"#,
+                regex::escape(selector),
+                regex::escape(selector)
+            ),
         ];
 
+        let tag_re = regex::Regex::new(r"<[^>]+>").ok();
         for pattern in fallback_patterns {
             if let Ok(re) = regex::Regex::new(&pattern) {
                 let mut results = Vec::new();
                 for cap in re.captures_iter(html) {
                     if let Some(content) = cap.get(1) {
-                        let text = regex::Regex::new(r"<[^>]+>")
-                            .ok()
+                        let text = tag_re
+                            .as_ref()
                             .map(|tag_re| tag_re.replace_all(content.as_str(), " ").to_string())
                             .unwrap_or_else(|| content.as_str().to_string());
                         results.push(text.trim().to_string());
@@ -1851,19 +1856,20 @@ impl WebSearchTool {
             .send()
             .await;
 
-        match response {
-            Ok(resp) => {
-                if let Ok(json) = resp.json::<serde_json::Value>().await {
-                    return self.parse_brave_results(json, max_results);
-                }
+        if let Ok(resp) = response {
+            if let Ok(json) = resp.json::<serde_json::Value>().await {
+                return self.parse_brave_results(json, max_results);
             }
-            Err(_) => {}
         }
 
         Vec::new()
     }
 
-    fn parse_brave_results(&self, json: serde_json::Value, max_results: usize) -> Vec<WebSearchResult> {
+    fn parse_brave_results(
+        &self,
+        json: serde_json::Value,
+        max_results: usize,
+    ) -> Vec<WebSearchResult> {
         let mut results = Vec::new();
 
         if let Some(web_results) = json.get("web").and_then(|w| w.get("results")) {
@@ -1886,7 +1892,11 @@ impl WebSearchTool {
                         .to_string();
 
                     if !title.is_empty() && !url.is_empty() {
-                        results.push(WebSearchResult { title, url, snippet });
+                        results.push(WebSearchResult {
+                            title,
+                            url,
+                            snippet,
+                        });
                     }
                 }
             }
@@ -1908,13 +1918,10 @@ impl WebSearchTool {
             .send()
             .await;
 
-        match response {
-            Ok(resp) => {
-                if let Ok(html) = resp.text().await {
-                    return self.parse_duckduckgo_html(&html, max_results);
-                }
+        if let Ok(resp) = response {
+            if let Ok(html) = resp.text().await {
+                return self.parse_duckduckgo_html(&html, max_results);
             }
-            Err(_) => {}
         }
 
         Vec::new()
@@ -1932,7 +1939,8 @@ impl WebSearchTool {
         let snippet_regex = regex::Regex::new(snippet_pattern).ok();
 
         if let Some(link_re) = link_regex {
-            let mut snippets: std::collections::HashMap<&str, &str> = std::collections::HashMap::new();
+            let mut snippets: std::collections::HashMap<&str, &str> =
+                std::collections::HashMap::new();
             if let Some(snippet_re) = snippet_regex {
                 for cap in snippet_re.captures_iter(html) {
                     if let (Some(url_match), Some(snippet_match)) = (cap.get(1), cap.get(2)) {
@@ -2083,9 +2091,8 @@ impl Tool for TodoWriteTool {
         let old_todos: Vec<TodoItem> = _ctx
             .executed_tools
             .iter()
-            .filter(|t| t.tool_name == "todowrite")
-            .last()
-            .and_then(|_| None)
+            .rfind(|t| t.tool_name == "todowrite")
+            .map(|_| Vec::<TodoItem>::new())
             .unwrap_or_default();
 
         let new_todos = input.todos;
@@ -2110,19 +2117,21 @@ impl Tool for TodoWriteTool {
         };
 
         // 返回带有上下文修改器的结果
-        Ok(ToolResult::success("todowrite-1", output).with_context_modifier(
-            crate::tools::tool::ContextModifier {
-                file_updates: vec![],
-                metadata: {
-                    let mut m = std::collections::HashMap::new();
-                    m.insert(
-                        "todos".to_string(),
-                        serde_json::to_value(&new_todos).unwrap_or_default(),
-                    );
-                    m
+        Ok(
+            ToolResult::success("todowrite-1", output).with_context_modifier(
+                crate::tools::tool::ContextModifier {
+                    file_updates: vec![],
+                    metadata: {
+                        let mut m = std::collections::HashMap::new();
+                        m.insert(
+                            "todos".to_string(),
+                            serde_json::to_value(&new_todos).unwrap_or_default(),
+                        );
+                        m
+                    },
                 },
-            },
-        ))
+            ),
+        )
     }
 }
 
@@ -2254,9 +2263,11 @@ impl Tool for AgentTool {
             impl Fn(crate::tools::tool::ToolProgress<Self::Progress>) + Send + Sync,
         >,
     ) -> Result<ToolResult<Self::Output>> {
-        use crate::subagent::{SubagentExecutor, SubagentParams, SubagentType, CacheSafeParams, ToolUseContext};
-        use uuid::Uuid;
+        use crate::subagent::{
+            CacheSafeParams, SubagentExecutor, SubagentParams, SubagentType, ToolUseContext,
+        };
         use std::collections::HashMap;
+        use uuid::Uuid;
 
         let task_id = Uuid::new_v4().to_string();
         let run_in_background = input.run_in_background.unwrap_or(false);
@@ -2305,10 +2316,7 @@ impl Tool for AgentTool {
         let executor = SubagentExecutor::new();
         match executor.execute(params).await {
             Ok(result) => {
-                let message = format!(
-                    "Subagent completed with {} messages",
-                    result.messages.len()
-                );
+                let message = format!("Subagent completed with {} messages", result.messages.len());
                 let output = AgentOutput {
                     success: true,
                     message,

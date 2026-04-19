@@ -39,7 +39,14 @@ impl SlashCommand for VimCommand {
         let file = args.first().map(|s| s.to_string()).unwrap_or_default();
 
         CommandResult::success_with_data(
-            format!("Vim 编辑模式: {}", if file.is_empty() { "新文件".to_string() } else { file.clone() }),
+            format!(
+                "Vim 编辑模式: {}",
+                if file.is_empty() {
+                    "新文件".to_string()
+                } else {
+                    file.clone()
+                }
+            ),
             serde_json::json!({
                 "action": "vim",
                 "file": file,

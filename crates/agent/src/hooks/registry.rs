@@ -70,17 +70,14 @@ impl HookRegistry {
     /// 注册钩子
     pub fn register(&mut self, hook: RegisteredHook) {
         let event_name = "all".to_string(); // 默认适用于所有事件
-        self.hooks
-            .entry(event_name)
-            .or_insert_with(Vec::new)
-            .push(hook);
+        self.hooks.entry(event_name).or_default().push(hook);
     }
 
     /// 注册回调钩子
     pub fn register_callback(&mut self, event_name: impl Into<String>, hook: RegisteredHook) {
         self.callback_hooks
             .entry(event_name.into())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(hook);
     }
 

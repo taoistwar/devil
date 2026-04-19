@@ -148,7 +148,7 @@ impl PermissionPipeline {
         // 阶段二：规则匹配
         let rule_check = Self::phase2_rule_matching(tool, input, permission_context);
         match &rule_check.behavior {
-            PermissionBehavior::Allow { .. } | PermissionBehavior::Deny { .. } => {
+            PermissionBehavior::Allow | PermissionBehavior::Deny { .. } => {
                 // 规则已做出终局决定
                 return Ok(rule_check);
             }
@@ -165,7 +165,7 @@ impl PermissionPipeline {
         let context_check =
             Self::phase3_context_check(tool, input, context, permission_context).await;
         match &context_check.behavior {
-            PermissionBehavior::Allow { .. } | PermissionBehavior::Deny { .. } => {
+            PermissionBehavior::Allow | PermissionBehavior::Deny { .. } => {
                 // 上下文评估做出终局决定
                 return Ok(context_check);
             }

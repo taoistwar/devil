@@ -1,32 +1,22 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentState {
+    #[default]
     Idle,
     Planning,
     Working,
     WaitingForPermission,
 }
 
-impl Default for AgentState {
-    fn default() -> Self {
-        Self::Idle
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum PlanMode {
     Browse,
+    #[default]
     Task,
     Debug,
-}
-
-impl Default for PlanMode {
-    fn default() -> Self {
-        Self::Task
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

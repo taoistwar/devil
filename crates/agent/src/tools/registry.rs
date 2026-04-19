@@ -153,15 +153,15 @@ impl ToolRegistry {
     }
 
     /// 获取工具（支持别名查找）
-    pub fn get(&self, name: &str) -> Option<&Box<dyn AnyTool>> {
+    pub fn get(&self, name: &str) -> Option<&dyn AnyTool> {
         // 先按主名称查找
         if let Some(tool) = self.tools_by_name.get(name) {
-            return Some(tool);
+            return Some(&**tool);
         }
 
         // 再按别名查找
         if let Some(main_name) = self.aliases.get(name) {
-            return self.tools_by_name.get(main_name);
+            return self.tools_by_name.get(main_name).map(|t| &**t);
         }
 
         None

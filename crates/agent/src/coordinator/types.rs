@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 
 /// 协调器模式配置
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CoordinatorConfig {
     /// 是否启用协调器模式
     pub enabled: bool,
@@ -15,17 +15,6 @@ pub struct CoordinatorConfig {
     pub scratchpad_dir: Option<String>,
     /// MCP 服务器列表
     pub mcp_servers: Vec<String>,
-}
-
-impl Default for CoordinatorConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            simple_mode: false,
-            scratchpad_dir: None,
-            mcp_servers: Vec::new(),
-        }
-    }
 }
 
 /// Worker Agent 定义

@@ -33,7 +33,10 @@ impl SlashCommand for ResumeCommand {
     }
 
     async fn execute(&self, ctx: &CommandContext, args: &[&str]) -> CommandResult {
-        let session_id = args.first().map(|s| s.to_string()).unwrap_or_else(|| ctx.session_id.clone());
+        let session_id = args
+            .first()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| ctx.session_id.clone());
 
         tracing::info!("Resuming session: {}", session_id);
 

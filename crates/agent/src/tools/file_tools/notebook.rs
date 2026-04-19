@@ -6,9 +6,7 @@ use std::path::Path;
 use crate::tools::file_tools::notebook_types::{
     CellUpdate, NotebookDocument, NotebookEditInput, NotebookEditOutput, NotebookOperation,
 };
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 pub struct NotebookEditTool;
 
@@ -128,9 +126,7 @@ impl Tool for NotebookEditTool {
                     0
                 }
             }
-            NotebookOperation::Update(update) => {
-                apply_cell_update(&mut notebook, update)?
-            }
+            NotebookOperation::Update(update) => apply_cell_update(&mut notebook, update)?,
         };
 
         let json = serde_json::to_string_pretty(&notebook)
@@ -147,10 +143,7 @@ impl Tool for NotebookEditTool {
     }
 }
 
-fn apply_cell_update(
-    notebook: &mut NotebookDocument,
-    update: CellUpdate,
-) -> anyhow::Result<usize> {
+fn apply_cell_update(notebook: &mut NotebookDocument, update: CellUpdate) -> anyhow::Result<usize> {
     if update.index >= notebook.cells.len() {
         anyhow::bail!("Cell index out of bounds");
     }

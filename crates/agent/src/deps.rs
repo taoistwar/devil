@@ -102,7 +102,7 @@ impl ProductionDeps {
     /// 创建生产环境依赖
     pub fn new() -> Self {
         Self {
-            uuid_generator: Box::new(ProductionUuidGenerator::default()),
+            uuid_generator: Box::new(ProductionUuidGenerator),
         }
     }
 }
@@ -129,7 +129,7 @@ impl QueryDeps for ProductionDeps {
                         None
                     }
                 })
-                .last()
+                .next_back()
                 .unwrap_or_default();
 
             let echo_response = format!(

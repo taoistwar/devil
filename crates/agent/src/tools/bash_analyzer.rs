@@ -350,7 +350,7 @@ pub fn extract_paths_from_command(command: &str) -> Vec<String> {
 }
 
 /// 检测命令中的危险模式
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct DangerDetection {
     /// 是否危险
     pub is_dangerous: bool,
@@ -358,16 +358,6 @@ pub struct DangerDetection {
     pub reason: Option<String>,
     /// 危险级别 (1-10)
     pub danger_level: u8,
-}
-
-impl Default for DangerDetection {
-    fn default() -> Self {
-        Self {
-            is_dangerous: false,
-            reason: None,
-            danger_level: 0,
-        }
-    }
 }
 
 /// 检测命令中的危险模式

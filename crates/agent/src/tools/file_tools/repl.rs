@@ -5,9 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct REPLInput {
@@ -47,11 +45,7 @@ impl REPLTool {
         }
     }
 
-    async fn get_or_create_session(
-        &self,
-        session_id: &str,
-        language: &str,
-    ) -> REPLSession {
+    async fn get_or_create_session(&self, session_id: &str, language: &str) -> REPLSession {
         let mut sessions = self.sessions.write().await;
         sessions
             .entry(session_id.to_string())
@@ -117,11 +111,13 @@ impl Tool for REPLTool {
         _ctx: &ToolContext,
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        let session_id = input.session_id.unwrap_or_else(|| {
-            format!("repl-{}-{}", input.language, std::process::id())
-        });
+        let session_id = input
+            .session_id
+            .unwrap_or_else(|| format!("repl-{}-{}", input.language, std::process::id()));
 
-        let session = self.get_or_create_session(&session_id, &input.language).await;
+        let session = self
+            .get_or_create_session(&session_id, &input.language)
+            .await;
 
         let (result, error, output) = execute_code(&input.language, &input.code, &session.context)?;
 

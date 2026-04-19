@@ -6,15 +6,15 @@
 pub mod cmd_trait;
 pub mod registry;
 
-pub mod core;
-pub mod config;
 pub mod advanced;
-pub mod edit;
 pub mod collaboration;
+pub mod config;
+pub mod core;
+pub mod edit;
 pub mod system;
 
-pub use cmd_trait::{SlashCommand, CommandResult, CommandContext};
-pub use registry::{CommandRegistry, global_registry};
+pub use cmd_trait::{CommandContext, CommandResult, SlashCommand};
+pub use registry::{global_registry, CommandRegistry};
 
 #[cfg(test)]
 mod tests;

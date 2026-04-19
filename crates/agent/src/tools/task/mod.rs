@@ -16,9 +16,9 @@ pub use create::{TaskCreateInput, TaskCreateOutput, TaskCreateTool};
 pub use get::{TaskGetInput, TaskGetOutput, TaskGetTool};
 pub use list::{TaskListInput, TaskListOutput, TaskListTool};
 pub use output::{TaskOutputInput, TaskOutputOutput, TaskOutputStore, TaskOutputTool};
+pub use scheduler::TaskScheduler;
 pub use stop::{TaskStopInput, TaskStopOutput, TaskStopTool};
 pub use update::{TaskUpdateInput, TaskUpdateOutput, TaskUpdateTool};
-pub use scheduler::TaskScheduler;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
@@ -38,7 +38,7 @@ impl Task {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        
+
         Self {
             id: Uuid::new_v4().to_string(),
             title,
@@ -52,34 +52,24 @@ impl Task {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskStatus {
+    #[default]
     Pending,
     InProgress,
     Completed,
     Cancelled,
 }
 
-impl Default for TaskStatus {
-    fn default() -> Self {
-        Self::Pending
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum TaskPriority {
     Low,
+    #[default]
     Medium,
     High,
     Urgent,
-}
-
-impl Default for TaskPriority {
-    fn default() -> Self {
-        Self::Medium
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,21 +151,21 @@ impl TaskStore {
     pub async fn list(&self, options: TaskListOptions) -> Vec<Task> {
         let tasks = self.tasks.read().await;
         let mut result: Vec<Task> = tasks.values().cloned().collect();
-        
+
         if let Some(status) = options.status {
             result.retain(|t| t.status == status);
         }
-        
+
         if let Some(tags) = options.tags {
             result.retain(|t| tags.iter().any(|tag| t.tags.contains(tag)));
         }
-        
-        result.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-        
+
+        result.sort_by_key(|b| std::cmp::Reverse(b.created_at));
+
         if let Some(limit) = options.limit {
             result.truncate(limit);
         }
-        
+
         result
     }
 }

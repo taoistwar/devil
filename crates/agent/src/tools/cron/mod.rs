@@ -6,9 +6,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CronCreateInput {
@@ -148,8 +146,13 @@ impl Tool for CronCreateTool {
         _ctx: &ToolContext,
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        let name = input.name.unwrap_or_else(|| format!("job-{}", std::process::id()));
-        let job = self.store.create(&input.schedule, &input.action, &name).await;
+        let name = input
+            .name
+            .unwrap_or_else(|| format!("job-{}", std::process::id()));
+        let job = self
+            .store
+            .create(&input.schedule, &input.action, &name)
+            .await;
 
         let output = CronCreateOutput {
             id: job.id,

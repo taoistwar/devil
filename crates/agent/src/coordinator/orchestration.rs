@@ -69,7 +69,7 @@ impl Orchestrator {
     async fn spawn_task(&self, directive: WorkerDirective, phase: TaskPhase) -> String {
         let task_id = format!(
             "agent-{}",
-            uuid::Uuid::new_v4().to_string()[..8].to_string()
+            &uuid::Uuid::new_v4().to_string()[..8]
         );
 
         let running_task = RunningTask {

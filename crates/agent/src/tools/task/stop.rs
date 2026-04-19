@@ -4,10 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
 use crate::tools::task::TaskStore;
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskStopInput {
@@ -87,15 +85,12 @@ impl Tool for TaskStopTool {
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
         let mut running = self.running_tasks.write().await;
-        let was_running = running.remove(&input.id);
+        running.remove(&input.id);
 
         let output = TaskStopOutput {
             task_id: input.id,
             success: true,
         };
-
-        if !was_running {
-        }
 
         Ok(ToolResult::success("task_stop-1", output))
     }

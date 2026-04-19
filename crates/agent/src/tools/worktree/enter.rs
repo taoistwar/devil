@@ -4,9 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::process::Command;
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 use crate::tools::worktree::WorktreeManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -38,9 +36,14 @@ impl EnterWorktreeTool {
         Self { manager }
     }
 
-    async fn create_git_worktree(&self, name: &str, path: &PathBuf) -> Result<()> {
+    async fn create_git_worktree(&self, name: &str, path: &std::path::Path) -> Result<()> {
         let output = Command::new("git")
-            .args(["worktree", "add", path.to_str().unwrap_or("."), &format!("HEAD-{}", name)])
+            .args([
+                "worktree",
+                "add",
+                path.to_str().unwrap_or("."),
+                &format!("HEAD-{}", name),
+            ])
             .output()?;
 
         if !output.status.success() {
@@ -114,13 +117,15 @@ impl Tool for EnterWorktreeTool {
         let create = input.create.unwrap_or(true);
 
         if create {
-            if let Err(_e) = self.create_git_worktree(&input.name, &worktree_path).await {
-            }
+            if let Err(_e) = self.create_git_worktree(&input.name, &worktree_path).await {}
         }
 
         let is_primary = self.manager.list().await.is_empty();
 
-        let state = self.manager.add(input.name.clone(), worktree_path.clone(), is_primary).await;
+        let state = self
+            .manager
+            .add(input.name.clone(), worktree_path.clone(), is_primary)
+            .await;
 
         let output = EnterWorktreeOutput {
             worktree: WorktreeInfo {

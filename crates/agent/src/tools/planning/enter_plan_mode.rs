@@ -3,10 +3,8 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::tools::planning::{AgentState, PlanMode};
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
 use crate::tools::task::scheduler::TaskScheduler;
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnterPlanModeInput {
@@ -83,10 +81,7 @@ impl Tool for EnterPlanModeTool {
         let previous_state = self.scheduler.get_state().await;
         let previous_state_str = format!("{:?}", previous_state);
 
-        let new_mode = input
-            .mode
-            .map(|s| parse_mode(&s))
-            .unwrap_or(PlanMode::Task);
+        let new_mode = input.mode.map(|s| parse_mode(&s)).unwrap_or(PlanMode::Task);
 
         let new_state = AgentState::Planning;
         self.scheduler.set_state(new_state).await;

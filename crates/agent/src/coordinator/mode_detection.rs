@@ -32,7 +32,7 @@ pub enum SessionMode {
 
 impl SessionMode {
     /// 从字符串解析
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse_mode(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "coordinator" => Some(SessionMode::Coordinator),
             "normal" => Some(SessionMode::Normal),
@@ -56,10 +56,7 @@ impl SessionMode {
 ///
 /// 返回是否需要切换模式的提示消息
 pub fn match_session_mode(stored_mode: Option<SessionMode>) -> Option<String> {
-    let stored = match stored_mode {
-        Some(mode) => mode,
-        None => return None, // 旧会话没有模式记录
-    };
+    let stored = stored_mode?;
 
     let current_is_coordinator = is_env_coordinator_mode();
     let session_is_coordinator = stored == SessionMode::Coordinator;
@@ -119,15 +116,15 @@ mod tests {
     #[test]
     fn test_session_mode_from_str() {
         assert_eq!(
-            SessionMode::from_str("coordinator"),
+            SessionMode::parse_mode("coordinator"),
             Some(SessionMode::Coordinator)
         );
         assert_eq!(
-            SessionMode::from_str("Coordinator"),
+            SessionMode::parse_mode("Coordinator"),
             Some(SessionMode::Coordinator)
         );
-        assert_eq!(SessionMode::from_str("normal"), Some(SessionMode::Normal));
-        assert_eq!(SessionMode::from_str("invalid"), None);
+        assert_eq!(SessionMode::parse_mode("normal"), Some(SessionMode::Normal));
+        assert_eq!(SessionMode::parse_mode("invalid"), None);
     }
 
     #[test]

@@ -3,9 +3,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiscoverSkillsInput {
@@ -51,7 +49,9 @@ impl DiscoverSkillsTool {
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
 
-                    let description = if let Ok(skill_md) = std::fs::read_to_string(entry_path.join("SKILL.md")) {
+                    let description = if let Ok(skill_md) =
+                        std::fs::read_to_string(entry_path.join("SKILL.md"))
+                    {
                         skill_md.lines().next().unwrap_or("").to_string()
                     } else {
                         String::new()

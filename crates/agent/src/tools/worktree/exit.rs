@@ -3,9 +3,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 use crate::tools::worktree::WorktreeManager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,8 +90,7 @@ impl Tool for ExitWorktreeTool {
 
         if let Some(state) = worktree {
             if input.remove.unwrap_or(false) {
-                if let Err(_e) = self.remove_git_worktree(&state.path).await {
-                }
+                if let Err(_e) = self.remove_git_worktree(&state.path).await {}
             }
         }
 

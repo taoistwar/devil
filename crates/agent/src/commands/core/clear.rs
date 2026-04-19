@@ -33,7 +33,10 @@ impl SlashCommand for ClearCommand {
     }
 
     async fn execute(&self, ctx: &CommandContext, _args: &[&str]) -> CommandResult {
-        tracing::info!("Clearing conversation history for session: {}", ctx.session_id);
+        tracing::info!(
+            "Clearing conversation history for session: {}",
+            ctx.session_id
+        );
 
         CommandResult::success_with_data(
             "对话已清除",

@@ -33,9 +33,16 @@ impl SlashCommand for ThemeCommand {
     }
 
     async fn execute(&self, ctx: &CommandContext, args: &[&str]) -> CommandResult {
-        let theme = args.first().map(|s| s.to_string()).unwrap_or_else(|| "dark".to_string());
+        let theme = args
+            .first()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "dark".to_string());
 
-        tracing::info!("Theme switch requested: {} for session: {}", theme, ctx.session_id);
+        tracing::info!(
+            "Theme switch requested: {} for session: {}",
+            theme,
+            ctx.session_id
+        );
 
         CommandResult::success_with_data(
             format!("主题已切换到: {}", theme),

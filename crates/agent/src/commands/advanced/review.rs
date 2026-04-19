@@ -32,7 +32,10 @@ impl SlashCommand for ReviewCommand {
     }
 
     async fn execute(&self, ctx: &CommandContext, args: &[&str]) -> CommandResult {
-        let file = args.first().map(|s| s.to_string()).unwrap_or_else(|| "[未指定文件]".to_string());
+        let file = args
+            .first()
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "[未指定文件]".to_string());
 
         CommandResult::success_with_data(
             format!("代码审查: {}", file),

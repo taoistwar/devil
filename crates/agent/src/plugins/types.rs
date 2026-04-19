@@ -4,7 +4,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// 插件元数据（从 package.json 或 plugin.json 提取）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -267,7 +267,7 @@ pub mod plugin_identifier {
     use super::*;
 
     /// 从路径提取插件 ID
-    pub fn extract_plugin_id(path: &PathBuf) -> Option<String> {
+    pub fn extract_plugin_id(path: &Path) -> Option<String> {
         path.file_name()
             .and_then(|n| n.to_str())
             .map(|s| s.to_string())

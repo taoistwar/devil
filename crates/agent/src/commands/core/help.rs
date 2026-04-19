@@ -94,26 +94,34 @@ Devil Agent - AI 编程助手
 
     fn show_command_help(&self, command: &str) -> CommandResult {
         let help_text = match command {
-            "help" => r#"/help [command]
+            "help" => {
+                r#"/help [command]
 显示帮助信息
   - 无参数: 显示所有可用命令
   - 有参数: 显示指定命令的帮助
 
 示例:
   /help
-  /help compact"#,
-            "compact" => r#"/compact
+  /help compact"#
+            }
+            "compact" => {
+                r#"/compact
 手动压缩上下文，释放 token 空间
-这会在需要时自动触发，但可以手动强制执行"#,
-            "model" => r#"/model [model-name]
+这会在需要时自动触发，但可以手动强制执行"#
+            }
+            "model" => {
+                r#"/model [model-name]
 切换 AI 模型
 
 示例:
   /model claude-sonnet-4
-  /model claude-opus"#,
-            "clear" => r#"/clear
+  /model claude-opus"#
+            }
+            "clear" => {
+                r#"/clear
 清除当前对话历史
-警告: 此操作不可逆"#,
+警告: 此操作不可逆"#
+            }
             _ => return CommandResult::error(format!("未知命令: {}", command)),
         };
         CommandResult::success(help_text)

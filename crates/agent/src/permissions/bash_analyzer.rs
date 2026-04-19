@@ -136,7 +136,7 @@ impl BashSemanticAnalyzer {
         }
 
         // 处理命令替换和管道
-        parts.first().map(|s| s.clone()).unwrap_or_else(|| {
+        parts.first().cloned().unwrap_or_else(|| {
             // 检查是否以管道或重定向开始
             if first_part.starts_with('|') {
                 "pipeline".to_string()
@@ -488,9 +488,8 @@ pub fn is_command_allowed(command: &str, whitelist: &[&str]) -> bool {
 
     // 检查白名单中的模式
     for pattern in whitelist {
-        if pattern.ends_with(":*") {
+        if let Some(prefix) = pattern.strip_suffix(":*") {
             // 前缀匹配
-            let prefix = &pattern[..pattern.len() - 2];
             if command.starts_with(prefix) {
                 return true;
             }

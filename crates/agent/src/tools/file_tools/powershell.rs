@@ -2,9 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PowerShellInput {
@@ -89,7 +87,9 @@ impl Tool for PowerShellTool {
             let output = PowerShellOutput {
                 exit_code: 1,
                 stdout: String::new(),
-                stderr: "PowerShell is not available on this platform. This tool only works on Windows.".to_string(),
+                stderr:
+                    "PowerShell is not available on this platform. This tool only works on Windows."
+                        .to_string(),
             };
             Ok(ToolResult {
                 tool_use_id: "powershell-1".to_string(),
@@ -104,10 +104,7 @@ impl Tool for PowerShellTool {
 }
 
 #[cfg(target_os = "windows")]
-fn execute_powershell_internal(
-    command: &str,
-    _args: &[String],
-) -> Result<PowerShellOutput> {
+fn execute_powershell_internal(command: &str, _args: &[String]) -> Result<PowerShellOutput> {
     use std::process::{Command, Stdio};
 
     let mut cmd = Command::new("pwsh");

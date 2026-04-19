@@ -308,7 +308,7 @@ impl ConditionalSkills {
     pub fn add(&mut self, pattern: impl Into<String>, skill: SkillCommand) {
         self.skills_by_pattern
             .entry(pattern.into())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(skill);
     }
 
@@ -318,7 +318,7 @@ impl ConditionalSkills {
 
         self.skills_by_pattern.retain(|pattern, skills| {
             if Self::matches_pattern(pattern, path) {
-                activated.extend(skills.drain(..));
+                activated.append(skills);
                 false // 移除已激活的
             } else {
                 true // 保留

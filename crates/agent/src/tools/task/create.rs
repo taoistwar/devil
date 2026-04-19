@@ -2,10 +2,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
 use crate::tools::task::{Task, TaskPriority, TaskStore};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskCreateInput {
@@ -94,15 +92,15 @@ impl Tool for TaskCreateTool {
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
         let mut task = Task::new(input.title);
-        
+
         if let Some(desc) = input.description {
             task.description = Some(desc);
         }
-        
+
         if let Some(priority) = input.priority {
             task.priority = priority;
         }
-        
+
         if let Some(tags) = input.tags {
             task.tags = tags;
         }

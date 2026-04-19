@@ -60,19 +60,14 @@ pub struct ToolExecutionRecord {
 /// 中断行为
 ///
 /// 定义用户提交新消息时工具的行为
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum InterruptBehavior {
     /// 停止工具并丢弃结果
     Cancel,
     /// 继续运行，新消息等待
+    #[default]
     Block,
-}
-
-impl Default for InterruptBehavior {
-    fn default() -> Self {
-        Self::Block
-    }
 }
 
 /// 权限行为
@@ -523,10 +518,11 @@ pub trait Tool: Send + Sync {
 /// 工具权限级别
 ///
 /// 分层权限检查的第二层
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolPermissionLevel {
     /// 只读操作，无需确认
+    #[default]
     ReadOnly,
     /// 可能产生副作用，需要确认
     RequiresConfirmation,
@@ -534,12 +530,6 @@ pub enum ToolPermissionLevel {
     Destructive,
     /// 全局拒绝（任何情况下都不允许）
     BlanketDenied,
-}
-
-impl Default for ToolPermissionLevel {
-    fn default() -> Self {
-        Self::ReadOnly
-    }
 }
 
 /// 工具元数据

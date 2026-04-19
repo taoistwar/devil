@@ -1,12 +1,10 @@
 pub mod brief;
 pub mod ctx_inspect;
 
-pub use ctx_inspect::{CtxInspectInput, CtxInspectOutput, CtxInspectTool};
 pub use brief::BriefTool;
+pub use ctx_inspect::{CtxInspectInput, CtxInspectOutput, CtxInspectTool};
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

@@ -88,7 +88,7 @@ impl TokenBudgetTracker {
     }
 
     /// 创建默认配置的追踪器
-    pub fn default() -> Self {
+    pub fn default_tracker() -> Self {
         Self::new(TokenBudgetConfig::default())
     }
 
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_try_restore_file_within_budget() {
-        let mut tracker = TokenBudgetTracker::default();
+        let mut tracker = TokenBudgetTracker::default_tracker();
 
         // 添加一个 3000 令牌的文件
         let result = tracker.try_restore_file("test.rs", 3000);
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_try_restore_file_exceeds_budget() {
-        let mut tracker = TokenBudgetTracker::default();
+        let mut tracker = TokenBudgetTracker::default_tracker();
 
         // 添加一个超出预算的文件（6000 > 5000）
         let result = tracker.try_restore_file("large.rs", 6000);
@@ -330,7 +330,7 @@ mod tests {
 
     #[test]
     fn test_try_restore_multiple_files() {
-        let mut tracker = TokenBudgetTracker::default();
+        let mut tracker = TokenBudgetTracker::default_tracker();
 
         // 添加 5 个文件
         for i in 0..5 {
@@ -347,7 +347,7 @@ mod tests {
 
     #[test]
     fn test_skill_budget() {
-        let mut tracker = TokenBudgetTracker::default();
+        let mut tracker = TokenBudgetTracker::default_tracker();
 
         // 使用一个技能
         let result = tracker.try_use_skill("test_skill", 4000);
@@ -364,7 +364,7 @@ mod tests {
 
     #[test]
     fn test_budget_stats_health() {
-        let mut tracker = TokenBudgetTracker::default();
+        let mut tracker = TokenBudgetTracker::default_tracker();
 
         // 健康状态
         tracker.try_restore_file("small.rs", 10000);

@@ -2,11 +2,11 @@
 //!
 //! 核心斜杠命令：help, compact, model, clear, exit, resume, doctor, cost
 
-pub mod help;
-pub mod compact;
-pub mod model;
 pub mod clear;
-pub mod exit;
-pub mod resume;
-pub mod doctor;
+pub mod compact;
 pub mod cost;
+pub mod doctor;
+pub mod exit;
+pub mod help;
+pub mod model;
+pub mod resume;

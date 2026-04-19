@@ -2,9 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::tools::tool::{
-    Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult,
-};
+use crate::tools::tool::{Tool, ToolContext, ToolPermissionLevel, ToolProgress, ToolResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnipInput {
@@ -65,7 +63,9 @@ impl Tool for SnipTool {
         _ctx: &ToolContext,
         _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
     ) -> Result<ToolResult<Self::Output>> {
-        let path = input.path.unwrap_or_else(|| format!("snip-{}.png", std::process::id()));
+        let path = input
+            .path
+            .unwrap_or_else(|| format!("snip-{}.png", std::process::id()));
 
         let output = SnipOutput {
             path,

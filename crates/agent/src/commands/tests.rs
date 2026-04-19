@@ -2,21 +2,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::commands::cmd_trait::{CommandContext, CommandResult, SlashCommand};
-    use crate::commands::core::help::HelpCommand;
-    use crate::commands::core::compact::CompactCommand;
-    use crate::commands::core::clear::ClearCommand;
-    use crate::commands::core::model::ModelCommand;
-    use crate::commands::core::exit::ExitCommand;
-    use crate::commands::core::resume::ResumeCommand;
-    use crate::commands::core::doctor::DoctorCommand;
-    use crate::commands::core::cost::CostCommand;
-    use crate::commands::config::config::ConfigCommand;
-    use crate::commands::config::login::LoginCommand;
-    use crate::commands::config::logout::LogoutCommand;
-    use crate::commands::config::theme::ThemeCommand;
+    use crate::commands::advanced::desktop::DesktopCommand;
     use crate::commands::advanced::diff::DiffCommand;
     use crate::commands::advanced::fast::FastCommand;
+    use crate::commands::advanced::hooks::HooksCommand;
     use crate::commands::advanced::mcp::McpCommand;
     use crate::commands::advanced::memory::MemoryCommand;
     use crate::commands::advanced::permissions::PermissionsCommand;
@@ -28,26 +17,37 @@ mod tests {
     use crate::commands::advanced::tasks::TasksCommand;
     use crate::commands::advanced::upgrade::UpgradeCommand;
     use crate::commands::advanced::voice::VoiceCommand;
-    use crate::commands::advanced::desktop::DesktopCommand;
-    use crate::commands::advanced::hooks::HooksCommand;
-    use crate::commands::edit::vim::VimCommand;
-    use crate::commands::edit::rewind::RewindCommand;
-    use crate::commands::edit::context::ContextCommand;
-    use crate::commands::edit::summary::SummaryCommand;
-    use crate::commands::edit::tag::TagCommand;
-    use crate::commands::edit::rename::RenameCommand;
-    use crate::commands::edit::env::EnvCommand;
-    use crate::commands::edit::files::FilesCommand;
+    use crate::commands::cmd_trait::{CommandContext, CommandResult, SlashCommand};
+    use crate::commands::config::cmd::ConfigCommand;
+    use crate::commands::config::login::LoginCommand;
+    use crate::commands::config::logout::LogoutCommand;
+    use crate::commands::config::theme::ThemeCommand;
+    use crate::commands::core::clear::ClearCommand;
+    use crate::commands::core::compact::CompactCommand;
+    use crate::commands::core::cost::CostCommand;
+    use crate::commands::core::doctor::DoctorCommand;
+    use crate::commands::core::exit::ExitCommand;
+    use crate::commands::core::help::HelpCommand;
+    use crate::commands::core::model::ModelCommand;
+    use crate::commands::core::resume::ResumeCommand;
     use crate::commands::edit::add_dir::AddDirCommand;
-    use crate::commands::edit::copy::CopyCommand;
-    use crate::commands::edit::src::SrcCommand;
-    use crate::commands::edit::ide::IdeCommand;
-    use crate::commands::edit::terminal_setup::TerminalSetupCommand;
-    use crate::commands::edit::passes::PassesCommand;
     use crate::commands::edit::autofix_pr::AutofixPrCommand;
     use crate::commands::edit::bughunter::BughunterCommand;
+    use crate::commands::edit::context::ContextCommand;
+    use crate::commands::edit::copy::CopyCommand;
     use crate::commands::edit::effort::EffortCommand;
+    use crate::commands::edit::env::EnvCommand;
+    use crate::commands::edit::files::FilesCommand;
+    use crate::commands::edit::ide::IdeCommand;
+    use crate::commands::edit::passes::PassesCommand;
+    use crate::commands::edit::rename::RenameCommand;
+    use crate::commands::edit::rewind::RewindCommand;
+    use crate::commands::edit::src::SrcCommand;
+    use crate::commands::edit::summary::SummaryCommand;
+    use crate::commands::edit::tag::TagCommand;
+    use crate::commands::edit::terminal_setup::TerminalSetupCommand;
     use crate::commands::edit::thinkback::ThinkbackCommand;
+    use crate::commands::edit::vim::VimCommand;
 
     #[tokio::test]
     async fn test_help_command() {

@@ -14,11 +14,12 @@ use std::collections::HashMap;
 /// 权限模式
 ///
 /// 定义了从严格到宽松的五种权限模式谱系
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum PermissionMode {
     /// default 模式：逐次确认
     /// 除了被明确 allow 规则放行的工具外，每次工具调用都需要用户确认
+    #[default]
     Default,
     /// plan 模式：只读为主
     /// 将 Agent 限制在只读操作范围内，写入类工具被 deny
@@ -33,12 +34,6 @@ pub enum PermissionMode {
     /// 用于子智能体场景，权限检查会冒泡回主智能体
     #[serde(skip)]
     Bubble,
-}
-
-impl Default for PermissionMode {
-    fn default() -> Self {
-        Self::Default
-    }
 }
 
 impl PermissionMode {
@@ -200,7 +195,7 @@ impl PermissionRule {
         };
 
         // 检查内容匹配
-        Self::matches_command(&content, cmd)
+        Self::matches_command(content, cmd)
     }
 
     /// 解析规则目标
@@ -228,8 +223,7 @@ impl PermissionRule {
     /// 3. 通配符匹配：content 包含 *（非尾部:*）
     fn matches_command(content: &str, command: &str) -> bool {
         // 检查前缀匹配语法 :*
-        if content.ends_with(":*") {
-            let prefix = &content[..content.len() - 2];
+        if let Some(prefix) = content.strip_suffix(":*") {
             return command.starts_with(prefix);
         }
 
@@ -472,9 +466,9 @@ impl ToolPermissionContext {
     /// 添加规则到指定来源
     pub fn add_rule(&mut self, rule: PermissionRule) {
         let rules = match rule.action {
-            PermissionAction::Allow => self.allow_rules.entry(rule.source).or_insert_with(Vec::new),
-            PermissionAction::Deny => self.deny_rules.entry(rule.source).or_insert_with(Vec::new),
-            PermissionAction::Ask => self.ask_rules.entry(rule.source).or_insert_with(Vec::new),
+            PermissionAction::Allow => self.allow_rules.entry(rule.source).or_default(),
+            PermissionAction::Deny => self.deny_rules.entry(rule.source).or_default(),
+            PermissionAction::Ask => self.ask_rules.entry(rule.source).or_default(),
         };
         rules.push(rule);
     }
