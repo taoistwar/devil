@@ -134,6 +134,7 @@ fn print_help() {
     println!("  DEVIL_API_KEY              API key for authentication");
     println!("  DEVIL_MODEL                Model to use");
     println!("  DEVIL_PROVIDER             API provider (anthropic)");
+    println!("  DEVIL_BASE_URL             API base URL (optional)");
     println!("  DEVIL_MAX_CONTEXT_TOKENS   Maximum context tokens");
     println!("  DEVIL_MAX_TURNS            Maximum turns per session");
     println!("  DEVIL_VERBOSE              Enable verbose logging");

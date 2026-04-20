@@ -25,6 +25,8 @@ pub struct Config {
     pub model: String,
     /// API key (from config file or environment)
     pub api_key: Option<String>,
+    /// Base URL for API endpoint (optional, defaults to provider's default)
+    pub base_url: Option<String>,
     /// Maximum context tokens
     pub max_context_tokens: usize,
     /// Maximum turns per session
@@ -45,6 +47,7 @@ impl Default for Config {
             provider: "anthropic".to_string(),
             model: "claude-sonnet-4-20250514".to_string(),
             api_key: None,
+            base_url: None,
             max_context_tokens: 200000,
             max_turns: 50,
             tool_timeout_secs: 300,
@@ -89,6 +92,7 @@ impl Config {
     /// - DEVIL_API_KEY → api_key
     /// - DEVIL_MODEL → model
     /// - DEVIL_PROVIDER → provider
+    /// - DEVIL_BASE_URL → base_url
     /// - DEVIL_MAX_CONTEXT_TOKENS → max_context_tokens
     /// - DEVIL_MAX_TURNS → max_turns
     /// - DEVIL_VERBOSE → verbose
@@ -103,6 +107,10 @@ impl Config {
 
         if let Ok(provider) = env::var("DEVIL_PROVIDER") {
             self.provider = provider;
+        }
+
+        if let Ok(base_url) = env::var("DEVIL_BASE_URL") {
+            self.base_url = Some(base_url);
         }
 
         if let Ok(max_tokens) = env::var("DEVIL_MAX_CONTEXT_TOKENS") {
