@@ -24,6 +24,7 @@
 
 mod cli;
 mod config;
+pub mod web;
 
 use std::env;
 use std::process::ExitCode;
@@ -124,6 +125,7 @@ fn print_help() {
     println!("Commands:");
     println!("  run <prompt>    Execute a single task");
     println!("  repl            Enter interactive mode");
+    println!("  web             Start web server");
     println!("  config          Show configuration");
     println!("  version, -v     Show version number");
     println!("  help, -h        Show this help message");

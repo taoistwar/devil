@@ -191,6 +191,52 @@ pub async fn run_repl() -> Result<()> {
     Ok(())
 }
 
+/// Run the web server
+pub async fn run_web(args: &[String]) -> Result<()> {
+    use crate::web::WebServer;
+
+    tracing::info!("Starting web server mode");
+
+    // Parse command line arguments
+    let mut host = "127.0.0.1".to_string();
+    let mut port = 8080u16;
+
+    for i in 0..args.len() {
+        match args[i].as_str() {
+            "--host" | "-h" => {
+                if i + 1 < args.len() {
+                    host = args[i + 1].clone();
+                }
+            }
+            "--port" | "-p" => {
+                if i + 1 < args.len() {
+                    if let Ok(p) = args[i + 1].parse::<u16>() {
+                        port = p;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Override with environment variables
+    if let Ok(h) = std::env::var("DEVIL_HOST") {
+        host = h;
+    }
+    if let Ok(p) = std::env::var("DEVIL_PORT") {
+        if let Ok(parsed) = p.parse::<u16>() {
+            port = parsed;
+        }
+    }
+
+    println!("Starting web server on {}:{}", host, port);
+
+    let server = WebServer::with_config(host, port);
+    server.serve_with_signals().await?;
+
+    Ok(())
+}
+
 fn print_repl_help() {
     println!();
     println!("═══ Available Commands ═══");

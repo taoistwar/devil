@@ -40,6 +40,9 @@ pub enum CliError {
 
     #[error("Tool execution failed: {0}")]
     ToolError(String),
+
+    #[error("Web server error: {0}")]
+    WebError(String),
 }
 
 impl CliError {
@@ -54,6 +57,7 @@ impl CliError {
             CliError::InitError(_) => ExitCode::from(1),
             CliError::NetworkError(_) => ExitCode::from(5),
             CliError::ToolError(_) => ExitCode::from(1),
+            CliError::WebError(_) => ExitCode::from(1),
         }
     }
 }
