@@ -60,7 +60,7 @@ impl Default for LogLevel {
 impl LogLevel {
     /// Convert to tracing level
     #[allow(dead_code)]
-    pub fn to_tracing_level(&self) -> &str {
+    pub fn as_tracing_level(&self) -> &str {
         match self {
             Self::Error => "error",
             Self::Warn => "warn",

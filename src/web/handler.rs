@@ -108,7 +108,7 @@ pub async fn chat_handler(
                 None
             }
         })
-        .last()
+        .next_back()
         .unwrap_or_default();
 
     // Shutdown agent
