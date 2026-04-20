@@ -10,6 +10,7 @@ pub mod init;
 use std::io::{self, Write};
 use anyhow::Result;
 use devil_agent_core::commands::{CommandContext, global_registry};
+use devil_agent_core::{Agent, AgentConfig, UserMessage, AgentMessage as Message};
 pub use dispatcher::Dispatcher;
 pub use error::CliError;
 
@@ -27,17 +28,70 @@ pub async fn init() -> Result<()> {
 
 /// Run a single task with the agent
 pub async fn run_once(prompt: &str) -> Result<()> {
-    // Placeholder - will connect to agent core
     tracing::info!("Executing single task: {}", prompt);
-    println!("Running task: {}", prompt);
 
     // Check for API key when running tasks
     let config = crate::config::Config::load().unwrap_or_default();
     if !config.has_api_key() {
         tracing::warn!("API key not configured. Set DEVIL_API_KEY to enable model calls.");
+        println!("Warning: API key not configured. Set DEVIL_API_KEY to enable model calls.");
+        println!("For testing, use: DEVIL_MOCK_MODEL=1");
     }
 
+    // Create agent config
+    let agent_config = AgentConfig {
+        name: "devil-cli".to_string(),
+        model: config.model.clone(),
+        system_prompt: get_system_prompt(),
+        max_turns: config.max_turns,
+        max_context_tokens: config.max_context_tokens,
+        ..Default::default()
+    };
+
+    // Create and initialize agent
+    let agent = Agent::new(agent_config)?;
+    agent.initialize().await?;
+
+    // Create user message
+    let user_message = Message::User(UserMessage::text(prompt));
+
+    // Run agent
+    let result = agent.run_once(user_message).await?;
+
+    // Print result
+    println!("\n--- Result ---");
+    println!("Turns: {}", result.turn_count);
+    println!("Terminal: {:?}", result.terminal.reason);
+    
+    // Print final message if any
+    if let Some(last_msg) = result.messages.last() {
+        match last_msg {
+            Message::Assistant(asm) => {
+                let text = asm.text_content();
+                if !text.is_empty() {
+                    println!("\nResponse:\n{}", text);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Shutdown agent
+    agent.shutdown().await?;
+
     Ok(())
+}
+
+fn get_system_prompt() -> String {
+    r#"You are Devil Agent, an AI-powered development assistant built on MonkeyCode AI framework.
+
+You are helpful, concise, and practical. You assist users with software engineering tasks including:
+- Writing, reading, and modifying code
+- Executing commands and debugging
+- Searching and analyzing codebases
+- Managing files and project structure
+
+When working with files, prefer direct edits using the Write/Edit tools. Keep responses concise."#.to_string()
 }
 
 /// Run the interactive REPL

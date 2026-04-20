@@ -91,6 +91,7 @@ impl CommandRegistry {
         self.register(crate::commands::advanced::upgrade::UpgradeCommand::new());
         self.register(crate::commands::advanced::desktop::DesktopCommand::new());
         self.register(crate::commands::advanced::stickers::StickersCommand::new());
+        self.register(crate::commands::advanced::coordinator::CoordinatorCommand::new());
 
         // 编辑命令
         self.register(crate::commands::edit::vim::VimCommand::new());
