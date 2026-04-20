@@ -25,7 +25,12 @@ pub struct RunningTask {
     pub phase: TaskPhase,
     /// Worker 指令
     pub directive: WorkerDirective,
+    /// 子 Agent 嵌套深度
+    pub depth: u8,
 }
+
+/// 最大子 Agent 嵌套深度
+pub const MAX_SUBAGENT_DEPTH: u8 = 3;
 
 impl Orchestrator {
     /// 创建编排器
@@ -67,6 +72,16 @@ impl Orchestrator {
 
     /// 派发任务（通用）
     async fn spawn_task(&self, directive: WorkerDirective, phase: TaskPhase) -> String {
+        self.spawn_task_with_depth(directive, phase, 0).await
+    }
+
+    /// 派发带深度的任务
+    async fn spawn_task_with_depth(
+        &self,
+        directive: WorkerDirective,
+        phase: TaskPhase,
+        depth: u8,
+    ) -> String {
         let task_id = format!(
             "agent-{}",
             &uuid::Uuid::new_v4().to_string()[..8]
@@ -75,14 +90,80 @@ impl Orchestrator {
         let running_task = RunningTask {
             task_id: task_id.clone(),
             description: directive.description.clone(),
-            phase,
+            phase: phase.clone(),
             directive,
+            depth,
         };
 
         let mut tasks = self.running_tasks.write().await;
         tasks.push(running_task);
 
+        tracing::info!(
+            "派发 {} (depth={}, phase={})",
+            task_id,
+            depth,
+            format!("{:?}", phase)
+        );
+
         task_id
+    }
+
+    /// 检查是否可以派发子 Agent
+    ///
+    /// 根据 FR-010 和 SC-004，限制最大嵌套深度为 3 层
+    pub fn can_spawn_subagent(&self, parent_depth: u8) -> bool {
+        parent_depth < MAX_SUBAGENT_DEPTH
+    }
+
+    /// 派发子 Agent（从 Worker 内部调用）
+    ///
+    /// Worker 可以派发自己的子 Agent 来处理嵌套任务
+    pub async fn spawn_subagent(
+        &self,
+        parent_task_id: &str,
+        directive: WorkerDirective,
+        phase: TaskPhase,
+    ) -> Result<String, String> {
+        let mut tasks = self.running_tasks.write().await;
+
+        let parent_depth = tasks
+            .iter()
+            .find(|t| t.task_id == parent_task_id)
+            .map(|t| t.depth)
+            .ok_or_else(|| format!("未找到父任务: {}", parent_task_id))?;
+
+        if parent_depth >= MAX_SUBAGENT_DEPTH {
+            return Err(format!(
+                "已达最大嵌套深度 {}，禁止再派发子 Agent",
+                MAX_SUBAGENT_DEPTH
+            ));
+        }
+
+        let task_id = format!(
+            "subagent-{}",
+            &uuid::Uuid::new_v4().to_string()[..8]
+        );
+
+        let running_task = RunningTask {
+            task_id: task_id.clone(),
+            description: directive.description.clone(),
+            phase,
+            directive,
+            depth: parent_depth + 1,
+        };
+
+        tasks.push(running_task);
+
+        drop(tasks);
+
+        tracing::info!(
+            "Worker {} 派发子 Agent {} (depth={})",
+            parent_task_id,
+            task_id,
+            parent_depth + 1
+        );
+
+        Ok(task_id)
     }
 
     /// 继续运行中的任务
@@ -120,6 +201,7 @@ impl Orchestrator {
             description: directive.description.clone(),
             phase: TaskPhase::Implementation,
             directive: directive.clone(),
+            depth: 0,
         };
 
         {
@@ -503,6 +585,7 @@ mod tests {
             description: "Implement".to_string(),
             phase: TaskPhase::Implementation,
             directive: WorkerDirective::implement("desc", "prompt"),
+            depth: 0,
         });
 
         assert_eq!(

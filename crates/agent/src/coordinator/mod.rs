@@ -58,6 +58,20 @@
 //! | Implementation | Workers | 根据规范进行有针对性的变更，提交 |
 //! | Verification | Workers | 测试变更是否有效 |
 //!
+//! ## 子 Agent 嵌套
+//!
+//! Worker 可以派发子 Agent 来处理嵌套任务（FR-004）：
+//! - 最大嵌套深度：3 层（SC-004）
+//! - 通过 `spawn_subagent()` 方法派发
+//! - 使用 `can_spawn_subagent()` 检查是否可派发
+//!
+//! ## 结果聚合
+//!
+//! 协调者收集多个 worker 的结果并聚合（FR-007）：
+//! - `aggregate_results()` 方法处理 TaskNotification 列表
+//! - `AggregatedResults` 结构跟踪成功/失败/被杀任务
+//! - `TaskFailureAction` 枚举定义失败处理策略
+//!
 //! ## 核心设计决策
 //!
 //! 1. **双开关设计**：feature flag 控制代码可用性，环境变量控制实际激活
@@ -131,6 +145,15 @@
 //!     "修复 auth bug",
 //!     "在 src/auth/validate.ts:42 添加空值检查...",
 //! ).await;
+//!
+//! // 检查是否可以派发子 Agent
+//! if orchestrator.can_spawn_subagent(0) {
+//!     orchestrator.spawn_subagent(
+//!         &task1,
+//!         WorkerDirective::research("子任务", "..."),
+//!         agent::coordinator::types::TaskPhase::Research,
+//!     ).await;
+//! }
 //! # Ok(())
 //! # }
 //! ```

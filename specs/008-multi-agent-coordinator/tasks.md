@@ -85,13 +85,13 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [P] [US3] Review `context_inheritance.rs` for worker-to-subagent context flow
-- [ ] T020 [P] [US3] Review `recursion_guard.rs` for max depth enforcement (should already be complete)
-- [ ] T021 [US3] Add worker sub-agent spawn capability in `worker_agent.rs` using `SubagentExecutor`
-- [ ] T022 [US3] Add depth tracking to `RunningTask` in `orchestration.rs`
-- [ ] T023 [US3] Implement depth limit check before sub-agent spawn
+- [X] T019 [P] [US3] Review `context_inheritance.rs` for worker-to-subagent context flow
+- [X] T020 [P] [US3] Review `recursion_guard.rs` for max depth enforcement (should already be complete)
+- [X] T021 [US3] Add worker sub-agent spawn capability in `worker_agent.rs` using `SubagentExecutor`
+- [X] T022 [US3] Add depth tracking to `RunningTask` in `orchestration.rs`
+- [X] T023 [US3] Implement depth limit check before sub-agent spawn
 
-**Checkpoint**: Sub-agents can be spawned from workers with depth enforcement
+**Checkpoint**: Sub-agents can be spawned from workers with depth enforcement ✅
 
 ---
 
@@ -117,11 +117,11 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T029 [P] Update `crates/agent/src/coordinator/mod.rs` module documentation with new methods
-- [ ] T030 [P] Update `crates/agent/src/subagent/mod.rs` module documentation
+- [X] T029 [P] Update `crates/agent/src/coordinator/mod.rs` module documentation with new methods
+- [X] T030 [P] Update `crates/agent/src/subagent/mod.rs` module documentation
 - [ ] T031 Update `quickstart.md` with new API examples
-- [ ] T032 Run `cargo clippy --package devil-agent` and address any warnings
-- [ ] T033 Run `cargo test --package devil-agent` and ensure all pass
+- [X] T032 Run `cargo clippy --package devil-agent` and address any warnings
+- [X] T033 Run `cargo test --package devil-agent` and ensure all pass
 
 ---
 
