@@ -3,7 +3,7 @@
 //! Provides structured command dispatch with proper error handling and exit codes
 
 use crate::cli::error::CliError;
-use crate::cli::{run_once, run_repl, show_config, APP_NAME, VERSION};
+use crate::cli::{run_once, run_repl, run_web, show_config, APP_NAME, VERSION};
 use anyhow::Result;
 use std::process::ExitCode;
 
@@ -81,6 +81,15 @@ impl Dispatcher {
             }
             "config" => {
                 show_config().map_err(|e| CliError::ConfigError(e.to_string()))?;
+                Ok(ExitCode::SUCCESS)
+            }
+            "web" => {
+                let rt = tokio::runtime::Runtime::new()
+                    .map_err(|e| CliError::InitError(format!("Failed to create runtime: {}", e)))?;
+                if let Err(e) = rt.block_on(run_web(&args[1..])) {
+                    tracing::error!("Web server failed: {}", e);
+                    return Err(CliError::WebError(e.to_string()));
+                }
                 Ok(ExitCode::SUCCESS)
             }
             unknown => Err(CliError::InvalidCommand(unknown.to_string())),

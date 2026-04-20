@@ -1,0 +1,78 @@
+# HTTP API Contract
+
+## Base URL
+
+```
+http://localhost:8080
+```
+
+## Authentication
+
+All endpoints except `/health` require the `X-API-Key` header.
+
+```
+X-API-Key: your-devil-api-key
+```
+
+## Endpoints
+
+### POST /api/chat
+
+Process a chat prompt through the agent.
+
+**Request**:
+```yaml
+headers:
+  Content-Type: application/json
+  X-API-Key: <api-key>
+body:
+  prompt: string (required, max 100000 chars)
+  stream: boolean (optional, default: false)
+```
+
+**Response** (200 OK):
+```yaml
+body:
+  response: string
+  success: boolean
+  turns: integer
+  terminal_reason: string
+```
+
+**Errors**:
+- 400: Invalid request body
+- 401: Missing or invalid API key
+- 500: Agent processing error
+
+---
+
+### GET /health
+
+Health check endpoint.
+
+**Request**: No body
+
+**Response** (200 OK):
+```yaml
+body:
+  status: "ok"
+  version: string
+```
+
+---
+
+### GET /shutdown
+
+Trigger graceful server shutdown.
+
+**Request**: No body
+
+**Response** (200 OK):
+```yaml
+body:
+  message: "Shutting down"
+```
+
+## Rate Limits
+
+No rate limits for v1. Future versions may introduce per-key limits.
