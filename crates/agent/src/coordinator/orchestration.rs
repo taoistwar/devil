@@ -184,6 +184,26 @@ impl Orchestrator {
         let tasks = self.running_tasks.read().await;
         tasks.clone()
     }
+
+    /// 获取协调器状态
+    pub async fn get_coordinator_status(&self, enabled: bool, simple_mode: bool) -> crate::coordinator::types::CoordinatorStatus {
+        let tasks = self.running_tasks.read().await;
+        let active_workers = tasks
+            .iter()
+            .map(|t| crate::coordinator::types::WorkerStatus {
+                task_id: t.task_id.clone(),
+                description: t.description.clone(),
+                phase: format!("{:?}", t.phase),
+            })
+            .collect();
+
+        crate::coordinator::types::CoordinatorStatus {
+            enabled,
+            active_workers,
+            simple_mode,
+            total_workers_spawned: tasks.len(),
+        }
+    }
 }
 
 impl Default for Orchestrator {

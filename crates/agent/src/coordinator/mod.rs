@@ -156,8 +156,8 @@ pub use mode_detection::{
 pub use orchestration::{ContinueOrSpawn, Orchestrator, PromptBuilder, RunningTask};
 pub use system_prompt::get_coordinator_system_prompt;
 pub use types::{
-    build_worker_tools_context, get_worker_tools, CoordinatorConfig, TaskNotification, TaskPhase,
-    TaskStatus, TaskUsage, WorkerAgent, WorkerDirective, COORDINATOR_TOOLS, DEFAULT_WORKER_TOOLS,
+    build_worker_tools_context, get_worker_tools, CoordinatorConfig, CoordinatorStatus, TaskNotification, TaskPhase,
+    TaskStatus, TaskUsage, WorkerAgent, WorkerDirective, WorkerStatus, COORDINATOR_TOOLS, DEFAULT_WORKER_TOOLS,
     INTERNAL_ORCHESTRATION_TOOLS, SIMPLE_WORKER_TOOLS,
 };
 pub use worker_agent::{create_worker_agent, get_worker_system_prompt, is_worker_tool_available};

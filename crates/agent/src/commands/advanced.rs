@@ -1,7 +1,8 @@
 //! Advanced Commands Module
 //!
-//! 高级功能命令：mcp, hooks, skills, tasks, memory, permissions, diff, review, plan, resume, share, voice, fast, upgrade, desktop, stickers
+//! 高级功能命令：mcp, hooks, skills, tasks, memory, permissions, diff, review, plan, resume, share, voice, fast, upgrade, desktop, stickers, coordinator
 
+pub mod coordinator;
 pub mod desktop;
 pub mod diff;
 pub mod fast;

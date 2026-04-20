@@ -247,6 +247,21 @@ pub fn build_worker_tools_context(config: &CoordinatorConfig) -> String {
     content
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct CoordinatorStatus {
+    pub enabled: bool,
+    pub active_workers: Vec<WorkerStatus>,
+    pub simple_mode: bool,
+    pub total_workers_spawned: usize,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WorkerStatus {
+    pub task_id: String,
+    pub description: String,
+    pub phase: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
