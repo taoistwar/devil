@@ -3,11 +3,13 @@
 //! 本 crate 负责实现各种外部服务的提供者（如 LLM、数据库、存储等）
 
 pub mod anthropic;
+pub mod openai;
 
 pub use anthropic::{
     AnthropicClient, ChatMessage, ContentBlock, ContentBlockStart, ContentDelta, StreamEvent,
     ToolDef, Usage,
 };
+pub use openai::OpenAIClient;
 
 use anyhow::Result;
 use async_trait::async_trait;

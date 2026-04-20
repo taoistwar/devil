@@ -33,6 +33,9 @@ const APP_NAME: &str = "devil";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn main() -> ExitCode {
+    // Load .env file if present
+    dotenv::dotenv().ok();
+
     let args: Vec<String> = env::args().collect();
 
     // Parse global flags before command dispatch
