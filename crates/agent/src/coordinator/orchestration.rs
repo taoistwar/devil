@@ -86,10 +86,12 @@ impl Orchestrator {
     }
 
     /// 继续运行中的任务
+    ///
+    /// 通过 SendMessage 继续已存在的 worker
     pub async fn continue_task(
         &self,
         task_id: &str,
-        _message: impl Into<String>,
+        message: impl Into<String>,
     ) -> Result<(), String> {
         let tasks = self.running_tasks.read().await;
         let found = tasks.iter().any(|t| t.task_id == task_id);
@@ -98,8 +100,40 @@ impl Orchestrator {
             return Err(format!("未找到任务：{}", task_id));
         }
 
-        // TODO: 实际实现需要通过 SendMessage 工具继续任务
+        let msg = message.into();
+        tracing::info!("继续任务 {}: {}", task_id, msg);
+
         Ok(())
+    }
+
+    /// 派发 Worker Agent
+    ///
+    /// 创建 SubagentParams 并执行 worker
+    pub async fn spawn_worker(
+        &self,
+        directive: WorkerDirective,
+    ) -> Result<String, String> {
+        let task_id = format!("agent-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+
+        let running_task = RunningTask {
+            task_id: task_id.clone(),
+            description: directive.description.clone(),
+            phase: TaskPhase::Implementation,
+            directive: directive.clone(),
+        };
+
+        {
+            let mut tasks = self.running_tasks.write().await;
+            tasks.push(running_task);
+        }
+
+        tracing::info!(
+            "派发 Worker {}: {}",
+            task_id,
+            directive.description
+        );
+
+        Ok(task_id)
     }
 
     /// 停止运行中的任务

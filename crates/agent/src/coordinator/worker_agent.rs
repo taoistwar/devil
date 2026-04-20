@@ -53,6 +53,26 @@ pub fn get_forbidden_worker_tools() -> Vec<&'static str> {
     INTERNAL_ORCHESTRATION_TOOLS.to_vec()
 }
 
+/// 验证工具访问并返回结果
+///
+/// 返回 Ok(()) 如果可用，Err(denial_message) 如果被拒绝
+pub fn verify_tool_access(tool_name: &str) -> Result<(), String> {
+    if is_worker_tool_available(tool_name) {
+        Ok(())
+    } else {
+        Err(format!(
+            "工具 '{}' 对 Worker 不可用。Worker 禁止使用内部编排工具: {}",
+            tool_name,
+            INTERNAL_ORCHESTRATION_TOOLS.join(", ")
+        ))
+    }
+}
+
+/// 检查工具是否为内部编排工具
+pub fn is_internal_tool(tool_name: &str) -> bool {
+    INTERNAL_ORCHESTRATION_TOOLS.contains(&tool_name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -79,5 +99,19 @@ mod tests {
         assert!(!is_worker_tool_available("TeamCreate"));
         assert!(!is_worker_tool_available("TeamDelete"));
         assert!(!is_worker_tool_available("SyntheticOutput"));
+    }
+
+    #[test]
+    fn test_verify_tool_access_allowed() {
+        assert!(verify_tool_access("Bash").is_ok());
+        assert!(verify_tool_access("Read").is_ok());
+        assert!(verify_tool_access("Edit").is_ok());
+    }
+
+    #[test]
+    fn test_verify_tool_access_denied() {
+        let result = verify_tool_access("SendMessage");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("不可用"));
     }
 }

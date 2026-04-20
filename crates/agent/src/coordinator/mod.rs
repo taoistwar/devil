@@ -160,4 +160,4 @@ pub use types::{
     TaskStatus, TaskUsage, WorkerAgent, WorkerDirective, WorkerStatus, COORDINATOR_TOOLS, DEFAULT_WORKER_TOOLS,
     INTERNAL_ORCHESTRATION_TOOLS, SIMPLE_WORKER_TOOLS,
 };
-pub use worker_agent::{create_worker_agent, get_worker_system_prompt, is_worker_tool_available};
+pub use worker_agent::{create_worker_agent, get_worker_system_prompt, is_worker_tool_available, verify_tool_access, is_internal_tool};

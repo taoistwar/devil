@@ -150,6 +150,20 @@ impl TaskNotification {
         self.usage = Some(usage);
         self
     }
+
+    /// 创建 Worker 已启动的通知
+    pub fn spawned(
+        task_id: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        Self {
+            task_id: task_id.into(),
+            status: TaskStatus::Completed,
+            summary: format!("Worker 已启动: {}", description.into()),
+            result: None,
+            usage: None,
+        }
+    }
 }
 
 /// Worker 任务指令

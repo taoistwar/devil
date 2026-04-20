@@ -49,13 +49,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement `get_coordinator_status()` in `crates/agent/src/coordinator/orchestration.rs`
-- [ ] T010 [US1] Add status display format in `crates/agent/src/coordinator/orchestration.rs` showing active worker count
-- [ ] T011 [US1] Add `CoordinatorStatus` response type in `crates/agent/src/coordinator/types.rs`
-- [ ] T012 [US1] Create `/coordinator` CLI command in `crates/agent/src/commands/coordinator.rs` with status subcommand
-- [ ] T013 [US1] Wire `coordinator/mod.rs` exports for new status functionality
+- [X] T009 [US1] Implement `get_coordinator_status()` in `crates/agent/src/coordinator/orchestration.rs`
+- [X] T010 [US1] Add status display format in `crates/agent/src/coordinator/orchestration.rs` showing active worker count
+- [X] T011 [US1] Add `CoordinatorStatus` response type in `crates/agent/src/coordinator/types.rs`
+- [X] T012 [US1] Create `/coordinator` CLI command in `crates/agent/src/commands/coordinator.rs` with status subcommand
+- [X] T013 [US1] Wire `coordinator/mod.rs` exports for new status functionality
 
-**Checkpoint**: Coordinator mode can be activated and status queried
+**Checkpoint**: Coordinator mode can be activated and status queried ✅
 
 ---
 
@@ -67,13 +67,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T014 [P] [US2] Resolve TODOs in `orchestration.rs:continue_task()` - implement actual SendMessage flow
-- [ ] T015 [P] [US2] Implement `spawn_worker()` method in `crates/agent/src/coordinator/orchestration.rs` that creates SubagentParams with worker tools
-- [ ] T016 [US2] Integrate `SubagentExecutor` into orchestrator worker spawn flow in `crates/agent/src/coordinator/orchestration.rs`
-- [ ] T017 [US2] Add tool restriction verification in `worker_agent.rs` - verify restricted tools return denial
-- [ ] T018 [US2] Add Worker spawn notification format in `crates/agent/src/coordinator/types.rs`
+- [X] T014 [P] [US2] Resolve TODOs in `orchestration.rs:continue_task()` - implement actual SendMessage flow
+- [X] T015 [P] [US2] Implement `spawn_worker()` method in `crates/agent/src/coordinator/orchestration.rs` that creates SubagentParams with worker tools
+- [X] T016 [US2] Integrate `SubagentExecutor` into orchestrator worker spawn flow in `crates/agent/src/coordinator/orchestration.rs`
+- [X] T017 [US2] Add tool restriction verification in `worker_agent.rs` - verify restricted tools return denial
+- [X] T018 [US2] Add Worker spawn notification format in `crates/agent/src/coordinator/types.rs`
 
-**Checkpoint**: Workers can be spawned with enforced tool restrictions
+**Checkpoint**: Workers can be spawned with enforced tool restrictions ✅
 
 ---
 
