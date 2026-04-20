@@ -153,7 +153,7 @@ pub use mode_detection::{
     disable_coordinator_mode, enable_coordinator_mode, get_coordinator_user_context,
     is_coordinator_mode, match_session_mode, SessionMode,
 };
-pub use orchestration::{ContinueOrSpawn, Orchestrator, PromptBuilder, RunningTask};
+pub use orchestration::{ContinueOrSpawn, Orchestrator, PromptBuilder, RunningTask, TaskFailureAction, AggregatedResults};
 pub use system_prompt::get_coordinator_system_prompt;
 pub use types::{
     build_worker_tools_context, get_worker_tools, CoordinatorConfig, CoordinatorStatus, TaskNotification, TaskPhase,

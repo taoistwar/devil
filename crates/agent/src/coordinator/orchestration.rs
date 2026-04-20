@@ -150,13 +150,72 @@ impl Orchestrator {
         }
     }
 
+    /// 停止超时任务
+    ///
+    /// 根据 SC-005，Worker 失败需在 10 秒内检测
+    pub async fn stop_timeout_tasks(&self, _timeout_seconds: u64) -> Vec<String> {
+        let timed_out = Vec::new();
+        let mut tasks = self.running_tasks.write().await;
+
+        // 保留未超时的任务，返回超时的任务 ID
+        tasks.retain(|_t| {
+            // TODO: 实现实际超时检测（需要记录任务开始时间）
+            // 这里暂时返回空列表
+            true
+        });
+
+        timed_out
+    }
+
     /// 处理任务完成通知
     pub async fn on_task_completed(&self, notification: TaskNotification) {
-        // 从运行列表中移除已完成的任务
         let mut tasks = self.running_tasks.write().await;
         tasks.retain(|t| t.task_id != notification.task_id);
+    }
 
-        // TODO: 触发后续处理（如综合结果）
+    /// 处理任务失败通知
+    pub async fn on_task_failed(&self, notification: TaskNotification) -> TaskFailureAction {
+        let mut tasks = self.running_tasks.write().await;
+        let failed_task = tasks.iter().find(|t| t.task_id == notification.task_id);
+
+        let action = if let Some(task) = failed_task {
+            TaskFailureAction::ReportToUser {
+                task_id: notification.task_id.clone(),
+                description: task.description.clone(),
+                error: notification.summary.clone(),
+            }
+        } else {
+            TaskFailureAction::UnknownTask
+        };
+
+        tasks.retain(|t| t.task_id != notification.task_id);
+        action
+    }
+
+    /// 聚合多个 Worker 的结果
+    ///
+    /// 根据 Claude Code 协调器模式，结果以 `<task-notification>` XML 格式返回
+    pub async fn aggregate_results(&self, notifications: Vec<TaskNotification>) -> AggregatedResults {
+        let mut successful = Vec::new();
+        let mut failed = Vec::new();
+        let mut killed = Vec::new();
+
+        for notification in notifications {
+            match notification.status {
+                TaskStatus::Completed => successful.push(notification),
+                TaskStatus::Failed => failed.push(notification),
+                TaskStatus::Killed => killed.push(notification),
+            }
+        }
+
+        let total_count = successful.len() + failed.len() + killed.len();
+
+        AggregatedResults {
+            successful,
+            failed,
+            killed,
+            total_count,
+        }
     }
 
     /// 综合多个研究结果
@@ -172,6 +231,11 @@ impl Orchestrator {
         }
 
         summary
+    }
+
+    /// 重新派发失败的任务
+    pub async fn reassign_task(&self, directive: WorkerDirective) -> Result<String, String> {
+        self.spawn_worker(directive).await
     }
 
     /// 选择继续还是新派发任务
@@ -253,6 +317,71 @@ pub enum ContinueOrSpawn {
     Continue,
     /// 派发新任务（Agent）
     Spawn,
+}
+
+/// 任务失败处理动作
+#[derive(Debug, Clone)]
+pub enum TaskFailureAction {
+    /// 报告给用户
+    ReportToUser {
+        task_id: String,
+        description: String,
+        error: String,
+    },
+    /// 重新派发任务
+    Reassign {
+        original_task_id: String,
+        reason: String,
+    },
+    /// 未知任务
+    UnknownTask,
+}
+
+/// 聚合结果
+#[derive(Debug, Clone)]
+pub struct AggregatedResults {
+    /// 成功的任务
+    pub successful: Vec<TaskNotification>,
+    /// 失败的任务
+    pub failed: Vec<TaskNotification>,
+    /// 被停止的任务
+    pub killed: Vec<TaskNotification>,
+    /// 总数
+    pub total_count: usize,
+}
+
+impl AggregatedResults {
+    /// 检查是否所有任务都成功
+    pub fn all_succeeded(&self) -> bool {
+        self.failed.is_empty() && self.killed.is_empty()
+    }
+
+    /// 获取成功率
+    pub fn success_rate(&self) -> f64 {
+        if self.total_count == 0 {
+            return 1.0;
+        }
+        self.successful.len() as f64 / self.total_count as f64
+    }
+
+    /// 生成用户友好的摘要
+    pub fn summary(&self) -> String {
+        if self.all_succeeded() {
+            format!(
+                "所有 {} 个任务已完成",
+                self.total_count
+            )
+        } else {
+            format!(
+                "完成 {}/{} 个任务 (成功: {}, 失败: {}, 停止: {})",
+                self.successful.len(),
+                self.total_count,
+                self.successful.len(),
+                self.failed.len(),
+                self.killed.len()
+            )
+        }
+    }
 }
 
 /// 构建 Worker 提示词的最佳实践
