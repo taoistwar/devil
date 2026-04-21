@@ -1,147 +1,506 @@
 # Feature Specification: Terminal AI Coding Agent
 
-**Feature Branch**: `260417-feat-terminal-ai-coding-agent`
-**Created**: 2026-04-17
-**Status**: Draft
-**Input**: User description: "Build a terminal-based AI coding agent similar to Claude Code. It should be able to reason about a codebase, execute shell commands, read/write files, and engage in an interactive loop with the user to solve programming tasks."
+## Metadata
 
-## User Scenarios & Testing *(mandatory)*
-
-### User Story 1 - Interactive Task Resolution (Priority: P1)
-
-A developer starts the terminal agent in their project directory and gives it a programming task. The agent analyzes the codebase, creates a plan, executes changes, and completes the task while keeping the developer informed of its progress.
-
-**Why this priority**: This is the core value proposition - enabling developers to delegate complex coding tasks to an AI agent that can actually interact with their codebase.
-
-**Independent Test**: Can be fully tested by providing a specific task (e.g., "add user authentication to the login endpoint") and verifying the agent completes the task correctly without breaking existing functionality.
-
-**Acceptance Scenarios**:
-
-1. **Given** a developer is in a project directory with a clear task, **When** they start the agent and provide the task, **Then** the agent acknowledges the task and begins analysis
-2. **Given** the agent is analyzing a task, **When** it needs to understand code structure, **Then** it can read files and navigate the codebase
-3. **Given** the agent has completed its work, **When** it proposes changes, **Then** it presents them clearly and waits for user confirmation before applying
+| Field | Value |
+|-------|-------|
+| **Spec ID** | 001 |
+| **Feature Branch** | `260417-feat-terminal-ai-coding-agent` |
+| **Created** | 2026-04-17 |
+| **Last Updated** | 2026-04-21 |
+| **Status** | Draft |
+| **Priority** | P0 (Foundation) |
+| **Dependencies** | None (base spec) |
+| **Dependents** | 002, 003, 004, 005, 006, 007, 008, 009 |
 
 ---
 
-### User Story 2 - Codebase Exploration and Reasoning (Priority: P1)
+## 1. Concept & Vision
 
-The agent can intelligently explore and reason about an unfamiliar codebase to understand its structure, patterns, and key components before proposing or implementing changes.
+### 1.1 Summary
 
-**Why this priority**: Without effective codebase reasoning, the agent would make uninformed decisions that could break functionality or produce incorrect solutions.
+构建一个终端 AI 编码助手，类似于 Claude Code。它能够：
 
-**Independent Test**: Can be tested by asking the agent to explore a codebase and describe its architecture, key files, and patterns. The agent should be able to identify entry points, dependencies, and important relationships.
+- 理解代码库结构并进行推理
+- 执行 shell 命令
+- 读取和写入文件
+- 与用户进行交互式对话来完成编程任务
 
-**Acceptance Scenarios**:
+### 1.2 设计原则
 
-1. **Given** a developer asks the agent to understand a codebase, **When** the agent explores the project, **Then** it identifies key directories, files, and architectural patterns
-2. **Given** the agent needs to find specific functionality, **When** it searches the codebase, **Then** it reports relevant file locations and code snippets
-3. **Given** the codebase has dependencies, **When** the agent analyzes them, **Then** it understands how modules/components are connected
+1. **Fail-Closed**: 安全性相关的默认配置拒绝操作
+2. **最小惊讶原则**: Agent 行为应该符合用户预期
+3. **可恢复性**: 错误应该可追溯、可恢复
+4. **透明性**: 用户应该始终了解 Agent 在做什么
 
----
+### 1.3 核心价值
 
-### User Story 3 - Safe File Operations (Priority: P1)
-
-The agent can read existing files and write new content (code, tests, documentation) while ensuring changes are applied safely and with appropriate backups.
-
-**Why this priority**: File operations are fundamental to modifying code. Without safe read/write capabilities, the agent cannot accomplish its core mission.
-
-**Independent Test**: Can be tested by giving the agent a task to modify specific files and verifying the changes are correct, properly formatted, and preserve existing functionality.
-
-**Acceptance Scenarios**:
-
-1. **Given** the agent needs to read a file, **When** it executes a read operation, **Then** the file contents are returned accurately with proper handling of large files
-2. **Given** the agent proposes file modifications, **When** the user approves, **Then** the changes are written atomically to preserve file integrity
-3. **Given** an error occurs during file writing, **Then** the original file remains unchanged and the agent reports the error clearly
+| 价值 | 说明 |
+|------|------|
+| 效率 | 处理耗时的重复性编码任务 |
+| 准确性 | 理解代码上下文，避免盲目修改 |
+| 协作性 | 用户全程参与，可以纠正和引导 |
+| 安全性 | 多层权限检查，防止意外破坏 |
 
 ---
 
-### User Story 4 - Shell Command Execution (Priority: P1)
+## 2. User Scenarios & Testing
 
-The agent can execute shell commands to run tests, build systems, linting, and other development tasks while properly handling output, errors, and timeouts.
+### 2.1 User Story Matrix
 
-**Why this priority**: Development workflows require shell commands for building, testing, and verification. The agent must execute these safely to validate its changes.
+| ID | Story | Priority | Complexity |
+|----|-------|----------|------------|
+| US-001 | 交互式任务解决 | P1 | High |
+| US-002 | 代码库探索和推理 | P1 | Medium |
+| US-003 | 安全文件操作 | P1 | High |
+| US-004 | Shell 命令执行 | P1 | Medium |
+| US-005 | 用户反馈循环 | P2 | Low |
 
-**Independent Test**: Can be tested by asking the agent to run specific commands (e.g., "run the test suite") and verifying correct execution with proper output handling.
+### 2.2 Detailed User Stories
 
-**Acceptance Scenarios**:
+#### US-001: 交互式任务解决
 
-1. **Given** the agent executes a command, **When** the command runs successfully, **Then** output is captured and presented to the user
-2. **Given** the agent executes a command with a time limit, **When** the command exceeds the limit, **Then** it is terminated and the user is notified
-3. **Given** the agent executes a destructive command (rm, DROP, etc.), **When** the command is attempted, **Then** the user is prompted for confirmation before execution
+**描述**: 开发者在项目目录启动终端助手，提供编程任务，助手分析代码库、创建计划、执行修改，并在整个过程中保持用户知情。
+
+**验收标准** (Gherkin):
+
+```
+Scenario: 成功完成代码修改任务
+  Given 用户在项目目录运行 devil
+  And 用户提供任务 "添加用户认证到登录端点"
+  When 助手开始处理任务
+  Then 助手确认理解任务
+  And 助手分析代码结构
+  And 助手创建修改计划
+  And 助手展示计划等待用户确认
+  And 用户确认计划
+  And 助手执行修改
+  And 修改成功完成
+
+Scenario: 用户中途纠正助手
+  Given 助手正在执行任务
+  When 用户说 "等一下，应该先检查权限"
+  Then 助手暂停当前操作
+  And 助手感谢用户纠正
+  And 助手调整计划
+```
+
+**测试用例**:
+- TC-001-01: 助手成功完成一个简单的代码修改任务
+- TC-001-02: 助手在用户纠正后调整计划
+- TC-001-03: 助手在任务完成后提供总结
+
+#### US-002: 代码库探索
+
+**描述**: 助手能够智能探索不熟悉的代码库，理解其结构、模式和关键组件。
+
+**验收标准**:
+
+```
+Scenario: 分析项目结构
+  Given 用户要求助手理解项目
+  When 助手探索代码库
+  Then 助手识别关键目录、文件和架构模式
+  And 助手报告入口点和依赖关系
+
+Scenario: 查找特定功能
+  Given 用户需要找到特定功能
+  When 助手搜索代码库
+  Then 助手报告相关文件位置和代码片段
+```
+
+**测试用例**:
+- TC-002-01: 助手识别 Rust 项目的模块结构
+- TC-002-02: 助手找到特定函数定义
+- TC-002-03: 助手理解组件间的依赖关系
+
+#### US-003: 安全文件操作
+
+**描述**: 助手可以读取现有文件并写入新内容，同时确保变更安全应用并有适当备份。
+
+**验收标准**:
+
+```
+Scenario: 读取大文件
+  Given 助手需要读取文件
+  When 文件超过 10000 行
+  Then 助手分块读取
+  And 助手报告文件大小警告
+
+Scenario: 原子写入
+  Given 助手需要写入文件
+  When 用户批准修改
+  Then 助手先写入临时文件
+  And 验证内容后原子替换原文件
+  And 保留原文件备份
+
+Scenario: 写入失败恢复
+  Given 写入过程中发生错误
+  Then 原文件保持不变
+  And 助手报告错误详情
+```
+
+**测试用例**:
+- TC-003-01: 助手正确读取各种编码的文件
+- TC-003-02: 助手正确写入 UTF-8 文件
+- TC-003-03: 写入失败时原文件不变
+
+#### US-004: Shell 命令执行
+
+**描述**: 助手执行 shell 命令来运行测试、构建系统、linting 等开发任务。
+
+**验收标准**:
+
+```
+Scenario: 执行构建命令
+  Given 助手需要验证代码
+  When 助手执行 "cargo build"
+  Then 助手捕获输出
+  And 助手报告构建结果
+
+Scenario: 命令超时处理
+  Given 助手执行长时间命令
+  When 命令超过 5 分钟
+  Then 助手终止命令
+  And 助手报告超时
+
+Scenario: 危险命令确认
+  Given 助手需要执行 rm -rf
+  Then 助手显示危险警告
+  And 助手等待用户明确确认
+```
+
+**测试用例**:
+- TC-004-01: 助手成功执行 cargo test
+- TC-004-02: 超时命令被正确终止
+- TC-004-03: rm 命令需要用户确认
+
+#### US-005: 用户反馈循环
+
+**描述**: 助手和开发者可以持续对话，开发者实时引导、纠正或重定向助手的工作。
+
+**验收标准**:
+
+```
+Scenario: 中途改变方向
+  Given 助手正在执行任务
+  When 用户提供额外指令
+  Then 助手确认并调整方法
+
+Scenario: 助手误解时纠正
+  Given 助手做出错误假设
+  When 用户纠正
+  Then 助手相应修订计划
+```
+
+**测试用例**:
+- TC-005-01: 用户指令被正确处理
+- TC-005-02: 助手正确响应纠正
 
 ---
 
-### User Story 5 - User Feedback Loop (Priority: P2)
+## 3. Technical Specification
 
-The agent and developer can engage in a continuous dialogue where the developer guides, corrects, or redirects the agent's work in real-time.
+### 3.1 Architecture
 
-**Why this priority**: Even with AI assistance, developers need to provide guidance, approve changes, and correct misunderstandings. An effective feedback loop ensures the agent stays aligned with developer intent.
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         CLI Entry                               │
+│                    (devil run / devil repl)                     │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     Session Manager                             │
+│  • 创建/恢复会话                                                 │
+│  • 加载配置和记忆                                                │
+│  • 管理会话状态                                                  │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      Agent Core                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │   State    │  │   Loop     │  │  Context    │             │
+│  │  Machine   │  │            │  │  Manager    │             │
+│  └─────────────┘  └─────────────┘  └─────────────┘             │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Tool System                                  │
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐     │
+│  │  Read  │ │ Write  │ │  Edit  │ │  Bash  │ │  Glob  │     │
+│  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘     │
+│                           + Permissions Layer (Spec-004)        │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     LLM Provider                                │
+│  • OpenAI / Anthropic / Azure                                  │
+│  • Streaming responses                                          │
+│  • Error handling & retry                                      │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-**Independent Test**: Can be tested by providing corrective feedback mid-task and verifying the agent incorporates the feedback appropriately.
+### 3.2 Session Lifecycle
 
-**Acceptance Scenarios**:
+```
+Session States:
+                                                         
+  ┌─────────┐    start()    ┌───────────┐    task_done    ┌──────────┐
+  │ Created │──────────────►│ Running   │────────────────►│ Finished │
+  └─────────┘               └───────────┘                 └──────────┘
+       │                         │                             
+       │                         │ pause()                       
+       │                         ▼                             
+       │                    ┌──────────┐                        
+       └───────────────────►│ Paused   │                        
+         resume()           └──────────┘                        
+                                │                               
+                                │ stop()                        
+                                ▼                               
+                           ┌──────────┐                        
+                           │ Stopped  │                        
+                           └──────────┘                        
+```
 
-1. **Given** the agent is mid-task, **When** the developer provides additional instructions, **Then** the agent acknowledges and adjusts its approach
-2. **Given** the agent makes a wrong assumption, **When** the developer corrects it, **Then** the agent revises its plan accordingly
-3. **Given** the developer wants to pause or abort the task, **When** they signal this, **Then** the agent stops cleanly and provides a status summary
+### 3.3 Context Flow
+
+```
+User Input
+    │
+    ▼
+┌─────────────────┐
+│ Input Validator │ ←── Permission Check
+└─────────────────┘
+    │
+    ▼
+┌─────────────────┐
+│ Context Builder │ ←── Memory, Git Status, Config
+└─────────────────┘
+    │
+    ▼
+┌─────────────────┐
+│  LLM Provider   │
+└─────────────────┘
+    │
+    ▼
+┌─────────────────┐
+│ Tool Executor   │
+└─────────────────┘
+    │
+    ▼
+┌─────────────────┐
+│ Response to    │
+│ User            │
+└─────────────────┘
+```
 
 ---
 
-### Edge Cases
+## 4. Data Models
 
-- What happens when the codebase is empty or has no recognizable structure?
-- How does the system handle very large files (10000+ lines)?
-- What happens when shell commands hang or produce infinite output?
-- How does the agent handle permission denied errors when accessing files?
-- What happens when multiple users try to use the agent simultaneously in the same directory?
-- How does the agent handle binary files when asked to read them?
+### 4.1 Core Entities
 
-## Requirements *(mandatory)*
+```rust
+/// 会话
+struct Session {
+    id: Uuid,
+    status: SessionStatus,
+    config: SessionConfig,
+    created_at: DateTime<Utc>,
+    last_activity: DateTime<Utc>,
+}
 
-### Functional Requirements
+/// 用户消息
+struct UserMessage {
+    content: Vec<ContentBlock>,
+    metadata: MessageMetadata,
+}
 
-- **FR-001**: The system MUST provide an interactive terminal interface that accepts user input and displays agent responses
-- **FR-002**: The system MUST allow users to start a coding session by specifying a task or goal
-- **FR-003**: The system MUST be able to read files from the filesystem to understand codebase structure and content
-- **FR-004**: The system MUST be able to write or modify files to implement task solutions
-- **FR-005**: The system MUST execute shell commands and return their output to the user
-- **FR-006**: The system MUST analyze codebase structure including directories, file types, and dependencies
-- **FR-007**: The system MUST present proposed changes to the user before applying them
-- **FR-008**: The system MUST allow users to provide feedback and guidance during task execution
-- **FR-009**: The system MUST handle errors gracefully and provide meaningful error messages
-- **FR-010**: The system MUST support session history so users can review past interactions
-- **FR-011**: The system MUST respect .gitignore and other exclusion patterns when exploring codebases
-- **FR-012**: The system MUST timeout long-running commands to prevent system hangs
-- **FR-013**: The system MUST require confirmation for destructive operations (file deletion, database changes)
-- **FR-014**: The system MUST maintain context across multiple commands within a session
+/// 助手消息
+struct AssistantMessage {
+    content: Vec<ContentBlock>,
+    tool_use: Vec<ToolUseBlock>,
+    metadata: MessageMetadata,
+}
 
-### Key Entities
+/// 工具调用结果
+struct ToolResult {
+    tool: String,
+    input: serde_json::Value,
+    output: ToolOutput,
+    duration_ms: u64,
+}
+```
 
-- **Session**: Represents an active coding session with a specific task, context, and history
-- **Task**: The programming goal or problem the user wants the agent to solve
-- **FileOperation**: Represents read/write operations on files with associated metadata
-- **Command**: Shell commands executed by the agent with input, output, and status
-- **Feedback**: User guidance provided during task execution that influences agent behavior
+### 4.2 Enums
 
-## Success Criteria *(mandatory)*
+```rust
+enum SessionStatus {
+    Created,
+    Running,
+    Paused,
+    Stopped,
+    Finished,
+}
 
-### Measurable Outcomes
+enum ContentBlock {
+    Text(String),
+    Image { url: String, alt: Option<String> },
+}
 
-- **SC-001**: Developers can complete a programming task with the agent in under 30 minutes (for tasks that would normally take 1-2 hours manually)
-- **SC-002**: The agent successfully completes at least 80% of assigned tasks without requiring major corrections
-- **SC-003**: Users can provide feedback to redirect agent behavior and see adjustments within 2 seconds
-- **SC-004**: The agent provides meaningful progress updates at least every 30 seconds during long operations
-- **SC-005**: Code changes made by the agent pass existing test suites without modification
-- **SC-006**: Developers can review and approve individual file changes before they are applied
-- **SC-007**: The agent can explore and understand a new codebase of 100+ files within 5 minutes
+enum ToolOutput {
+    Text(String),
+    Error(String),
+    Stream(StreamData),
+}
+```
 
-## Assumptions
+---
 
-- Target users are software developers with basic command-line knowledge
-- Users have internet connectivity for AI model communication
-- The agent operates in a development environment (not production)
-- Users have git available for version control operations
-- Large binary files will be excluded from analysis to prevent performance issues
-- The agent will primarily work with text-based code files (source code, config, tests)
-- Destructive operations are rare and always require explicit user confirmation
-- Sessions persist until the user explicitly ends them
+## 5. Error Handling
+
+### 5.1 Error Categories
+
+| Category | HTTP Code | 说明 |
+|----------|-----------|------|
+| UserInput | 400 | 无效的用户输入 |
+| Permission | 403 | 权限不足 |
+| NotFound | 404 | 资源不存在 |
+| Conflict | 409 | 操作冲突 |
+| RateLimit | 429 | 请求过于频繁 |
+| Internal | 500 | 服务器内部错误 |
+
+### 5.2 Error Response Format
+
+```json
+{
+  "error": {
+    "code": "PERMISSION_DENIED",
+    "message": "User denied permission for Bash tool execution",
+    "details": {
+      "tool": "Bash",
+      "command": "rm -rf /"
+    },
+    "request_id": "req-123"
+  }
+}
+```
+
+---
+
+## 6. Dependencies
+
+### 6.1 External Dependencies
+
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| tokio | 1.x | 异步运行时 |
+| serde | 1.x | 序列化 |
+| anyhow | 1.x | 错误处理 |
+| reqwest | 0.11 | HTTP 客户端 |
+
+### 6.2 Internal Dependencies
+
+| Module | Type | Purpose |
+|--------|------|---------|
+| Spec-002 | Strong | CLI 是唯一入口 |
+| Spec-003 | Strong | 工具是执行能力 |
+| Spec-004 | Strong | 权限是安全保障 |
+| Spec-006 | Strong | 上下文是理解基础 |
+| Spec-007 | Weak | 记忆提供个性化 |
+
+---
+
+## 7. Success Criteria
+
+### 7.1 Functional Criteria
+
+| ID | Criteria | Test Method |
+|----|----------|-------------|
+| SC-001 | 用户可以启动会话并完成简单任务 | E2E 测试 |
+| SC-002 | 会话状态正确管理 | 单元测试 |
+| SC-003 | 错误信息清晰可操作 | 人工评审 |
+| SC-004 | 所有核心路径有日志 | 代码审查 |
+
+### 7.2 Performance Criteria
+
+| ID | Criteria | Target |
+|----|----------|--------|
+| PC-001 | 启动时间 | < 2s |
+| PC-002 | 首次响应时间 | < 5s |
+| PC-003 | 内存使用 | < 500MB |
+
+### 7.3 Security Criteria
+
+| ID | Criteria |
+|----|----------|
+| SEC-001 | 所有破坏性操作需要确认 |
+| SEC-002 | 敏感路径受保护 |
+| SEC-003 | 不记录敏感信息到日志 |
+
+---
+
+## 8. Edge Cases
+
+### 8.1 Handled Edge Cases
+
+| Case | Handling |
+|------|----------|
+| 空代码库 | 显示欢迎信息，引导用户 |
+| 超大文件 (>10MB) | 分块读取，显示警告 |
+| 网络中断 | 自动重试，缓存结果 |
+| 并发修改 | 乐观锁检测 |
+| 无效 UTF-8 | 尝试修复或拒绝 |
+
+### 8.2 Known Limitations
+
+| Limitation | Workaround |
+|------------|------------|
+| 二进制文件 | 显示提示，不尝试读取 |
+| 网络超时 | 可配置超时时间 |
+| 内存限制 | Token 预算限制 |
+
+---
+
+## 9. Implementation Notes
+
+### 9.1 File Organization
+
+```
+devil-agent/
+├── src/
+│   ├── main.rs              # 入口点
+│   ├── cli/                 # CLI 命令处理
+│   ├── agent/                # Agent 核心
+│   │   ├── mod.rs
+│   │   ├── session.rs       # 会话管理
+│   │   ├── state.rs         # 状态机
+│   │   └── loop.rs          # 主循环
+│   ├── tools/               # 工具系统
+│   ├── context/             # 上下文管理
+│   └── providers/            # LLM 提供者
+└── tests/
+    └── e2e/
+```
+
+### 9.2 Configuration
+
+```toml
+# ~/.devil/config.toml
+[agent]
+name = "devil"
+model = "claude-sonnet-4-20250514"
+max_turns = 100
+
+[tools]
+timeout_seconds = 300
+allow_destructive = false
+
+[logging]
+level = "info"
+format = "json"
+```

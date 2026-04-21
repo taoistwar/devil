@@ -13,276 +13,376 @@
 - **Target Platform**: Linux/macOS/Windows CLI
 - **Project Type**: CLI tool with slash command system
 
-## User Scenarios & Testing
+## 命令优先级体系
 
-### Core Slash Commands
+### 优先级定义
 
-| 命令 | 功能 | 测试场景 |
-|------|------|----------|
-| `/help` | 显示帮助信息 | 输入 /help 验证输出 |
-| `/compact` | 手动压缩上下文 | 触发上下文压缩 |
-| `/model` | 切换模型 | 切换模型并验证 |
-| `/clear` | 清除对话 | 清除历史并验证 |
-| `/config` | 配置管理 | 查看/修改配置 |
-| `/login` | 认证登录 | OAuth 登录流程 |
-| `/logout` | 认证登出 | 清除会话 |
-| `/doctor` | 系统诊断 | 运行诊断检查 |
+| 优先级 | 说明 | 响应要求 |
+|--------|------|----------|
+| P1 | 核心功能，无条件执行 | 毫秒级响应，失败需立即反馈 |
+| P2 | 重要功能，高频使用 | 秒级响应，允许优雅降级 |
+| P3 | 高级功能，低频使用 | 可异步执行，失败可重试 |
 
-### Advanced Slash Commands
+### 优先级矩阵
 
-| 命令 | 功能 |
-|------|------|
-| `/mcp` | MCP 服务器管理 |
-| `/hooks` | Hook 管理 |
-| `/skills` | 技能管理 |
-| `/tasks` | 任务管理 |
-| `/memory` | 记忆管理 |
-| `/permissions` | 权限管理 |
-| `/diff` | 查看文件差异 |
-| `/review` | 代码审查 |
-| `/plan` | 计划模式 |
-| `/resume` | 恢复会话 |
-| `/share` | 分享对话 |
-| `/voice` | 语音输入 |
-| `/fast` | 快速模式 |
+#### P1 - Core Commands (核心命令)
 
-### All Supported Commands (100+)
+| 命令 | 功能 | 依赖 | 优先级 |
+|------|------|------|--------|
+| `/help` | 显示帮助信息 | 无 | P1 |
+| `/compact` | 手动压缩上下文 | 上下文管理模块 | P1 |
+| `/model` | 切换模型 | Provider 配置 | P1 |
+| `/clear` | 清除对话 | Session 管理 | P1 |
+| `/exit` | 退出 | 无 | P1 |
+| `/resume` | 恢复会话 | Session 持久化 | P1 |
 
-1. `/help` - 帮助信息
-2. `/compact` - 手动压缩上下文
-3. `/model` - 切换模型
-4. `/clear` - 清除对话
-5. `/exit` - 退出
-6. `/resume` - 恢复会话
-7. `/review` - 代码审查
-8. `/diff` - 查看文件差异
-9. `/share` - 分享对话
-10. `/reset-limits` - 重置限制
-11. `/output-style` - 输出样式
-12. `/config` - 配置管理
-13. `/login` - 认证登录
-14. `/logout` - 认证登出
-15. `/doctor` - 系统诊断
-16. `/cost` - 查看费用
-17. `/usage` - 使用统计
-18. `/extra-usage` - 额外使用量
-19. `/rate-limit-options` - 速率限制选项
-20. `/privacy-settings` - 隐私设置
-21. `/keybindings` - 快捷键
-22. `/theme` - 主题切换
-23. `/color` - 颜色配置
-24. `/detach` - 分离会话
-25. `/branch` - 分支管理
-26. `/session` - 会话管理
-27. `/mcp` - MCP 服务器管理
-28. `/hooks` - Hook 管理
-29. `/skills` - 技能管理
-30. `/tasks` - 任务管理
-31. `/memory` - 记忆管理
-32. `/permissions` - 权限管理
-33. `/agents` - 多代理管理
-34. `/workflows` - 工作流管理
-35. `/pipes` - 管道管理
-36. `/status` - 状态查看
-37. `/stats` - 统计信息
-38. `/issue` - 问题管理
-39. `/pr_comments` - PR 评论
-40. `/btw` - 侧注
-41. `/vim` - Vim 编辑模式
-42. `/thinkback` - Thinkback 工具
-43. `/files` - 文件管理
-44. `/add-dir` - 添加目录
-45. `/copy` - 复制内容
-46. `/src` - 源代码相关
-47. `/env` - 环境变量
-48. `/terminalSetup` - 终端设置
-49. `/ide` - IDE 设置
-50. `/context` - 上下文管理
-51. `/summary` - 摘要生成
-52. `/rewind` - 回退会话
-53. `/tag` - 标签管理
-54. `/rename` - 重命名会话
-55. `/passes` - 代码改进
-56. `/autofix-pr` - 自动修复 PR
-57. `/bughunter` - Bug 追踪
-58. `/effort` - 估算工作量
-59. `/peers` - 对等连接
-60. `/send` - 发送消息
-61. `/voice` - 语音输入
-62. `/stickers` - 贴纸
-63. `/feedback` - 反馈
-64. `/release-notes` - 发布说明
-65. `/onboarding` - 入门引导
-66. `/attach` - 附加内容
-67. `/mobile` - 移动端
-68. `/desktop` - 桌面应用
-69. `/chrome` - Chrome 集成
-70. `/upgrade` - 自动更新
-71. `/plugin` - 插件管理
-72. `/reload-plugins` - 重载插件
-73. `/debug-tool-call` - 调试工具调用
-74. `/mock-limits` - 模拟限制
-75. `/ant-trace` - Ant 追踪
-76. `/backfill-sessions` - 会话填充
-77. `/break-cache` - 清除缓存
-78. `/claim-main` - 声明主会话
-79. `/heapdump` - 堆转储
-80. `/perf-issue` - 性能问题
-81. `/teleport` - 远程切换
-82. `/bridge` - 桥接模式
-83. `/sandbox-toggle` - 沙箱切换
-84. `/remote-setup` - 远程设置
-85. `/remote-env` - 远程环境
-86. `/oauth-refresh` - OAuth 刷新
-87. `/install-github-app` - 安装 GitHub 应用
-88. `/good-claude` - 反馈好的体验
-89. `/poor` - 反馈差的体验
-90. `/advisor` - 顾问模式
-91. `/buddy` - Buddy 模式
-92. `/ctx_viz` - 上下文可视化
+#### P2 - Config Commands (配置命令)
+
+| 命令 | 功能 | 依赖 | 优先级 |
+|------|------|------|--------|
+| `/config` | 配置管理 | Config 模块 | P2 |
+| `/login` | 认证登录 | OAuth Provider | P2 |
+| `/logout` | 认证登出 | Session 管理 | P2 |
+| `/doctor` | 系统诊断 | 工具注册表 | P2 |
+| `/cost` | 查看费用 | Usage 统计 | P2 |
+
+#### P3 - Advanced Commands (高级功能)
+
+| 命令 | 功能 | 依赖 | 优先级 |
+|------|------|------|--------|
+| `/mcp` | MCP 服务器管理 | MCP 协议栈 | P3 |
+| `/hooks` | Hook 管理 | Event Bus | P3 |
+| `/skills` | 技能管理 | Skills 注册表 | P3 |
+| `/tasks` | 任务管理 | Task 调度器 | P3 |
+| `/memory` | 记忆管理 | Memory 系统 | P3 |
+| `/permissions` | 权限管理 | Permission 模块 | P3 |
+| `/agents` | 多代理管理 | Coordinator | P3 |
+
+## 命令分类体系
+
+### 分类结构
+
+```
+Commands
+├── Core (P1) - 核心命令
+├── Config (P2) - 配置命令  
+├── Advanced (P3) - 高级功能
+├── Edit (P2/P3) - 编辑命令
+├── Collaboration (P3) - 协作命令
+└── System (P2/P3) - 系统命令
+```
+
+### 分类详细定义
+
+#### Core Commands (P1)
+
+核心命令是 Agent 生存所必需的基础命令，提供最基本的人机交互能力。
+
+| 命令 | 功能 | 参数 | 返回结构 |
+|------|------|------|----------|
+| `/help [command]` | 显示帮助 | `command?: string` | `HelpOutput` |
+| `/compact` | 手动压缩上下文 | 无 | `CompactOutput` |
+| `/model <name>` | 切换模型 | `name: string` | `ModelOutput` |
+| `/clear` | 清除对话 | 无 | `ClearOutput` |
+| `/exit` | 退出 | 无 | `ExitOutput` |
+| `/resume` | 恢复会话 | 无 | `ResumeOutput` |
+
+#### Config Commands (P2)
+
+配置命令用于管理 Agent 的运行时配置和认证状态。
+
+| 命令 | 功能 | 参数 | 返回结构 |
+|------|------|------|----------|
+| `/config [key] [value]` | 查看/修改配置 | `key?: string, value?: string` | `ConfigOutput` |
+| `/login` | 认证登录 | 无 | `LoginOutput` |
+| `/logout` | 认证登出 | 无 | `LogoutOutput` |
+| `/doctor` | 系统诊断 | 无 | `DoctorOutput` |
+| `/cost` | 查看费用 | 无 | `CostOutput` |
+
+#### Advanced Commands (P3)
+
+高级功能命令提供扩展能力，通常需要较长的执行时间。
+
+| 命令 | 功能 | 参数 | 返回结构 |
+|------|------|------|----------|
+| `/mcp <subcommand>` | MCP 服务器管理 | `subcommand: enum` | `McpOutput` |
+| `/hooks [name]` | Hook 管理 | `name?: string` | `HooksOutput` |
+| `/skills [name]` | 技能管理 | `name?: string` | `SkillsOutput` |
+| `/tasks [id]` | 任务管理 | `id?: string` | `TasksOutput` |
+| `/memory [subcommand]` | 记忆管理 | `subcommand: enum` | `MemoryOutput` |
+| `/permissions [action]` | 权限管理 | `action: enum` | `PermissionsOutput` |
+| `/agents [command]` | 多代理管理 | `command: enum` | `AgentsOutput` |
+
+#### Edit Commands (P2/P3)
+
+编辑命令用于代码审查和修改协作。
+
+| 命令 | 功能 | 参数 | 优先级 | 依赖 |
+|------|------|------|--------|------|
+| `/diff [path]` | 查看文件差异 | `path?: string` | P2 | Git 工具 |
+| `/review [path]` | 代码审查 | `path?: string` | P3 | Diff 工具 |
+| `/plan [description]` | 计划模式 | `description?: string` | P2 | Task 调度 |
+| `/vim [subcommand]` | Vim 编辑模式 | `subcommand: enum` | P2 | 编辑器集成 |
+| `/fast` | 快速模式 | 无 | P2 | 模型配置 |
+
+#### Collaboration Commands (P3)
+
+协作命令用于多用户协作和消息传递。
+
+| 命令 | 功能 | 参数 | 优先级 | 依赖 |
+|------|------|------|--------|------|
+| `/share [session]` | 分享对话 | `session?: string` | P3 | Session 管理 |
+| `/peers [command]` | 对等连接 | `command: enum` | P3 | P2P 网络 |
+| `/send <target> <msg>` | 发送消息 | `target: string, msg: string` | P3 | Peers 连接 |
+| `/btw <message>` | 侧注 | `message: string` | P3 | 无 |
+
+#### System Commands (P2/P3)
+
+系统命令用于会话、分支、状态等系统级管理。
+
+| 命令 | 功能 | 参数 | 优先级 | 依赖 |
+|------|------|------|--------|------|
+| `/branch [name]` | 分支管理 | `name?: string` | P2 | Git 集成 |
+| `/session [id]` | 会话管理 | `id?: string` | P2 | Session 持久化 |
+| `/status` | 状态查看 | 无 | P2 | 无 |
+| `/stats [type]` | 统计信息 | `type?: enum` | P3 | Usage 统计 |
+| `/theme [name]` | 主题切换 | `name?: string` | P3 | UI 配置 |
+
+## 命令依赖矩阵
+
+### 依赖类型定义
+
+| 依赖类型 | 符号 | 说明 |
+|----------|------|------|
+| 强依赖 | `●` | 命令必须依赖，缺失会导致功能完全不可用 |
+| 弱依赖 | `○` | 命令可选依赖，缺失时功能降级但仍可用 |
+| 内部依赖 | `◐` | 同一分类内的依赖 |
+
+### 依赖矩阵
+
+```
+                    │ Tools │ Session │ Config │ Memory │ Permission │ Network │ Git │
+────────────────────┼───────┼─────────┼────────┼────────┼────────────┼─────────┼─────┤
+Core Commands       │       │         │        │        │            │         │     │
+  /help             │       │         │        │        │            │         │     │
+  /compact          │       │   ◐     │        │   ○    │            │         │     │
+  /model            │       │         │   ●    │        │            │         │     │
+  /clear            │       │   ●     │        │   ○    │            │         │     │
+  /exit             │       │   ●    │        │        │            │         │     │
+  /resume           │       │   ●    │        │   ○    │            │         │     │
+────────────────────┼───────┼─────────┼────────┼────────┼────────────┼─────────┼─────┤
+Config Commands     │       │         │        │        │            │         │     │
+  /config           │       │         │   ●    │        │            │         │     │
+  /login            │       │   ◐     │        │        │            │   ●    │     │
+  /logout           │       │   ●    │        │        │            │   ○    │     │
+  /doctor           │   ●   │         │   ○    │        │   ○        │         │     │
+  /cost             │       │         │        │        │            │         │     │
+────────────────────┼───────┼─────────┼────────┼────────┼────────────┼─────────┼─────┤
+Advanced Commands   │       │         │        │        │            │         │     │
+  /mcp              │   ●   │         │   ○    │        │   ○        │   ○    │     │
+  /hooks            │   ○   │         │   ●    │        │            │         │     │
+  /skills           │       │         │   ○    │   ○    │            │         │     │
+  /tasks            │   ○   │   ◐    │        │   ○    │   ○        │         │     │
+  /memory           │       │   ◐    │        │   ●    │            │         │     │
+  /permissions      │       │         │   ○    │        │   ●        │         │     │
+  /agents           │   ◐   │   ◐    │        │   ○    │   ○        │   ○    │     │
+────────────────────┼───────┼─────────┼────────┼────────┼────────────┼─────────┼─────┤
+Edit Commands       │       │         │        │        │            │         │     │
+  /diff             │   ●   │         │        │        │            │         │  ●  │
+  /review           │   ●   │         │        │        │            │         │  ○  │
+  /plan             │   ○   │   ◐    │        │   ○    │            │         │     │
+  /vim              │   ●   │         │        │        │            │         │     │
+  /fast             │       │         │   ●    │        │            │         │     │
+────────────────────┼───────┼─────────┼────────┼────────┼────────────┼─────────┼─────┤
+Collaboration       │       │         │        │        │            │         │     │
+  /share            │       │   ●    │        │   ○    │            │   ○    │     │
+  /peers            │       │   ○    │        │        │   ○        │   ●    │     │
+  /send             │       │   ○    │        │        │            │   ●    │     │
+  /btw              │       │   ◐    │        │   ○    │            │         │     │
+────────────────────┼───────┼─────────┼────────┼────────┼────────────┼─────────┼─────┤
+System Commands     │       │         │        │        │            │         │     │
+  /branch           │   ●   │         │        │        │            │         │  ●  │
+  /session          │       │   ●    │   ○    │   ○    │            │         │     │
+  /status           │       │   ◐    │   ○    │        │            │         │     │
+  /stats            │       │   ◐    │        │        │            │         │     │
+  /theme            │       │         │   ●    │        │            │         │     │
+────────────────────┴───────┴─────────┴────────┴────────┴────────────┴─────────┴─────┘
+```
+
+### 外部规范依赖
+
+| 规范编号 | 规范名称 | 依赖类型 | 说明 |
+|----------|----------|----------|------|
+| spec-003 | Tools Alignment | 强依赖 | 所有需要文件/Git/终端操作的命令依赖工具系统 |
+| spec-004 | Security Permission Framework | 强依赖 | 所有命令需通过权限校验 |
+| spec-006 | Context Alignment | 弱依赖 | `/compact` 等命令依赖上下文管理 |
+| spec-007 | Memory System | 弱依赖 | `/memory` 命令依赖记忆系统 |
+| spec-008 | Multi-Agent Coordinator | 弱依赖 | `/agents` 命令依赖多代理协调 |
+
+## 统一接口规范
+
+### 错误处理
+
+所有命令必须遵循 `SPEC_DEPENDENCIES.md` 中定义的错误层次结构：
+
+```rust
+// 命令执行错误
+pub enum CommandError {
+    UserInput { code: ErrorCode, message: String },
+    Permission { code: ErrorCode, message: String, required_permission: String },
+    Resource { code: ErrorCode, message: String, resource_type: String },
+    ExternalService { code: ErrorCode, message: String, service: String },
+    Internal { code: ErrorCode, message: String },
+}
+```
+
+### 统一返回结构
+
+```rust
+pub struct CommandOutput {
+    pub success: bool,
+    pub data: Option<serde_json::Value>,
+    pub error: Option<CommandError>,
+    pub execution_time_ms: u64,
+}
+
+pub trait SlashCommand: Send + Sync {
+    fn name(&self) -> &str;
+    fn description(&self) -> &str;
+    fn priority(&self) -> CommandPriority;
+    fn category(&self) -> CommandCategory;
+    fn execute(&self, ctx: &CommandContext, args: Value) -> Result<CommandOutput, CommandError>;
+    fn dependencies(&self) -> Vec<Dependency>;
+}
+```
+
+### 日志规范
+
+```rust
+// 命令执行日志
+log::info!(target: "command", name: self.name(), "Command started");
+log::debug!(target: "command", name: self.name(), args = ?args, "Executing command");
+log::info!(target: "command", name: self.name(), duration_ms = ms, "Command completed");
+log::error!(target: "command", name: self.name(), error = %err, "Command failed");
+```
 
 ## Functional Requirements
 
 ### FR-001: 命令注册系统
+
 - 每个命令是一个独立的 Rust 模块
 - 命令通过 `#[derive(SlashCommand)]` 属性注册
 - 命令名称与 Claude Code 保持一致
 
 ### FR-002: 命令执行框架
+
 - 实现 `SlashCommand` trait
 - 支持参数解析 (使用 serde)
 - 支持异步执行
 
 ### FR-003: 命令分类
-- Core Commands: 核心命令
-- Config Commands: 配置命令
-- Advanced Commands: 高级功能命令
-- Edit Commands: 编辑命令
-- Collaboration Commands: 协作命令
-- System Commands: 系统命令
 
-### FR-004: 帮助系统
+- Core Commands: 核心命令 (P1)
+- Config Commands: 配置命令 (P2)
+- Advanced Commands: 高级功能命令 (P3)
+- Edit Commands: 编辑命令 (P2/P3)
+- Collaboration Commands: 协作命令 (P3)
+- System Commands: 系统命令 (P2/P3)
+
+### FR-004: 优先级机制
+
+- P1 命令优先执行，失败立即返回
+- P2 命令可并发执行，失败允许重试
+- P3 命令可后台执行，失败进入队列
+
+### FR-005: 依赖检查
+
+- 命令执行前检查依赖模块可用性
+- 依赖缺失时提供友好的错误提示
+- 支持依赖模块按需加载
+
+### FR-006: 帮助系统
+
 - `/help [command]` 显示指定命令帮助
-- `/help` 显示所有命令列表
+- `/help` 显示所有命令列表（按分类分组）
 - 命令描述与 Claude Code 一致
 
-### FR-005: 命令执行结果
+### FR-007: 命令执行结果
+
 - 返回结构化结果 (JSON)
 - 支持成功/失败状态
-- 支持错误消息
+- 支持错误消息和执行时间
 
 ## Success Criteria
 
 1. **命令覆盖率**: 100+ 命令全部实现
 2. **功能对齐**: 与 Claude Code 功能一致
-3. **编译通过**: cargo build 成功
-4. **测试通过**: 单元测试全部通过
-5. **CLI 集成**: 与现有 CLI 系统集成
+3. **优先级支持**: P1/P2/P3 分级明确
+4. **分类完整**: 6 大分类无遗漏
+5. **依赖清晰**: 依赖矩阵完整准确
+6. **编译通过**: cargo build 成功
+7. **测试通过**: 单元测试全部通过
+8. **CLI 集成**: 与现有 CLI 系统集成
 
 ## Architecture
 
 ```
 src/commands/
-├── mod.rs                 # 模块导出
-├── help.rs                # /help 命令
-├── compact.rs             # /compact 命令
-├── model.rs               # /model 命令
-├── clear.rs               # /clear 命令
-├── config.rs              # /config 命令
-├── login.rs              # /login 命令
-├── logout.rs             # /logout 命令
-├── mcp.rs                 # /mcp 命令
-├── hooks.rs               # /hooks 命令
-├── skills.rs              # /skills 命令
-├── tasks.rs               # /tasks 命令
-├── diff.rs                # /diff 命令
-├── review.rs              # /review 命令
-├── plan.rs                # /plan 命令
-├── resume.rs              # /resume 命令
-├── share.rs               # /share 命令
-├── voice.rs               # /voice 命令
-├── vim.rs                 # /vim 命令
-├── fast.rs                # /fast 命令
-├── cost.rs                # /cost 命令
-├── doctor.rs              # /doctor 命令
-├── memory.rs              # /memory 命令
-├── upgrade.rs             # /upgrade 命令
-├── desktop.rs             # /desktop 命令
-├── theme.rs               # /theme 命令
-├── permissions.rs         # /permissions 命令
-├── stickers.rs            # /stickers 命令
-├── exit.rs                # /exit 命令
-├── status.rs              # /status 命令
-├── stats.rs               # /stats 命令
-├── history.rs             # /history 命令
-├── branch.rs              # /branch 命令
-├── session.rs             # /session 命令
-├── attach.rs              # /attach 命令
-├── detach.rs              # /detach 命令
-├── agents.rs              # /agents 命令
-├── workflows.rs           # /workflows 命令
-├── pipes.rs               # /pipes 命令
-├── rename.rs              # /rename 命令
-├── tag.rs                 # /tag 命令
-├── env.rs                 # /env 命令
-├── files.rs               # /files 命令
-├── src.rs                 # /src 命令
-├── context.rs             # /context 命令
-├── summary.rs             # /summary 命令
-├── rewind.rs              # /rewind 命令
-├── passes.rs              # /passes 命令
-├── effort.rs              # /effort 命令
-├── issue.rs               # /issue 命令
-├── feedback.rs            # /feedback 命令
-├── release_notes.rs       # /release-notes 命令
-├── onboarding.rs          # /onboarding 命令
-├── mobile.rs              # /mobile 命令
-├── chrome.rs              # /chrome 命令
-├── plugin.rs              # /plugin 命令
-├── reload_plugins.rs      # /reload-plugins 命令
-├── debug_tool_call.rs     # /debug-tool-call 命令
-├── mock_limits.rs         # /mock-limits 命令
-├── heapdump.rs            # /heapdump 命令
-├── perf_issue.rs          # /perf-issue 命令
-├── teleport.rs            # /teleport 命令
-├── bridge.rs              # /bridge 命令
-├── sandbox_toggle.rs      # /sandbox-toggle 命令
-├── remote_setup.rs        # /remote-setup 命令
-├── remote_env.rs          # /remote-env 命令
-├── install_github_app.rs  # /install-github-app 命令
-├── keybindings.rs         # /keybindings 命令
-├── color.rs               # /color 命令
-├── privacy_settings.rs    # /privacy-settings 命令
-├── rate_limit_options.rs  # /rate-limit-options 命令
-├── extra_usage.rs         # /extra-usage 命令
-├── usage.rs               # /usage 命令
-├── reset_limits.rs        # /reset-limits 命令
-├── output_style.rs        # /output-style 命令
-├── peers.rs               # /peers 命令
-├── send.rs                # /send 命令
-├── btw.rs                 # /btw 命令
-├── pr_comments.rs         # /pr_comments 命令
-├── autofix_pr.rs          # /autofix-pr 命令
-├── bughunter.rs           # /bughunter 命令
-├── thinkback.rs           # /thinkback 命令
-├── add_dir.rs             # /add-dir 命令
-├── copy.rs                # /copy 命令
-├── terminal_setup.rs      # /terminalSetup 命令
-├── ide.rs                 # /ide 命令
-├── good_claude.rs         # /good-claude 命令
-├── poor.rs                # /poor 命令
-├── advisor.rs             # /advisor 命令
-├── buddy.rs               # /buddy 命令
-├── ctx_viz.rs             # /ctx_viz 命令
-├── ant_trace.rs           # /ant-trace 命令
-├── backfill_sessions.rs   # /backfill-sessions 命令
-├── break_cache.rs         # /break-cache 命令
-├── claim_main.rs          # /claim-main 命令
-├── oauth_refresh.rs       # /oauth-refresh 命令
-└── trait.rs               # SlashCommand trait 定义
+├── mod.rs                     # 模块导出
+├── traits.rs                   # SlashCommand trait 定义
+├── registry.rs                 # 命令注册表
+├── priority.rs                  # 优先级管理
+├── dependency.rs               # 依赖检查器
+│
+├── core/                       # Core Commands (P1)
+│   ├── help.rs
+│   ├── compact.rs
+│   ├── model.rs
+│   ├── clear.rs
+│   ├── exit.rs
+│   └── resume.rs
+│
+├── config/                     # Config Commands (P2)
+│   ├── config.rs
+│   ├── login.rs
+│   ├── logout.rs
+│   ├── doctor.rs
+│   └── cost.rs
+│
+├── advanced/                   # Advanced Commands (P3)
+│   ├── mcp.rs
+│   ├── hooks.rs
+│   ├── skills.rs
+│   ├── tasks.rs
+│   ├── memory.rs
+│   ├── permissions.rs
+│   └── agents.rs
+│
+├── edit/                       # Edit Commands (P2/P3)
+│   ├── diff.rs
+│   ├── review.rs
+│   ├── plan.rs
+│   ├── vim.rs
+│   └── fast.rs
+│
+├── collaboration/              # Collaboration Commands (P3)
+│   ├── share.rs
+│   ├── peers.rs
+│   ├── send.rs
+│   └── btw.rs
+│
+└── system/                     # System Commands (P2/P3)
+    ├── branch.rs
+    ├── session.rs
+    ├── status.rs
+    ├── stats.rs
+    └── theme.rs
 ```
 
 ## Dependencies
 
 - 依赖 `specs/003-claude-code-tools-alignment` 的工具系统
 - 依赖 `specs/004-security-permission-framework` 的权限系统
+- 依赖 `specs/006-context-alignment` 的上下文管理
+- 依赖 `specs/007-memory-system` 的记忆系统
+- 依赖 `specs/008-multi-agent-coordinator` 的多代理协调

@@ -1,185 +1,372 @@
 # Feature Specification: CLI Entry Point Alignment
 
-**Feature Branch**: `260417-feat-cli-entrypoint`
-**Created**: 2026-04-17
-**Status**: Draft
-**Input**: User description: "对齐claude-code的入口功能：references/claude-code/src/entrypoints/cli.tsx"
+## Metadata
 
-## User Scenarios & Testing *(mandatory)*
-
-### User Story 1 - Version Flag Fast Path (Priority: P1)
-
-A developer types `devil --version` or `devil -v` and immediately sees the version number. The response is instant because no modules are loaded.
-
-**Why this priority**: This is a standard CLI convention and provides immediate feedback. The fast path is critical for developer experience.
-
-**Independent Test**: Can be tested by running `devil --version` and verifying output appears in under 100ms with no additional module loading.
-
-**Acceptance Scenarios**:
-
-1. **Given** the user runs `devil --version`, **When** the command executes, **Then** version string is printed and process exits cleanly with code 0
-2. **Given** the user runs `devil -v`, **When** the command executes, **Then** version string is printed and process exits cleanly with code 0
-3. **Given** the user runs `devil -V`, **When** the command executes, **Then** version string is printed and process exits cleanly with code 0
+| Field | Value |
+|-------|-------|
+| **Spec ID** | 002 |
+| **Feature Branch** | `260417-feat-cli-entrypoint` |
+| **Created** | 2026-04-17 |
+| **Last Updated** | 2026-04-21 |
+| **Status** | Draft |
+| **Priority** | P0 |
+| **Dependencies** | 001 |
+| **Dependents** | 005 |
 
 ---
 
-### User Story 2 - Help System (Priority: P1)
+## 1. Concept & Vision
 
-A developer types `devil --help` or `devil help` and sees comprehensive help information including all available commands, flags, and examples.
+### 1.1 Summary
 
-**Why this priority**: Help is the primary discovery mechanism for new users and a reference for existing users.
+CLI 是用户与 Devil Agent 交互的主要方式。规范定义 CLI 的入口点、命令路由、配置管理和生命周期。
 
-**Independent Test**: Can be tested by running `devil --help` and verifying all commands and options are listed correctly.
+### 1.2 设计原则
 
-**Acceptance Scenarios**:
-
-1. **Given** the user runs `devil --help`, **When** the command executes, **Then** help text displays all available commands
-2. **Given** the user runs `devil help`, **When** the command executes, **Then** help text displays identically to `--help`
-3. **Given** the user runs `devil` with no arguments, **When** the command executes, **Then** help text is displayed
+1. **Fast Path**: 版本信息和帮助应立即返回，不加载模块
+2. **一致性**: 所有命令遵循统一的输出格式
+3. **可扩展性**: 新命令通过注册表添加，不修改核心代码
 
 ---
 
-### User Story 3 - Single Task Execution Mode (Priority: P1)
+## 2. Command Structure
 
-A developer provides a prompt as a command-line argument and the agent executes the task without entering interactive mode.
+### 2.1 Command Hierarchy
 
-**Why this priority**: This enables scripting and automation where a full REPL session is not needed.
+```
+devil
+├── [global options]
+├── run <prompt>          # 单任务执行
+├── repl                   # 交互式 REPL
+├── web                    # Web 服务模式
+├── config                 # 配置管理
+├── --version, -v, -V     # 版本信息
+├── --help, -h             # 帮助信息
+└── <subcommand>           # 子命令
+```
 
-**Independent Test**: Can be tested by running `devil run "analyze project structure"` and verifying the agent completes the task.
+### 2.2 Global Options
 
-**Acceptance Scenarios**:
-
-1. **Given** the user runs `devil run "task description"`, **When** the command executes, **Then** the agent processes the task and exits upon completion
-2. **Given** the user provides multiple words in quotes, **When** the command executes, **Then** all words are treated as a single task description
-3. **Given** the user runs `devil run` without a task, **When** the command executes, **Then** an error message explains the correct usage
-
----
-
-### User Story 4 - Interactive REPL Mode (Priority: P1)
-
-A developer types `devil repl` and enters an interactive read-eval-print loop where they can converse with the agent in real-time.
-
-**Why this priority**: The REPL is the primary interactive interface for complex, multi-turn conversations.
-
-**Independent Test**: Can be tested by running `devil repl` and sending test messages to verify responses.
-
-**Acceptance Scenarios**:
-
-1. **Given** the user runs `devil repl`, **When** the command executes, **Then** the terminal switches to interactive mode with a prompt
-2. **Given** the user is in REPL mode, **When** they type a message and press Enter, **Then** the agent responds
-3. **Given** the user presses Ctrl+C in REPL mode, **When** the interrupt is received, **Then** the session can continue or exit gracefully
+| Option | 说明 | 示例 |
+|--------|------|------|
+| `--version`, `-v`, `-V` | 显示版本 | `devil -v` |
+| `--help`, `-h` | 显示帮助 | `devil --help` |
+| `--config <path>` | 指定配置文件 | `devil --config /path/to/config.toml` |
+| `--dry-run` | 模拟执行 | `devil --dry-run run "task"` |
+| `--verbose` | 详细输出 | `devil --verbose run "task"` |
+| `--quiet`, `-q` | 静默模式 | `devil -q run "task"` |
 
 ---
 
-### User Story 5 - Configuration Management (Priority: P2)
+## 3. User Scenarios
 
-A developer can view and modify configuration settings through the `devil config` command.
+### US-001: 版本查询 (Fast Path)
 
-**Why this priority**: Configuration management enables users to customize agent behavior and manage API credentials.
+**Priority**: P1
 
-**Independent Test**: Can be tested by running `devil config show` and verifying configuration values are displayed.
+```
+Scenario: 用户查询版本
+  Given 用户运行 "devil --version"
+  When 命令执行
+  Then 在 100ms 内返回版本信息
+  And 不加载任何模块
+  And 进程正常退出 (exit code 0)
+```
 
-**Acceptance Scenarios**:
+**实现要求**:
+- 版本信息编译时静态嵌入
+- 不使用 anyhow, tokio 等运行时依赖
 
-1. **Given** the user runs `devil config show`, **When** the command executes, **Then** current configuration is displayed
-2. **Given** the user runs `devil config set KEY VALUE`, **When** the command executes, **Then** the configuration value is updated
-3. **Given** the user runs `devil config get KEY`, **When** the command executes, **Then** the specific value is displayed
+### US-002: 帮助信息
+
+**Priority**: P1
+
+```
+Scenario: 显示帮助
+  Given 用户运行 "devil --help"
+  Then 显示所有可用命令
+  And 显示全局选项说明
+  And 显示示例
+```
+
+**帮助格式**:
+```
+Devil AI Agent v0.1.0
+
+USAGE:
+  devil [OPTIONS] <COMMAND>
+
+COMMANDS:
+  run <PROMPT>    Execute a single task
+  repl            Start interactive REPL
+  web             Start web server
+  config          Configuration management
+  help            Show this help
+
+OPTIONS:
+  -v, --version   Show version
+  -h, --help      Show help
+  --config PATH   Config file path
+
+Run 'devil help <COMMAND>' for more information.
+```
+
+### US-003: 单任务执行
+
+**Priority**: P1
+
+```
+Scenario: 执行单任务
+  Given 用户运行 "devil run <prompt>"
+  When 任务完成
+  Then 显示结果
+  And 进程正常退出
+```
+
+**错误处理**:
+```
+# 缺少参数
+devil run
+Error: Missing required argument 'prompt'
+Usage: devil run <PROMPT>
+
+# 任务失败
+devil run "invalid task"
+Error: Task execution failed: <reason>
+```
+
+### US-004: 交互式 REPL
+
+**Priority**: P1
+
+```
+Scenario: 启动 REPL
+  Given 用户运行 "devil repl"
+  Then 显示欢迎信息
+  And 显示提示符 "devil> "
+  And 等待用户输入
+```
+
+**REPL 命令**:
+```
+devil> help           # 显示帮助
+devil> /exit          # 退出 REPL
+devil> /clear         # 清除历史
+devil> <text>         # 发送消息
+```
+
+### US-005: Web 服务模式
+
+**Priority**: P2
+
+```
+Scenario: 启动 Web 服务
+  Given 用户运行 "devil web"
+  Then 启动 HTTP 服务器
+  And 显示服务地址
+  And 保持前台运行
+```
 
 ---
 
-### User Story 6 - Dynamic Command Dispatch (Priority: P1)
+## 4. Dispatcher Architecture
 
-The CLI dispatcher routes commands to appropriate handlers based on command-line arguments, supporting both subcommands and flags.
+### 4.1 Command Registry Pattern
 
-**Why this priority**: A well-structured dispatcher is the foundation for adding new commands without modifying core logic.
+```rust
+trait Command {
+    fn name(&self) -> &str;
+    fn description(&self) -> &str;
+    fn execute(&self, ctx: &CliContext, args: &[String]) -> Result<()>;
+}
 
-**Independent Test**: Can be tested by verifying each command routes to its handler without interference.
+struct CommandRegistry {
+    commands: HashMap<String, Box<dyn Command>>,
+}
 
-**Acceptance Scenarios**:
+impl CommandRegistry {
+    pub fn register<C: Command + 'static>(&mut self, command: C) {
+        self.commands.insert(command.name().to_string(), Box::new(command));
+    }
+    
+    pub fn dispatch(&self, ctx: &CliContext, input: &[String]) -> Result<()> {
+        match input.first() {
+            Some(cmd) => self.commands.get(cmd)
+                .ok_or_else(|| anyhow!("Unknown command: {}", cmd))?
+                .execute(ctx, &input[1..]),
+            None => self.commands.get("help").unwrap().execute(ctx, &[]),
+        }
+    }
+}
+```
 
-1. **Given** the CLI receives `devil version`, **When** the dispatcher parses the command, **Then** the version handler is invoked
-2. **Given** the CLI receives `devil --version` as a flag, **When** the dispatcher parses the arguments, **Then** the version handler is invoked (flag takes precedence)
-3. **Given** the CLI receives an unknown command, **When** the dispatcher cannot find a handler, **Then** an error message is shown and process exits with code 1
+### 4.2 Command Execution Flow
+
+```
+CLI Input: "devil run 'analyze code'"
+    │
+    ▼
+┌─────────────────────────────────────┐
+│ Parse global options               │
+│ --verbose, --config, etc.          │
+└─────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────┐
+│ Fast path check                    │
+│ -v/--version → print and exit      │
+│ -h/--help → show help and exit     │
+└─────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────┐
+│ Command Dispatch                    │
+│ "run" → RunCommand::execute()       │
+└─────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────┐
+│ Session Creation                   │
+│ - Load config                      │
+│ - Initialize tools                  │
+│ - Load memory                       │
+└─────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────┐
+│ Agent Execution                    │
+│ - Run task                         │
+│ - Stream output                     │
+└─────────────────────────────────────┘
+    │
+    ▼
+┌─────────────────────────────────────┐
+│ Cleanup & Exit                     │
+└─────────────────────────────────────┘
+```
 
 ---
 
-### User Story 7 - Environment Variable Configuration (Priority: P2)
+## 5. Configuration Management
 
-The CLI loads configuration from environment variables, applying them before and after config file settings.
+### 5.1 Config Precedence
 
-**Why this priority**: Environment variables enable containerized deployments and CI/CD integration.
+```
+Highest → Lowest:
+1. Environment variables (DEVIL_*)
+2. Command line arguments
+3. Config file (~/.devil/config.toml)
+4. Default values
+```
 
-**Independent Test**: Can be tested by setting environment variables and verifying they override config file values.
+### 5.2 Config File Schema
 
-**Acceptance Scenarios**:
+```toml
+[agent]
+name = "devil"
+model = "claude-sonnet-4-20250514"
+max_turns = 100
+max_context_tokens = 200000
 
-1. **Given** `DEVIL_API_KEY` is set in environment, **When** the agent starts, **Then** the API key is loaded from the environment variable
-2. **Given** both config file and environment variable specify the same key, **When** initialization occurs, **Then** environment variable takes precedence
+[cli]
+color = true
+verbose = false
+prompt = "devil> "
+
+[tools]
+timeout_seconds = 300
+allow_destructive = false
+parallel_execution = true
+
+[permissions]
+mode = "ask"  # ask | auto | bypass
+rules_file = "~/.devil/rules.toml"
+
+[logging]
+level = "info"  # trace | debug | info | warn | error
+format = "pretty"  # pretty | json
+file = "~/.devil/logs/devil.log"
+
+[web]
+host = "127.0.0.1"
+port = 8080
+api_key = ""  # If set, requires API key for requests
+```
+
+### 5.3 Environment Variables
+
+| Variable | Type | 说明 |
+|----------|------|------|
+| `DEVIL_API_KEY` | String | API 密钥 |
+| `DEVIL_BASE_URL` | String | API 基础 URL |
+| `DEVIL_CONFIG` | String | 配置文件路径 |
+| `DEVIL_MODEL` | String | 默认模型 |
+| `DEVIL_VERBOSE` | Bool | 详细输出 |
+| `DEVIL_MOCK_MODEL` | Bool | 使用模拟模式 |
 
 ---
 
-### User Story 8 - Graceful Shutdown (Priority: P2)
+## 6. Error Handling
 
-When the process receives termination signals (SIGINT, SIGTERM), it cleans up resources properly before exiting.
+### 6.1 Exit Codes
 
-**Why this priority**: Graceful shutdown prevents data loss and resource leaks during planned outages.
+| Code | Meaning |
+|------|---------|
+| 0 | 成功 |
+| 1 | 一般错误 |
+| 2 | 解析错误 |
+| 3 | 配置错误 |
+| 4 | 执行错误 |
+| 5 | 权限错误 |
 
-**Independent Test**: Can be tested by sending SIGTERM to a running process and verifying clean exit.
+### 6.2 Error Output Format
 
-**Acceptance Scenarios**:
+```
+Error: <message>
+  Caused by: <cause>
+  Context: <context>
 
-1. **Given** the agent is running, **When** it receives SIGINT (Ctrl+C), **Then** cleanup handlers execute and process exits cleanly
-2. **Given** the agent is running, **When** it receives SIGTERM, **Then** cleanup handlers execute and process exits cleanly with code 0
+Run 'devil --help' for usage information.
+```
 
 ---
 
-### Edge Cases
+## 7. Signal Handling
 
-- What happens when the user provides an empty string as the task?
-- How does the system handle extremely long command-line arguments?
-- What happens when stdin is not a TTY (piped input)?
-- How does the system behave when HOME environment variable is not set?
-- What happens when the config file is malformed or unreadable?
+### 7.1 Graceful Shutdown
 
-## Requirements *(mandatory)*
+```
+SIGINT (Ctrl+C):
+1. 停止接收新输入
+2. 完成当前操作
+3. 保存状态
+4. 清理资源
+5. 退出 (exit code 0)
 
-### Functional Requirements
+SIGTERM:
+1. 停止接收新输入
+2. 等待当前操作完成 (最多 5s)
+3. 强制终止
+4. 退出 (exit code 1)
+```
 
-- **FR-001**: The CLI MUST respond to `--version`, `-v`, and `-V` flags with version string in under 100ms
-- **FR-002**: The CLI MUST display help when run with no arguments, `--help`, or `help`
-- **FR-003**: The CLI MUST support `run <prompt>` for single-task execution mode
-- **FR-004**: The CLI MUST support `repl` for interactive mode
-- **FR-005**: The CLI MUST support `config` subcommand for configuration management
-- **FR-006**: The CLI MUST route commands via a central dispatcher pattern
-- **FR-007**: The CLI MUST load environment variables for configuration before config file
-- **FR-008**: The CLI MUST register cleanup handlers for graceful shutdown
-- **FR-009**: The CLI MUST handle SIGINT and SIGTERM for graceful termination
-- **FR-010**: Error messages MUST be written to stderr and exit codes MUST be non-zero for errors
-- **FR-011**: The CLI version MUST be compile-time constant injected via build
+---
 
-### Key Entities
+## 8. Dependencies
 
-- **Command**: A CLI command with name, description, handler function, and argument schema
-- **Config**: Key-value store of agent configuration loaded from files and environment
-- **InitState**: Runtime state initialized at startup including telemetry, logging, and cleanup handlers
-- **CliContext**: Shared context passed to command handlers containing config and runtime state
+| Spec | Type | Purpose |
+|------|------|---------|
+| 001 | Strong | CLI 依赖 Agent 核心 |
+| 005 | Strong | 斜杠命令通过 CLI 调度 |
 
-## Success Criteria *(mandatory)*
+---
 
-### Measurable Outcomes
+## 9. Acceptance Criteria
 
-- **SC-001**: `devil --version` returns in under 100ms with zero module loading
-- **SC-002**: `devil --help` displays all commands with descriptions
-- **SC-003**: Unknown commands return exit code 1 with error message
-- **SC-004**: Graceful shutdown completes within 2 seconds of signal receipt
-- **SC-005**: All commands have corresponding integration tests
-- **SC-006**: Version string matches Cargo.toml package version
-
-## Assumptions
-
-- Users have Rust 1.70+ and Cargo installed
-- Tokio runtime is available for async operations
-- Config files use JSON or TOML format
-- Environment variable prefix is `DEVIL_`
-- Default config location is `~/.devil/config.toml`
-- Session state is stored in `~/.devil/sessions/`
+| ID | Criteria | Test Method |
+|----|----------|-------------|
+| AC-001 | `--version` 在 100ms 内返回 | Benchmark |
+| AC-002 | 所有命令有集成测试 | `cargo test` |
+| AC-003 | 帮助信息完整且准确 | 人工评审 |
+| AC-004 | 未知命令返回 exit code 2 | 单元测试 |
+| AC-005 | 配置优先级正确 | 单元测试 |

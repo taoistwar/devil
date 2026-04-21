@@ -80,11 +80,111 @@ The coordinator distributes tasks to workers and aggregates their results into c
 
 ### Edge Cases
 
-- What happens when a worker agent crashes or becomes unresponsive?
-- How does the system handle circular spawn requests (worker spawning worker spawning original)?
-- What happens when coordinator runs out of resources to spawn new workers?
-- How does the system prevent infinite recursion in sub-agent spawning?
-- What happens when MCP tools used by workers become unavailable?
+- **Worker crash/unresponsive**: Worker failures detected within 10 seconds; coordinator retries via SendMessage with corrected instructions, or reassigns task.
+- **Circular spawn requests**: Detected and prevented by `MAX_SUBAGENT_DEPTH` (3) limit - spawn requests beyond depth are rejected.
+- **Resource exhaustion (max workers)**: When `MAX_CONCURRENT_WORKERS` (4) is reached, coordinator returns `ResourceExhausted` error (E3003) per SPEC_DEPENDENCIES.md.
+- **Infinite recursion prevention**: `MAX_SUBAGENT_DEPTH` (3) enforced at runtime - spawn attempts beyond limit are denied.
+- **MCP tools unavailable**: Worker reports error via `<task-notification status="failed">` with error details.
+- **Worker timeout**: Worker exceeding `WORKER_TIMEOUT_MS` (5 min) is marked as `timeout` status and cleaned up.
+- **Max tool calls exceeded**: Worker is gracefully terminated with partial results if `MAX_WORKER_TOOL_CALLS` (1000) is reached.
+
+## Constants & Configuration
+
+### Worker Agent Tool Set
+
+```typescript
+// ASYNC_AGENT_ALLOWED_TOOLS - Worker 允许使用的工具集
+const ASYNC_AGENT_ALLOWED_TOOLS = [
+  'FileRead',      // 文件读取
+  'WebSearch',     // 网页搜索
+  'TodoWrite',     // 任务管理
+  'Grep',          // 内容搜索
+  'WebFetch',      // 网页抓取
+  'Glob',          // 文件匹配
+  'Shell',         // Bash/PowerShell
+  'FileEdit',      // 文件编辑
+  'FileWrite',     // 文件写入
+  'NotebookEdit',  // Jupyter笔记本编辑
+  'Skill',         // 技能调用
+  'SyntheticOutput', // 合成输出
+  'ToolSearch',    // 工具搜索
+  'EnterWorktree', // 进入worktree
+  'ExitWorktree',  // 退出worktree
+] as const;
+
+// INTERNAL_WORKER_TOOLS - 仅协调者可用的内部编排工具
+const INTERNAL_WORKER_TOOLS = [
+  'TeamCreate',    // 创建Agent团队
+  'TeamDelete',    // 删除Agent团队
+  'SendMessage',   // 发送消息（协调者专用）
+] as const;
+```
+
+### Resource Limits
+
+```typescript
+// 最大并发 Worker 数量
+const MAX_CONCURRENT_WORKERS = 4;
+
+// 最大子Agent层级深度
+const MAX_SUBAGENT_DEPTH = 3;
+
+// Worker 超时时间（毫秒）
+const WORKER_TIMEOUT_MS = 300000; // 5 minutes
+
+// 单个Worker最大工具调用次数
+const MAX_WORKER_TOOL_CALLS = 1000;
+```
+
+### Agent-to-Agent Communication Protocol
+
+Workers communicate with Coordinator via structured message passing:
+
+```typescript
+// Worker → Coordinator 消息格式
+interface WorkerMessage {
+  type: 'task-update' | 'task-notification' | 'error-report';
+  task-id: string;
+  timestamp: string;
+  payload: WorkerUpdate | TaskNotification | ErrorReport;
+}
+
+// Coordinator → Worker 消息格式
+interface CoordinatorMessage {
+  type: 'task-assign' | 'task-cancel' | 'retry-instruction';
+  task-id: string;
+  timestamp: string;
+  payload: TaskAssignment | TaskCancel | RetryInstruction;
+}
+```
+
+### Result Aggregation Format
+
+```xml
+<!-- <task-notification> XML 格式定义 -->
+<task-notification>
+  <task-id>string</task-id>
+  <status>completed|failed|killed|timeout</status>
+  <summary>string</summary>
+  <result>
+    <!-- 任务实际输出内容，可包含多行 -->
+    <content type="text|json|xml"/>
+    <files>
+      <file path="..." modified="true|false"/>
+    </files>
+  </result>
+  <usage>
+    <tools-invoked count="N">
+      <tool name="..." calls="N" duration-ms="N"/>
+    </tools-invoked>
+    <tokens prompt="N" completion="N"/>
+    <duration-ms>N</duration-ms>
+  </usage>
+  <parent-task-id>string</parent-task-id>
+  <created-at>ISO8601 timestamp</created-at>
+  <completed-at>ISO8601 timestamp</completed-at>
+</task-notification>
+```
 
 ## Requirements *(mandatory)*
 
@@ -92,14 +192,25 @@ The coordinator distributes tasks to workers and aggregates their results into c
 
 - **FR-001**: System MUST provide a mechanism to activate coordinator mode in which the main agent can spawn worker agents.
 - **FR-002**: System MUST allow coordinator to spawn worker agents with explicitly restricted tool sets.
-- **FR-003**: Worker agents MUST only have access to permitted tools (FileRead, WebSearch, TodoWrite, Grep, WebFetch, Glob, Shell, FileEdit, FileWrite, NotebookEdit, Skill, SyntheticOutput, ToolSearch, EnterWorktree, ExitWorktree). Internal orchestration tools (TeamCreate, TeamDelete, SendMessage) are blocked for workers.
+- **FR-003**: Worker agents MUST only have access to permitted tools defined in `ASYNC_AGENT_ALLOWED_TOOLS`. Internal orchestration tools (`TeamCreate`, `TeamDelete`, `SendMessage`) are blocked for workers.
 - **FR-004**: Worker agents MUST be able to spawn sub-agents with their own tool restrictions.
-- **FR-005**: Coordinator MUST receive structured results from worker agents upon task completion in `<task-notification>` XML format: `<task-id>`, `<status>`, `<summary>`, `<result>`, `<usage>` elements.
+- **FR-005**: Coordinator MUST receive structured results from worker agents upon task completion in `<task-notification>` XML format as defined in Result Aggregation Format section.
 - **FR-006**: System MUST provide a way to track active workers and their assigned tasks.
 - **FR-007**: Coordinator MUST aggregate results from multiple workers into coherent output.
 - **FR-008**: System MUST handle worker failures with: (1) First retry via SendMessage to same worker with corrected instructions (worker has error context), (2) If retry fails, try different approach or report failure to user.
 - **FR-009**: Tool restrictions MUST be enforced at runtime - workers MUST NOT bypass restrictions.
-- **FR-010**: System SHOULD limit maximum nesting depth for hierarchical agent spawning.
+- **FR-010**: System MUST limit maximum concurrent workers to `MAX_CONCURRENT_WORKERS` (4).
+- **FR-011**: System MUST limit maximum sub-agent hierarchy depth to `MAX_SUBAGENT_DEPTH` (3).
+- **FR-012**: System MUST enforce resource limits including worker timeout (`WORKER_TIMEOUT_MS`) and max tool calls (`MAX_WORKER_TOOL_CALLS`).
+- **FR-013**: Workers and Coordinator MUST communicate via the defined message protocol (WorkerMessage/CoordinatorMessage formats).
+
+### Resource Constraints
+
+- **RC-001**: Maximum concurrent worker agents MUST NOT exceed `MAX_CONCURRENT_WORKERS` (4).
+- **RC-002**: Maximum sub-agent hierarchy depth MUST NOT exceed `MAX_SUBAGENT_DEPTH` (3).
+- **RC-003**: Each worker MUST have a timeout of `WORKER_TIMEOUT_MS` (300000ms / 5 minutes).
+- **RC-004**: Each worker MUST be limited to `MAX_WORKER_TOOL_CALLS` (1000) tool invocations per session.
+- **RC-005**: When resource limits are reached, system MUST return `ResourceExhausted` error (E3003) per SPEC_DEPENDENCIES.md.
 
 ### Key Entities
 
@@ -108,24 +219,29 @@ The coordinator distributes tasks to workers and aggregates their results into c
 - **SubAgent**: An agent spawned by a worker, inheriting restrictions but potentially with narrower scope.
 - **ToolSet**: A collection of permitted tools that defines what actions an agent can perform.
 - **Task**: A unit of work assigned to a worker, containing description, expected output format, and deadline if applicable.
-- **Result**: Structured output in `<task-notification>` XML format containing task-id, status (completed|failed|killed), summary, result text, and usage statistics.
+- **Result**: Structured output in `<task-notification>` XML format containing task-id, status (completed|failed|killed|timeout), summary, result text, and usage statistics.
+- **WorkerMessage**: Structured message sent from Worker to Coordinator containing task updates, notifications, or error reports.
+- **CoordinatorMessage**: Structured message sent from Coordinator to Worker containing task assignments, cancellations, or retry instructions.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Coordinator can spawn at least 4 concurrent worker agents without degradation.
+- **SC-001**: Coordinator MUST NOT spawn more than `MAX_CONCURRENT_WORKERS` (4) concurrent workers - attempts beyond limit return `ResourceExhausted` error.
 - **SC-002**: Worker tool restrictions are 100% enforced - restricted tools return denial on every attempt.
 - **SC-003**: Results from all workers are aggregated within 5 seconds of the last worker completing.
-- **SC-004**: Sub-agent spawning chain supports at least 3 levels of depth.
+- **SC-004**: Sub-agent spawning chain MUST respect `MAX_SUBAGENT_DEPTH` (3) limit - attempts to spawn beyond limit are rejected.
 - **SC-005**: Worker failures are detected and reported to coordinator within 10 seconds.
 - **SC-006**: System handles worker crash/restart without coordinator losing overall state.
+- **SC-007**: Worker timeout is enforced at `WORKER_TIMEOUT_MS` (5 minutes) - timed-out workers are marked as `timeout` status.
+- **SC-008**: All Worker-to-Coordinator communication follows the defined message protocol.
 
 ## Assumptions
 
 - The existing agent framework already supports basic tool invocation and agent state management.
 - MCP tools are available and can be dynamically enabled/disabled for worker agents.
-- Workers communicate with coordinator via message passing with structured result formats.
-- Agent spawning is not infinitely recursive - the reference implementation does not enforce a maximum depth, but practical limits apply based on resource availability.
-- Resources (memory, CPU) are sufficient to support multiple concurrent agents.
+- Workers communicate with coordinator via message passing with structured result formats following the defined communication protocol.
+- Agent spawning is capped at `MAX_SUBAGENT_DEPTH` (3) levels to prevent infinite recursion.
+- Resources (memory, CPU) are sufficient to support multiple concurrent agents within `MAX_CONCURRENT_WORKERS` (4) limit.
 - The existing session management can track multiple active agents simultaneously.
+- Resource limits are enforced at the coordinator level before spawning new workers.
