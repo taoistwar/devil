@@ -1,12 +1,21 @@
 //! Providers crate - 提供外部服务提供者实现
-//! 
+//!
 //! 本 crate 负责实现各种外部服务的提供者（如 LLM、数据库、存储等）
+
+pub mod anthropic;
+pub mod openai;
+
+pub use anthropic::{
+    AnthropicClient, ChatMessage, ContentBlock, ContentBlockStart, ContentDelta, StreamEvent,
+    ToolDef, Usage,
+};
+pub use openai::OpenAIClient;
 
 use anyhow::Result;
 use async_trait::async_trait;
 use plugins::{Plugin, PluginContext, PluginMetadata, PluginResult};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 /// 提供者类型枚举
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -232,10 +241,11 @@ impl Plugin for Box<dyn Provider> {
             version: "0.1.0".to_string(),
             description: format!("Provider plugin for {:?}", provider_type),
             author: Some("Devil Team".to_string()),
+            permission_level: Default::default(),
         }
     }
 
-    async fn initialize(&mut self) -> Result<()> {
+    async fn initialize(&self) -> Result<()> {
         self.as_ref().initialize().await
     }
 
@@ -281,7 +291,7 @@ mod tests {
     #[tokio::test]
     async fn test_provider_registry() {
         let mut registry = ProviderRegistry::new();
-        
+
         let llm_config = LlmProviderConfig {
             name: "test-llm".to_string(),
             api_key: "test-key".to_string(),
@@ -289,7 +299,7 @@ mod tests {
             model: "gpt-4".to_string(),
         };
         let llm_provider = LlmProvider::new(llm_config).unwrap();
-        
+
         assert!(registry.register(Box::new(llm_provider)).is_ok());
         assert!(registry.get("test-llm").is_some());
     }

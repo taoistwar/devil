@@ -1,16 +1,16 @@
 //! 状态转换模块
-//! 
+//!
 //! 定义对话循环的核心状态机：
 //! - State: 可变循环状态
 //! - Continue: 继续循环的决策
 //! - Terminal: 终止信号
 
-use serde::{Deserialize, Serialize};
 use crate::message::Message;
 use crate::tools::ToolContext;
+use serde::{Deserialize, Serialize};
 
 /// 对话循环的完整可变状态
-/// 
+///
 /// 每次 continue 都创建新实例，确保状态不可变且转换可追踪
 #[derive(Debug, Clone)]
 pub struct State {
@@ -94,7 +94,7 @@ impl State {
 }
 
 /// 终止原因枚举
-/// 
+///
 /// 细粒度划分终止原因，便于调试和可观测性
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -126,7 +126,7 @@ pub enum TerminalReason {
 }
 
 /// 终止状态
-/// 
+///
 /// 标记对话的终结，携带终止原因和附加信息
 #[derive(Debug, Clone)]
 pub struct Terminal {
@@ -158,10 +158,7 @@ impl Terminal {
     }
 
     /// 带元数据的终止状态
-    pub fn with_metadata(
-        reason: TerminalReason,
-        metadata: serde_json::Value,
-    ) -> Self {
+    pub fn with_metadata(reason: TerminalReason, metadata: serde_json::Value) -> Self {
         Self {
             reason,
             message: None,
@@ -171,7 +168,7 @@ impl Terminal {
 }
 
 /// 继续原因枚举
-/// 
+///
 /// 每条 continue 路径都有明确的原因，用于状态转换追踪
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -197,7 +194,7 @@ pub enum ContinueReason {
 }
 
 /// 继续状态
-/// 
+///
 /// 标记继续循环的决策，携带原因和可选的附加信息
 #[derive(Debug, Clone)]
 pub struct Continue {
@@ -217,14 +214,8 @@ impl Continue {
     }
 
     /// 带元数据的继续状态
-    pub fn with_metadata(
-        reason: ContinueReason,
-        metadata: serde_json::Value,
-    ) -> Self {
-        Self {
-            reason,
-            metadata,
-        }
+    pub fn with_metadata(reason: ContinueReason, metadata: serde_json::Value) -> Self {
+        Self { reason, metadata }
     }
 }
 
@@ -252,10 +243,7 @@ impl StreamRequestStart {
 pub enum StreamEvent {
     /// 内容块增量
     #[serde(rename = "content_block_delta")]
-    ContentBlockDelta {
-        index: usize,
-        delta: ContentDelta,
-    },
+    ContentBlockDelta { index: usize, delta: ContentDelta },
     /// 内容块开始
     #[serde(rename = "content_block_start")]
     ContentBlockStart {
@@ -277,6 +265,9 @@ pub enum StreamEvent {
     /// 消息结束
     #[serde(rename = "message_stop")]
     MessageStop,
+    /// 进度消息
+    #[serde(rename = "progress")]
+    Progress { message: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -319,12 +310,9 @@ mod tests {
     fn test_state_transition() {
         let messages = vec![Message::User(UserMessage::text("Hello"))];
         let state = State::initial(messages.clone());
-        
-        let next_state = state.next(
-            ContinueReason::NextTurn,
-            messages.clone(),
-        );
-        
+
+        let next_state = state.next(ContinueReason::NextTurn, messages.clone());
+
         assert_eq!(next_state.turn_count, 1);
         assert!(matches!(
             next_state.transition.reason,
@@ -337,16 +325,13 @@ mod tests {
         let terminal = Terminal::new(TerminalReason::Completed);
         assert!(terminal.message.is_none());
 
-        let terminal = Terminal::with_message(
-            TerminalReason::ModelError,
-            "API call failed",
-        );
+        let terminal = Terminal::with_message(TerminalReason::ModelError, "API call failed");
         assert!(terminal.message.is_some());
     }
 
     #[test]
     fn test_continue_creation() {
         let continue_state = Continue::new(ContinueReason::NextTurn);
-        assert_eq!(continue_state.reason, ContinueReason::NextTurn);
+        assert!(matches!(continue_state.reason, ContinueReason::NextTurn));
     }
 }

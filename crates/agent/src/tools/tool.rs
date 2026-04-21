@@ -1,5 +1,5 @@
 //! 工具核心定义模块
-//! 
+//!
 //! 基于 Claude Code 架构定义 Tool 五要素协议：
 //! 1. 名称与别名 - 唯一标识符 + 可选别名
 //! 2. Schema - 运行时验证 + API 通信
@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 /// 工具执行上下文
-/// 
+///
 /// 包含工具执行所需的环境信息
 #[derive(Debug, Clone, Default)]
 pub struct ToolContext {
@@ -32,7 +32,7 @@ pub struct ToolContext {
 }
 
 /// 文件状态
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileState {
     /// 文件路径
     pub path: String,
@@ -58,21 +58,16 @@ pub struct ToolExecutionRecord {
 }
 
 /// 中断行为
-/// 
+///
 /// 定义用户提交新消息时工具的行为
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum InterruptBehavior {
     /// 停止工具并丢弃结果
     Cancel,
     /// 继续运行，新消息等待
+    #[default]
     Block,
-}
-
-impl Default for InterruptBehavior {
-    fn default() -> Self {
-        Self::Block
-    }
 }
 
 /// 权限行为
@@ -107,25 +102,33 @@ pub struct PermissionResult {
 impl PermissionResult {
     pub fn allow() -> Self {
         Self {
-            behavior: PermissionBehavior::Allow { updated_input: None },
+            behavior: PermissionBehavior::Allow {
+                updated_input: None,
+            },
         }
     }
 
     pub fn allow_with_input(updated_input: serde_json::Value) -> Self {
         Self {
-            behavior: PermissionBehavior::Allow { updated_input: Some(updated_input) },
+            behavior: PermissionBehavior::Allow {
+                updated_input: Some(updated_input),
+            },
         }
     }
 
     pub fn deny(reason: impl Into<String>) -> Self {
         Self {
-            behavior: PermissionBehavior::Deny { reason: reason.into() },
+            behavior: PermissionBehavior::Deny {
+                reason: reason.into(),
+            },
         }
     }
 
     pub fn ask(prompt: impl Into<String>) -> Self {
         Self {
-            behavior: PermissionBehavior::Ask { prompt: prompt.into() },
+            behavior: PermissionBehavior::Ask {
+                prompt: prompt.into(),
+            },
         }
     }
 }
@@ -175,7 +178,7 @@ pub struct ToolResult<O> {
     /// 是否执行成功
     pub is_success: bool,
     /// 输出数据
-    pub output: O,
+    pub output: Option<O>,
     /// 错误信息（如果有）
     pub error: Option<String>,
     /// 上下文修改器（可选）
@@ -190,7 +193,7 @@ impl<O> ToolResult<O> {
         Self {
             tool_use_id: tool_use_id.into(),
             is_success: true,
-            output,
+            output: Some(output),
             error: None,
             context_modifier: None,
             interrupted: false,
@@ -201,11 +204,11 @@ impl<O> ToolResult<O> {
     pub fn error(
         tool_use_id: impl Into<String>,
         error: impl Into<String>,
-    ) -> Self {
-        Self {
+    ) -> ToolResult<serde_json::Value> {
+        ToolResult {
             tool_use_id: tool_use_id.into(),
             is_success: false,
-            output: serde_json::Value::Null,
+            output: None,
             error: Some(error.into()),
             context_modifier: None,
             interrupted: false,
@@ -213,11 +216,11 @@ impl<O> ToolResult<O> {
     }
 
     /// 创建中断的结果
-    pub fn interrupted(tool_use_id: impl Into<String>) -> Self {
-        Self {
+    pub fn interrupted(tool_use_id: impl Into<String>) -> ToolResult<serde_json::Value> {
+        ToolResult {
             tool_use_id: tool_use_id.into(),
             is_success: false,
-            output: serde_json::Value::Null,
+            output: None,
             error: Some("Interrupted by user".to_string()),
             context_modifier: None,
             interrupted: true,
@@ -232,7 +235,7 @@ impl<O> ToolResult<O> {
 }
 
 /// 上下文修改器
-/// 
+///
 /// 允许工具在执行后修改上下文（如更新文件缓存）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextModifier {
@@ -260,6 +263,9 @@ impl Default for ContextModifier {
 /// 工具进度数据 Trait
 pub trait ToolProgressData: Clone + Send + Sync {}
 
+impl ToolProgressData for serde_json::Value {}
+impl ToolProgressData for String {}
+
 /// 工具进度事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolProgress<P: ToolProgressData> {
@@ -283,7 +289,7 @@ pub struct SearchOrReadResult {
 }
 
 /// Tool 五要素协议 Trait
-/// 
+///
 /// 每个工具必须实现的完整接口
 /// - Input: 使用 schema 定义的结构化输入
 /// - Output: 工具输出类型
@@ -303,7 +309,9 @@ pub trait Tool: Send + Sync {
     fn name(&self) -> &str;
 
     /// 获取工具描述
-    fn description(&self) -> &str;
+    fn description(&self) -> &str {
+        ""
+    }
 
     /// 获取工具别名（用于向后兼容）
     fn aliases(&self) -> &[&str] {
@@ -321,7 +329,7 @@ pub trait Tool: Send + Sync {
     fn input_schema(&self) -> serde_json::Value;
 
     /// 验证输入参数
-    fn validate_input(&self, input: &serde_json::Value) -> InputValidationResult {
+    fn validate_input(&self, _input: &serde_json::Value) -> InputValidationResult {
         // 默认实现：总是有效
         InputValidationResult::valid()
     }
@@ -332,7 +340,7 @@ pub trait Tool: Send + Sync {
     /// 在权限检查之前运行，用于拒绝无效输入
     fn validate_input_permissions(
         &self,
-        input: &Self::Input,
+        _input: &Self::Input,
         _context: &ToolContext,
     ) -> InputValidationResult {
         InputValidationResult::valid()
@@ -342,7 +350,7 @@ pub trait Tool: Send + Sync {
     /// 检查是否有权限使用此工具
     async fn check_permissions(
         &self,
-        input: &Self::Input,
+        _input: &Self::Input,
         _context: &ToolContext,
     ) -> PermissionResult {
         // 默认：允许执行
@@ -357,33 +365,33 @@ pub trait Tool: Send + Sync {
     // ===== 要素四：运行时属性 =====
 
     /// 工具是否启用
-    /// 
+    ///
     /// 用于功能开关控制，支持编译期死代码消除
     fn is_enabled(&self) -> bool {
         true
     }
 
     /// 判断工具是否为只读操作
-    fn is_read_only(&self, _input: &Self::Input) -> bool {
+    fn is_read_only(&self) -> bool {
         false
     }
 
     /// 判断工具是否支持并发执行
-    /// 
+    ///
     /// fail-closed 原则：默认为 false，工具必须显式声明自己安全
-    fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
+    fn is_concurrency_safe(&self) -> bool {
         false
     }
 
     /// 判断工具是否为破坏性操作
-    /// 
+    ///
     /// 仅当工具执行不可逆操作时返回 true（删除、覆盖、发送）
     fn is_destructive(&self, _input: &Self::Input) -> bool {
         false
     }
 
     /// 判断此工具是否为搜索或读取操作
-    /// 
+    ///
     /// 用于 UI 折叠展示
     fn is_search_or_read_command(&self, _input: &Self::Input) -> SearchOrReadResult {
         SearchOrReadResult::default()
@@ -395,7 +403,7 @@ pub trait Tool: Send + Sync {
     }
 
     /// 获取最大结果大小（字符数）
-    /// 
+    ///
     /// 超过此值时结果将被持久化到文件
     fn max_result_size_chars(&self) -> usize {
         100_000 // 默认 100KB
@@ -412,14 +420,14 @@ pub trait Tool: Send + Sync {
     }
 
     /// 中断行为
-    /// 
+    ///
     /// 定义用户提交新消息时工具的行为
     fn interrupt_behavior(&self) -> InterruptBehavior {
         InterruptBehavior::Block
     }
 
     /// 是否为透明包装器
-    /// 
+    ///
     /// 透明包装器（如 REPL）将所有渲染委托给进度处理器
     fn is_transparent_wrapper(&self) -> bool {
         false
@@ -438,7 +446,7 @@ pub trait Tool: Send + Sync {
     // ===== 要素五：执行逻辑 =====
 
     /// 核心执行方法
-    /// 
+    ///
     /// 接收解析后的输入参数、工具执行上下文、进度回调
     /// 返回结果携带输出数据和可选的上下文修改器
     async fn execute(
@@ -446,7 +454,6 @@ pub trait Tool: Send + Sync {
         input: Self::Input,
         ctx: &ToolContext,
         progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
-        cancel_signal: Option<tokio::sync::watch::Receiver<bool>>,
     ) -> Result<ToolResult<Self::Output>>;
 
     // ===== 要素六：UI 渲染 =====
@@ -457,7 +464,7 @@ pub trait Tool: Send + Sync {
     }
 
     /// 获取活动描述（用于 spinner 显示）
-    /// 
+    ///
     /// 示例："Reading src/foo.ts", "Running bun test"
     fn get_activity_description(&self, _input: &Self::Input) -> Option<String> {
         None
@@ -477,7 +484,10 @@ pub trait Tool: Send + Sync {
                 "Operation completed successfully".to_string()
             }
         } else {
-            format!("Operation failed: {}", result.error.as_deref().unwrap_or("unknown error"))
+            format!(
+                "Operation failed: {}",
+                result.error.as_deref().unwrap_or("unknown error")
+            )
         }
     }
 
@@ -506,12 +516,13 @@ pub trait Tool: Send + Sync {
 }
 
 /// 工具权限级别
-/// 
+///
 /// 分层权限检查的第二层
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolPermissionLevel {
     /// 只读操作，无需确认
+    #[default]
     ReadOnly,
     /// 可能产生副作用，需要确认
     RequiresConfirmation,
@@ -519,6 +530,20 @@ pub enum ToolPermissionLevel {
     Destructive,
     /// 全局拒绝（任何情况下都不允许）
     BlanketDenied,
+}
+
+/// 工具元数据
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolMetadata {
+    pub name: String,
+    pub description: String,
+    pub input_schema: serde_json::Value,
+    pub permission_level: ToolPermissionLevel,
+    pub concurrency_safe: bool,
+    pub read_only: bool,
+    pub timeout_secs: Option<u64>,
+    pub always_load: bool,
+    pub aliases: Vec<String>,
 }
 
 /// 工具调用块
@@ -533,11 +558,7 @@ pub struct ToolUseBlock {
 }
 
 impl ToolUseBlock {
-    pub fn new(
-        id: impl Into<String>,
-        name: impl Into<String>,
-        input: serde_json::Value,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, name: impl Into<String>, input: serde_json::Value) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -556,7 +577,7 @@ pub struct ToolUseBlockWithProgress {
 }
 
 /// 延迟 Schema 评估器
-/// 
+///
 /// 用于延迟评估工具 schema，避免不必要的计算
 pub struct LazySchema<T> {
     schema_fn: Arc<dyn Fn() -> T + Send + Sync>,
@@ -639,11 +660,11 @@ mod tests {
             })
         }
 
-        fn is_concurrency_safe(&self, _input: &Self::Input) -> bool {
+        fn is_concurrency_safe(&self) -> bool {
             true
         }
 
-        fn is_read_only(&self, _input: &Self::Input) -> bool {
+        fn is_read_only(&self) -> bool {
             true
         }
 
@@ -656,7 +677,6 @@ mod tests {
             input: Self::Input,
             _ctx: &ToolContext,
             _progress_callback: Option<impl Fn(ToolProgress<Self::Progress>) + Send + Sync>,
-            _cancel_signal: Option<tokio::sync::watch::Receiver<bool>>,
         ) -> Result<ToolResult<Self::Output>> {
             Ok(ToolResult::success("test-1", input))
         }
@@ -666,8 +686,8 @@ mod tests {
     fn test_tool_metadata() {
         let tool = TestTool;
         assert_eq!(tool.name(), "test");
-        assert!(tool.is_concurrency_safe(&serde_json::Value::Null));
-        assert!(tool.is_read_only(&serde_json::Value::Null));
+        assert!(tool.is_concurrency_safe());
+        assert!(tool.is_read_only());
         assert_eq!(tool.interrupt_behavior(), InterruptBehavior::Cancel);
     }
 
@@ -677,7 +697,9 @@ mod tests {
         let ctx = ToolContext::default();
         let input = serde_json::json!({ "message": "Hello" });
 
-        let result = tool.execute(input, &ctx, None::<fn(ToolProgress<String>)>, None).await;
+        let result = tool
+            .execute(input, &ctx, None::<fn(ToolProgress<String>)>)
+            .await;
         assert!(result.is_ok());
         let result = result.unwrap();
         assert!(result.is_success);

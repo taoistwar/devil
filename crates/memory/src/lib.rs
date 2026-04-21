@@ -1,5 +1,5 @@
 //! Memory crate - 提供数据存储和记忆功能
-//! 
+//!
 //! 本 crate 负责管理 Agent 的短期和长期记忆存储
 
 use anyhow::Result;
@@ -39,7 +39,7 @@ impl ShortTermMemory {
     /// 添加记忆条目
     pub async fn add(&self, entry: MemoryEntry) -> Result<()> {
         let mut entries = self.entries.write().await;
-        
+
         // 如果超出容量，移除最旧的条目
         if entries.len() >= self.max_capacity {
             if let Some(oldest_key) = entries
@@ -51,9 +51,10 @@ impl ShortTermMemory {
                 debug!("Removed oldest memory entry: {}", oldest_key);
             }
         }
-        
-        entries.insert(entry.id.clone(), entry);
-        info!("Added short-term memory: {}", entry.id);
+
+        let id = entry.id.clone();
+        entries.insert(id.clone(), entry);
+        info!("Added short-term memory: {}", id);
         Ok(())
     }
 
@@ -107,8 +108,9 @@ impl LongTermMemory {
     /// 存储记忆
     pub async fn store(&self, entry: MemoryEntry) -> Result<()> {
         let mut entries = self.entries.write().await;
-        entries.insert(entry.id.clone(), entry);
-        info!("Stored long-term memory: {}", entry.id);
+        let id = entry.id.clone();
+        entries.insert(id.clone(), entry);
+        info!("Stored long-term memory: {}", id);
         Ok(())
     }
 
@@ -123,9 +125,7 @@ impl LongTermMemory {
         let entries = self.entries.read().await;
         entries
             .values()
-            .filter(|entry| {
-                entry.tags.iter().any(|tag| tags.contains(tag))
-            })
+            .filter(|entry| entry.tags.iter().any(|tag| tags.contains(tag)))
             .cloned()
             .collect()
     }
@@ -182,7 +182,7 @@ mod tests {
             timestamp: 1234567890,
             tags: vec!["test".to_string()],
         };
-        
+
         assert!(memory.add(entry).await.is_ok());
         let retrieved = memory.get("test1").await;
         assert!(retrieved.is_some());
@@ -197,7 +197,7 @@ mod tests {
             timestamp: 1234567890,
             tags: vec!["important".to_string()],
         };
-        
+
         assert!(memory.store(entry).await.is_ok());
         let retrieved = memory.retrieve("test2").await;
         assert!(retrieved.is_some());

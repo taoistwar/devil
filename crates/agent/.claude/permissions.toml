@@ -1,0 +1,8 @@
+deny = []
+ask = []
+mode = "default"
+
+[[allow]]
+source = "userSettings"
+action = "allow"
+target = "Read"

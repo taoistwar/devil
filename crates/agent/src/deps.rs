@@ -1,17 +1,16 @@
 //! 依赖注入模块
-//! 
+//!
 //! 定义 QueryDeps 接口，实现依赖注入模式：
 //! - 模型调用函数
 //! - 轻量压缩函数 (MicroCompact)
 //! - 自动压缩函数 (AutoCompact)
 //! - UUID 生成器
-//! 
+//!
 //! 依赖注入使得测试可以注入 fake 实现，避免模块级别的 mock 样板代码
 
+use crate::message::{AssistantMessage, Message};
 use anyhow::Result;
 use async_trait::async_trait;
-use crate::message::{Message, AssistantMessage};
-use crate::state::{Continue, Terminal};
 
 /// 模型调用结果
 #[derive(Debug, Clone)]
@@ -67,7 +66,7 @@ impl UuidGenerator for ProductionUuidGenerator {
 }
 
 /// 依赖注入接口
-/// 
+///
 /// 包含对话循环所需的四个核心依赖：
 /// 1. 模型调用函数
 /// 2. MicroCompact 压缩函数
@@ -76,19 +75,16 @@ impl UuidGenerator for ProductionUuidGenerator {
 #[async_trait]
 pub trait QueryDeps: Send + Sync {
     /// 调用模型 API
-    async fn call_model(
-        &self,
-        params: ModelCallParams,
-    ) -> Result<ModelCallResult>;
+    async fn call_model(&self, params: ModelCallParams) -> Result<ModelCallResult>;
 
     /// 执行 MicroCompact（轻量级压缩）
-    /// 
+    ///
     /// MicroCompact 利用缓存编辑技术减少 token 消耗
     /// 尽量复用 API 侧已缓存的 token，避免缓存全面失效
     async fn micro_compact(&self, messages: Vec<Message>) -> Result<CompactResult>;
 
     /// 执行 AutoCompact（全量压缩）
-    /// 
+    ///
     /// 当上下文超过阈值时，将历史对话摘要为压缩后的消息
     async fn auto_compact(&self, messages: Vec<Message>) -> Result<CompactResult>;
 
@@ -106,7 +102,7 @@ impl ProductionDeps {
     /// 创建生产环境依赖
     pub fn new() -> Self {
         Self {
-            uuid_generator: Box::new(ProductionUuidGenerator::default()),
+            uuid_generator: Box::new(ProductionUuidGenerator),
         }
     }
 }
@@ -119,19 +115,42 @@ impl Default for ProductionDeps {
 
 #[async_trait]
 impl QueryDeps for ProductionDeps {
-    async fn call_model(
-        &self,
-        _params: ModelCallParams,
-    ) -> Result<ModelCallResult> {
+    async fn call_model(&self, params: ModelCallParams) -> Result<ModelCallResult> {
+        // 检查是否启用 mock 模式（用于测试）
+        if std::env::var("DEVIL_MOCK_MODEL").is_ok() {
+            // Mock 模式：简单回显用户消息
+            let user_text = params
+                .messages
+                .iter()
+                .filter_map(|msg| {
+                    if let Message::User(ref u) = msg {
+                        Some(u.text_content())
+                    } else {
+                        None
+                    }
+                })
+                .next_back()
+                .unwrap_or_default();
+
+            let echo_response = format!(
+                "I received your message: '{}'. How can I help you with your task?",
+                user_text
+            );
+
+            return Ok(ModelCallResult {
+                assistant_message: AssistantMessage::text(echo_response),
+                input_tokens: 10,
+                output_tokens: 20,
+                stop_reason: Some("stop_sequence".to_string()),
+            });
+        }
+
         // TODO: 实现真实的 API 调用
         // 这里应该调用 Anthropic API
-        anyhow::bail!("Model call not implemented")
+        anyhow::bail!("Model call not implemented - set DEVIL_MOCK_MODEL=1 for testing")
     }
 
-    async fn micro_compact(
-        &self,
-        messages: Vec<Message>,
-    ) -> Result<CompactResult> {
+    async fn micro_compact(&self, messages: Vec<Message>) -> Result<CompactResult> {
         // TODO: 实现 MicroCompact 压缩逻辑
         Ok(CompactResult {
             messages,
@@ -140,10 +159,7 @@ impl QueryDeps for ProductionDeps {
         })
     }
 
-    async fn auto_compact(
-        &self,
-        messages: Vec<Message>,
-    ) -> Result<CompactResult> {
+    async fn auto_compact(&self, messages: Vec<Message>) -> Result<CompactResult> {
         // TODO: 实现 AutoCompact 压缩逻辑
         Ok(CompactResult {
             messages,
@@ -158,21 +174,15 @@ impl QueryDeps for ProductionDeps {
 }
 
 /// 测试用的依赖实现
-/// 
+///
 /// 允许测试代码注入自定义行为，无需 mock 模块级别的函数
 pub struct TestDeps {
     /// 模型调用函数
-    pub call_model_fn: Box<
-        dyn Fn(ModelCallParams) -> Result<ModelCallResult> + Send + Sync,
-    >,
+    pub call_model_fn: Box<dyn Fn(ModelCallParams) -> Result<ModelCallResult> + Send + Sync>,
     /// MicroCompact 函数
-    pub micro_compact_fn: Box<
-        dyn Fn(Vec<Message>) -> Result<CompactResult> + Send + Sync,
-    >,
+    pub micro_compact_fn: Box<dyn Fn(Vec<Message>) -> Result<CompactResult> + Send + Sync>,
     /// AutoCompact 函数
-    pub auto_compact_fn: Box<
-        dyn Fn(Vec<Message>) -> Result<CompactResult> + Send + Sync,
-    >,
+    pub auto_compact_fn: Box<dyn Fn(Vec<Message>) -> Result<CompactResult> + Send + Sync>,
     /// UUID 生成函数
     pub generate_uuid_fn: Box<dyn Fn() -> String + Send + Sync>,
 }
@@ -180,18 +190,9 @@ pub struct TestDeps {
 impl TestDeps {
     /// 创建测试依赖
     pub fn new(
-        call_model_fn: impl Fn(ModelCallParams) -> Result<ModelCallResult>
-            + Send
-            + Sync
-            + 'static,
-        micro_compact_fn: impl Fn(Vec<Message>) -> Result<CompactResult>
-            + Send
-            + Sync
-            + 'static,
-        auto_compact_fn: impl Fn(Vec<Message>) -> Result<CompactResult>
-            + Send
-            + Sync
-            + 'static,
+        call_model_fn: impl Fn(ModelCallParams) -> Result<ModelCallResult> + Send + Sync + 'static,
+        micro_compact_fn: impl Fn(Vec<Message>) -> Result<CompactResult> + Send + Sync + 'static,
+        auto_compact_fn: impl Fn(Vec<Message>) -> Result<CompactResult> + Send + Sync + 'static,
         generate_uuid_fn: impl Fn() -> String + Send + Sync + 'static,
     ) -> Self {
         Self {
@@ -205,22 +206,28 @@ impl TestDeps {
     /// 创建只返回空实现的测试依赖
     pub fn empty() -> Self {
         Self::new(
-            |_| Ok(ModelCallResult {
-                assistant_message: AssistantMessage::text(""),
-                input_tokens: 0,
-                output_tokens: 0,
-                stop_reason: Some("stop_sequence".to_string()),
-            }),
-            |msgs| Ok(CompactResult {
-                messages: msgs,
-                success: false,
-                token_reduction: None,
-            }),
-            |msgs| Ok(CompactResult {
-                messages: msgs,
-                success: false,
-                token_reduction: None,
-            }),
+            |_| {
+                Ok(ModelCallResult {
+                    assistant_message: AssistantMessage::text(""),
+                    input_tokens: 0,
+                    output_tokens: 0,
+                    stop_reason: Some("stop_sequence".to_string()),
+                })
+            },
+            |msgs| {
+                Ok(CompactResult {
+                    messages: msgs,
+                    success: false,
+                    token_reduction: None,
+                })
+            },
+            |msgs| {
+                Ok(CompactResult {
+                    messages: msgs,
+                    success: false,
+                    token_reduction: None,
+                })
+            },
             || "test-uuid".to_string(),
         )
     }
@@ -279,11 +286,13 @@ mod tests {
                     token_reduction: Some(1000),
                 })
             },
-            |msgs| Ok(CompactResult {
-                messages: msgs,
-                success: false,
-                token_reduction: None,
-            }),
+            |msgs| {
+                Ok(CompactResult {
+                    messages: msgs,
+                    success: false,
+                    token_reduction: None,
+                })
+            },
             || "fixed-uuid".to_string(),
         );
 
@@ -298,7 +307,34 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.assistant_message.text_content().contains("Called with"));
+        assert!(result
+            .assistant_message
+            .text_content()
+            .contains("Called with"));
         assert_eq!(result.input_tokens, 100);
+    }
+
+    #[tokio::test]
+    async fn test_mock_mode_echo() {
+        // 测试 mock 模式下的简单回显
+        std::env::set_var("DEVIL_MOCK_MODEL", "1");
+        let deps = ProductionDeps::new();
+
+        let messages = vec![Message::User(UserMessage::text("hello"))];
+        let result = deps
+            .call_model(ModelCallParams {
+                system_prompt: "You are a helpful assistant.".to_string(),
+                messages,
+                max_tokens: 1000,
+                model: "test-model".to_string(),
+            })
+            .await
+            .unwrap();
+
+        assert!(result.assistant_message.text_content().contains("hello"));
+        assert_eq!(result.input_tokens, 10);
+        assert_eq!(result.output_tokens, 20);
+
+        std::env::remove_var("DEVIL_MOCK_MODEL");
     }
 }

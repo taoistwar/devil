@@ -1,5 +1,5 @@
 //! 消息类型模块
-//! 
+//!
 //! 定义 Agent 对话中使用的消息类型，包括：
 //! - UserMessage: 用户输入和工具执行结果
 //! - AssistantMessage: 助手回复，可包含工具调用
@@ -15,7 +15,7 @@ pub enum ContentBlock {
     /// 文本内容
     #[serde(rename = "text")]
     Text { text: String },
-    
+
     /// 工具调用块
     #[serde(rename = "tool_use")]
     ToolUse {
@@ -23,7 +23,7 @@ pub enum ContentBlock {
         name: String,
         input: serde_json::Value,
     },
-    
+
     /// 工具执行结果
     #[serde(rename = "tool_result")]
     ToolResult {
@@ -31,17 +31,28 @@ pub enum ContentBlock {
         content: String,
         is_error: bool,
     },
-    
+
     /// Thinking 块（模型的思考过程）
     #[serde(rename = "thinking")]
     Thinking { text: String },
+}
+
+impl ContentBlock {
+    pub fn text_len(&self) -> usize {
+        match self {
+            ContentBlock::Text { text } => text.len(),
+            ContentBlock::ToolUse { input, .. } => input.to_string().len(),
+            ContentBlock::ToolResult { content, .. } => content.len(),
+            ContentBlock::Thinking { text } => text.len(),
+        }
+    }
 }
 
 /// 基础消息 Trait
 pub trait BaseMessage {
     /// 获取消息角色
     fn role(&self) -> MessageRole;
-    
+
     /// 获取消息内容
     fn content(&self) -> &[ContentBlock];
 }
@@ -68,6 +79,18 @@ impl UserMessage {
         Self {
             content: vec![ContentBlock::Text { text: text.into() }],
         }
+    }
+
+    /// 获取纯文本内容（不包括工具调用）
+    pub fn text_content(&self) -> String {
+        self.content
+            .iter()
+            .filter_map(|c| match c {
+                ContentBlock::Text { text } => Some(text.clone()),
+                _ => None,
+            })
+            .collect::<Vec<_>>()
+            .join("")
     }
 
     /// 添加工具执行结果

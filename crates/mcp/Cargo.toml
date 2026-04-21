@@ -1,0 +1,23 @@
+[package]
+name = "devil-mcp"
+version = "0.1.0"
+edition = "2021"
+description = "MCP (Model Context Protocol) integration for Devil Agent"
+
+[dependencies]
+agent = { path = "../agent" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { workspace = true }
+uuid = { workspace = true }
+futures = "0.3"
+futures-util = "0.3"
+tokio-tungstenite = "0.20"
+tokio-util = "0.7"
+regex = "1"
+nix = { version = "0.27", features = ["signal"] }

@@ -1,5 +1,5 @@
 //! Agent 配置模块
-//! 
+//!
 //! 定义 Agent 的配置参数，包括：
 //! - 模型设置
 //! - Token 预算
@@ -136,7 +136,9 @@ impl AgentConfigBuilder {
     pub fn build(self) -> AgentConfig {
         AgentConfig {
             name: self.name.unwrap_or_else(|| "agent".to_string()),
-            model: self.model.unwrap_or_else(|| "claude-sonnet-4-20250514".to_string()),
+            model: self
+                .model
+                .unwrap_or_else(|| "claude-sonnet-4-20250514".to_string()),
             system_prompt: self.system_prompt.unwrap_or_default(),
             max_turns: self.max_turns.unwrap_or(50),
             max_context_tokens: self.max_context_tokens.unwrap_or(200000),

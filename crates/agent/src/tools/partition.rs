@@ -1,5 +1,5 @@
 //! 并发分区模块
-//! 
+//!
 //! 实现工具调度的并发分区策略：
 //! - 将工具调用按顺序划分为批次
 //! - 并发安全批次并行执行
@@ -26,7 +26,7 @@ impl ToolCallBatch {
 }
 
 /// 并发分区器
-/// 
+///
 /// 负责将工具调用序列划分为并发安全的批次
 pub struct ConcurrentPartitioner {
     /// 最大并发度
@@ -46,13 +46,13 @@ impl ConcurrentPartitioner {
     }
 
     /// 执行并发分区
-    /// 
+    ///
     /// 分区算法：
     /// 1. 遍历所有工具调用
     /// 2. 检查每个工具的并发安全属性
     /// 3. 如果当前工具安全且前一个批次也安全，则合并到同一批次
     /// 4. 否则开启新批次
-    /// 
+    ///
     /// 这个算法确保：
     /// - 连续的并发安全工具会被分到同一批次并行执行
     /// - 非安全工具总是独占一个批次串行执行
@@ -82,12 +82,9 @@ impl ConcurrentPartitioner {
             if need_new_batch {
                 // 提交当前批次
                 if !current_batch_calls.is_empty() {
-                    batches.push(ToolCallBatch::new(
-                        current_batch_calls,
-                        current_batch_safe,
-                    ));
+                    batches.push(ToolCallBatch::new(current_batch_calls, current_batch_safe));
                 }
-                
+
                 // 开始新批次
                 current_batch_calls = Vec::new();
                 current_batch_safe = is_safe;
@@ -95,7 +92,7 @@ impl ConcurrentPartitioner {
 
             // 添加到当前批次
             current_batch_calls.push(call.block);
-            
+
             // 如果当前工具不安全，批次整体标记为不安全
             if !is_safe {
                 current_batch_safe = false;
@@ -104,10 +101,7 @@ impl ConcurrentPartitioner {
 
         // 提交最后一个批次
         if !current_batch_calls.is_empty() {
-            batches.push(ToolCallBatch::new(
-                current_batch_calls,
-                current_batch_safe,
-            ));
+            batches.push(ToolCallBatch::new(current_batch_calls, current_batch_safe));
         }
 
         batches
@@ -168,16 +162,16 @@ pub struct ToolCallResult {
 }
 
 /// 分区策略说明
-/// 
+///
 /// ```text
 /// 示例：
 /// 输入序列：[Read(a), Read(b), Bash(ls), Read(c)]
-/// 
+///
 /// 分区结果：
 /// Batch 1 (并发安全): [Read(a), Read(b)]   -- 并行执行
 /// Batch 2 (非安全):   [Bash(ls)]            -- 串行执行  
 /// Batch 3 (并发安全): [Read(c)]             -- 可并行（但只有一个工具）
-/// 
+///
 /// 为什么 Read(c) 不能和 Bash(ls) 放在同一个批次？
 /// 因为 Bash 命令可能有副作用——它可能创建新文件、修改文件内容或改变目录结构。
 /// 如果在 Bash 执行的同时读取文件，Read 可能读到执行前的旧数据或执行后的新数据，
@@ -197,7 +191,7 @@ mod tests {
     #[test]
     fn test_partition_all_safe() {
         let partitioner = ConcurrentPartitioner::with_defaults();
-        
+
         let calls = vec![
             ToolUseCallInfo::new(
                 ToolUseBlock::new("1", "read", serde_json::json!({"path": "a.ts"})),
@@ -222,7 +216,7 @@ mod tests {
     #[test]
     fn test_partition_all_unsafe() {
         let partitioner = ConcurrentPartitioner::with_defaults();
-        
+
         let calls = vec![
             ToolUseCallInfo::new(
                 ToolUseBlock::new("1", "bash", serde_json::json!({"command": "ls"})),
@@ -249,7 +243,7 @@ mod tests {
     #[test]
     fn test_partition_mixed() {
         let partitioner = ConcurrentPartitioner::with_defaults();
-        
+
         // 模拟示例：[Read(a), Read(b), Bash(ls), Read(c)]
         let calls = vec![
             ToolUseCallInfo::new(
@@ -271,22 +265,22 @@ mod tests {
         ];
 
         let batches = partitioner.partition(calls);
-        
+
         // 期望结果：
         // Batch 1: [Read(a), Read(b)] - 并发安全
         // Batch 2: [Bash(ls)] - 非安全
         // Batch 3: [Read(c)] - 并发安全
         assert_eq!(batches.len(), 3);
-        
+
         assert!(batches[0].is_concurrency_safe);
         assert_eq!(batches[0].calls.len(), 2);
         assert_eq!(batches[0].calls[0].name, "read");
         assert_eq!(batches[0].calls[1].name, "read");
-        
+
         assert!(!batches[1].is_concurrency_safe);
         assert_eq!(batches[1].calls.len(), 1);
         assert_eq!(batches[1].calls[0].name, "bash");
-        
+
         assert!(batches[2].is_concurrency_safe);
         assert_eq!(batches[2].calls.len(), 1);
         assert_eq!(batches[2].calls[0].name, "read");
@@ -295,7 +289,7 @@ mod tests {
     #[test]
     fn test_partition_complex_sequence() {
         let partitioner = ConcurrentPartitioner::with_defaults();
-        
+
         // 复杂序列：[Glob(*.ts), Grep(pattern), Bash(npm test), Read(a.ts), Edit(a.ts), Glob(*.json)]
         let calls = vec![
             ToolUseCallInfo::new(
@@ -325,7 +319,7 @@ mod tests {
         ];
 
         let batches = partitioner.partition(calls);
-        
+
         // 期望结果：
         // Batch 1: [Glob, Grep] - 并发安全
         // Batch 2: [Bash] - 非安全
@@ -333,19 +327,19 @@ mod tests {
         // Batch 4: [Edit] - 非安全
         // Batch 5: [Glob] - 并发安全
         assert_eq!(batches.len(), 5);
-        
+
         assert!(batches[0].is_concurrency_safe);
         assert_eq!(batches[0].calls.len(), 2);
-        
+
         assert!(!batches[1].is_concurrency_safe);
         assert_eq!(batches[1].calls.len(), 1);
-        
+
         assert!(batches[2].is_concurrency_safe);
         assert_eq!(batches[2].calls.len(), 1);
-        
+
         assert!(!batches[3].is_concurrency_safe);
         assert_eq!(batches[3].calls.len(), 1);
-        
+
         assert!(batches[4].is_concurrency_safe);
         assert_eq!(batches[4].calls.len(), 1);
     }
